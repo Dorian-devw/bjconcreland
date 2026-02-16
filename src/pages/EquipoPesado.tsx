@@ -1,20 +1,6 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-
 const HERO_IMAGE = 'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&q=80&w=2070';
 
 export function EquipoPesado() {
-  const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    setSubmitted(true);
-    setEmail('');
-  };
-
   return (
     <main
       className="flex-1 flex items-center justify-center pt-[8.75rem] pb-12 px-4 relative min-h-screen z-0"

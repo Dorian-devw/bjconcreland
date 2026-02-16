@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import type { Order } from '@/types';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { generateReceipt } from '../lib/generateReceipt';
 
 const stripePromise = loadStripe('pk_test_51T0bG9B7JC0XRRBAnsPhW00XkgbpMyTzAUrAgClrrM0MPZFL3bz6AbLfSQy0ka9AYT0SUcuhArw4Yb80RzsfzKUT00tkCxWbK9');
 
@@ -193,9 +194,12 @@ export function Checkout() {
     }
   }, [items, isFormValid, formData.fullName, formData.email]);
 
+  // Add state for storing the last successful order
+  const [lastOrder, setLastOrder] = useState<Order | null>(null);
+
   const handleSuccess = (orderId: string) => {
     // Add simplified order to store state for UI feedback if needed
-    addOrder({
+    const newOrder: Order = {
       id: orderId,
       customer: { name: formData.fullName, phone: formData.phone, address: formData.address },
       items: [...items],
@@ -203,7 +207,13 @@ export function Checkout() {
       paymentMethod: 'card',
       status: 'pending', // or 'paid' if card
       createdAt: new Date(),
-    } as Order);
+    };
+    addOrder(newOrder);
+    setLastOrder(newOrder); // Store order for display
+
+    // Generate and download receipt
+    generateReceipt(newOrder);
+
     clearCart();
     setShowSuccess(true);
   };
@@ -213,23 +223,111 @@ export function Checkout() {
     return null;
   }
 
-  if (showSuccess) {
+  if (showSuccess && lastOrder) {
+    const subtotal = lastOrder.total / 1.08; // Backward calculation for demo
+    const tax = lastOrder.total - subtotal;
+
     return (
-      <div className="min-h-screen bg-[#f8f8f8] pt-[8.75rem] flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8 max-w-md w-full text-center">
-          <div className="w-20 h-20 bg-[#1e5631] rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-white" />
+      <div className="min-h-screen bg-[#f8f9fa] pt-[8.75rem] pb-12 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden">
+          {/* Header */}
+          <div className="bg-white p-8 text-center border-b border-gray-100">
+            <div className="w-20 h-20 bg-[#1e5631]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-12 h-12 bg-[#1e5631] rounded-full flex items-center justify-center">
+                <Check className="w-6 h-6 text-white" strokeWidth={3} />
+              </div>
+            </div>
+            <h2 className="text-3xl font-extrabold text-[#111] mb-2">Payment Successful</h2>
+            <p className="text-gray-500 text-lg">
+              Thank you for your purchase, {lastOrder.customer.name.split(' ')[0]}!
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-[#333] mb-2">Order Placed!</h2>
-          <p className="text-gray-600 mb-6">
-            Thank you for your purchase. We have received your order and will contact you soon.
-          </p>
-          <Button
-            onClick={() => navigate('/')}
-            className="w-full bg-[#1e5631] hover:bg-[#164a28] text-white font-bold"
-          >
-            Back to Home
-          </Button>
+
+          <div className="p-8">
+            {/* Transaction Info Grid */}
+            <div className="grid grid-cols-2 gap-8 mb-8 pb-8 border-b border-gray-100">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">TRANSACTION ID</p>
+                <p className="text-base font-semibold text-[#111]">#{lastOrder.id}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">DATE</p>
+                <p className="text-base font-semibold text-[#111]">
+                  {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+
+            {/* Purchase Details */}
+            <div className="mb-8">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">PURCHASE DETAILS</p>
+              <div className="bg-[#f8f9fa] rounded-xl p-6 space-y-4">
+                {lastOrder.items.map((item, index) => (
+                  <div key={index} className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg bg-white p-2 border border-gray-100 flex-shrink-0">
+                      <img src={item.product.image} alt={item.product.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#111] truncate">{item.product.name}</p>
+                      <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
+                    </div>
+                    <p className="font-bold text-[#111]">S/ {(item.product.price * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Payment & Billing */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 pb-8 border-b border-gray-100">
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">PAYMENT METHOD</p>
+                <div className="flex items-center gap-2 text-gray-600 font-medium">
+                  <CreditCard className="w-4 h-4" />
+                  <span>Card ending in ****</span>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">BILLED TO</p>
+                <div className="flex items-center gap-2 text-gray-600 font-medium truncate">
+                  {/* Simplified email display if stored in notes or similar, otherwise generic */}
+                  <span>{formData.email || 'customer@email.com'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Totals */}
+            <div className="space-y-3 mb-8">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span className="font-medium">S/ {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Tax (Included)</span>
+                <span className="font-medium">S/ {tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
+                <span className="text-xl font-bold text-[#111]">Total Paid</span>
+                <span className="text-2xl font-bold text-[#e85d04]">S/ {lastOrder.total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                onClick={() => generateReceipt(lastOrder)}
+                className="h-12 bg-[#e85d04] hover:bg-[#d05304] text-white font-bold text-base shadow-lg shadow-orange-500/20"
+              >
+                Download PDF
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => navigate('/')}
+                className="h-12 bg-gray-100 hover:bg-gray-200 text-[#333] font-bold text-base"
+              >
+                Return to Home
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     );

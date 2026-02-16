@@ -30,7 +30,9 @@ import {
 
   Languages,
   BookOpen,
+  Download,
 } from 'lucide-react';
+import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { useProductsStore, type ProductFormData } from '@/store/productsStore';
@@ -1490,8 +1492,18 @@ export function Admin() {
                                   onClick={() => setSelectedOrder(order)}
                                   className="p-1.5 text-gray-400 hover:text-[#333] rounded"
                                   aria-label="Ver detalle"
+                                  title="Ver detalle"
                                 >
                                   <MoreVertical className="w-5 h-5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => generateReceipt(order)}
+                                  className="p-1.5 text-gray-400 hover:text-[#e85d04] rounded"
+                                  aria-label="Descargar recibo"
+                                  title="Descargar recibo"
+                                >
+                                  <Download className="w-5 h-5" />
                                 </button>
                               </td>
                             </tr>
@@ -1660,6 +1672,15 @@ export function Admin() {
                                   <option value="delivered">Entregado</option>
                                   <option value="cancelled">Cancelado</option>
                                 </select>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => generateReceipt(order)}
+                                  className="text-gray-500 hover:text-[#e85d04]"
+                                  title="Descargar recibo"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </Button>
                               </div>
                             </td>
                           </tr>
