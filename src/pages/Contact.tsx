@@ -24,10 +24,14 @@ export function Contact() {
     t('contact.subject_other'),
   ];
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(
+    null
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitStatus(null);
 
     try {
       const response = await fetch(`${API}/contact/sms`, {
@@ -44,26 +48,11 @@ export function Contact() {
         throw new Error(data.details || data.error || 'Error al enviar el mensaje');
       }
 
-      alert(t('contact.success'));
+      setSubmitStatus({ type: 'success', text: t('contact.success') });
       setForm({ fullName: '', email: '', phone: '', subject: '', message: '' });
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert(`${t('contact.error')}\n\nError: ` + (error instanceof Error ? error.message : String(error)));
-
-      // Fallback to manual SMS if server fails
-      const lines = [
-        'Hola, quiero más información.',
-        '',
-        form.fullName && `*Nombre:* ${form.fullName}`,
-        form.email && `*Correo:* ${form.email}`,
-        form.phone && `*Teléfono:* ${form.phone}`,
-        form.subject && `*Asunto:* ${form.subject}`,
-        form.message && `*Mensaje:*\n${form.message}`,
-      ].filter(Boolean);
-      const body = lines.join('\n');
-      const phoneNumber = '+18013472165';
-      const smsUrl = `sms:${phoneNumber}?body=${encodeURIComponent(body)}`;
-      window.location.href = smsUrl;
+      setSubmitStatus({ type: 'error', text: t('contact.error') });
     } finally {
       setIsSubmitting(false);
     }
@@ -225,6 +214,15 @@ export function Contact() {
                 {isSubmitting ? t('contact.sending') : t('contact.send')}
                 {!isSubmitting && <Send className="w-5 h-5 ml-2" />}
               </Button>
+              {submitStatus && (
+                <p
+                  className={`text-sm font-medium ${
+                    submitStatus.type === 'success' ? 'text-green-600' : 'text-red-600'
+                  }`}
+                >
+                  {submitStatus.text}
+                </p>
+              )}
             </form>
           </div>
         </div>

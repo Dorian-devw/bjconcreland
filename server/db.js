@@ -122,6 +122,19 @@ export async function initDb() {
     );
   `);
 
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      \`key\` VARCHAR(100) PRIMARY KEY,
+      \`value\` TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    );
+  `);
+
+  const [langRows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'language'");
+  if (langRows.length === 0) {
+    await db.query("INSERT INTO app_settings (`key`, `value`) VALUES ('language', 'es')");
+  }
+
   await db.query("SET FOREIGN_KEY_CHECKS = 1");
 }
 

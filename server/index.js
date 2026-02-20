@@ -45,6 +45,32 @@ app.post('/api/contact/sms', async (req, res) => {
   }
 });
 
+app.get('/api/settings/language', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'language'");
+    const language = rows[0]?.value || 'es';
+    res.json({ language });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo idioma' });
+  }
+});
+
+app.put('/api/settings/language', authMiddleware, async (req, res) => {
+  const { language } = req.body || {};
+  if (language !== 'es' && language !== 'en') {
+    return res.status(400).json({ error: 'Idioma inválido' });
+  }
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('language', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [language],
+    );
+    res.json({ language });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando idioma' });
+  }
+});
+
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;

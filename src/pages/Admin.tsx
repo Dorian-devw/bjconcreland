@@ -203,6 +203,27 @@ export function Admin() {
 
   const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([]);
   const [filterGroupsLoading, setFilterGroupsLoading] = useState(false);
+
+  const handleLanguageToggle = async () => {
+    const next = language === 'es' ? 'en' : 'es';
+    try {
+      const res = await fetchWithAuth(`${API}/settings/language`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: next }),
+      });
+      if (!res.ok) throw new Error('Error guardando idioma');
+      const data = await res.json();
+      if (data?.language === 'en' || data?.language === 'es') {
+        setLanguage(data.language);
+      } else {
+        setLanguage(next);
+      }
+    } catch (error) {
+      console.error('Error updating language:', error);
+      setLanguage(next);
+    }
+  };
   const [filterGroupDialogOpen, setFilterGroupDialogOpen] = useState(false);
   const [editingFilterGroupId, setEditingFilterGroupId] = useState<string | null>(null);
   const [filterGroupForm, setFilterGroupForm] = useState({ name: '', key: '' });
@@ -1339,7 +1360,7 @@ export function Admin() {
             </nav>
             <div className="shrink-0 mt-4 pt-4 border-t border-white/20">
               <button
-                onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
+                onClick={handleLanguageToggle}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-white/90 text-left mb-2"
               >
                 <span className="w-2 h-2 shrink-0 bg-transparent" aria-hidden />

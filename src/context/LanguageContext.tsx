@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { API } from '@/lib/api';
 
 type Language = 'es' | 'en';
 
@@ -264,6 +265,29 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         const saved = localStorage.getItem('language');
         return (saved === 'en' || saved === 'es') ? saved : 'es';
     });
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadLanguage = async () => {
+            try {
+                const res = await fetch(`${API}/settings/language`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled && (data.language === 'en' || data.language === 'es')) {
+                    setLanguage(data.language);
+                }
+            } catch {
+                // Ignore network errors and keep local language
+            }
+        };
+
+        loadLanguage();
+        const interval = setInterval(loadLanguage, 30000);
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+        };
+    }, []);
 
     useEffect(() => {
         localStorage.setItem('language', language);
