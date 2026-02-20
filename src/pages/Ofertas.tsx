@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ProductCard } from '@/components/product/ProductCard';
 import type { Product } from '@/types';
-
-const API = '/api';
+import { API } from '@/lib/api';
 
 interface OfferItem {
   id: number;

@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import twilio from 'twilio';
 import { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureServicesTable } from './db.js';
+import { seed } from './seed.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-cambiar-en-produccion';
 const PORT = process.env.PORT || 3002;
@@ -20,7 +21,10 @@ function getTwilioClient() {
   return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 }
 
-initDb();
+// Initialize DB structure and run seed
+seed().then(() => {
+  console.log('Base de datos inicializada (y poblada si estaba vacía) desde index.js.');
+}).catch(console.error);
 
 const app = express();
 app.use(cors({ origin: true, credentials: true }));
@@ -28,44 +32,15 @@ app.use(express.json({ limit: '10mb' }));
 
 app.post('/api/contact/sms', async (req, res) => {
   const { fullName, email, phone, subject, message } = req.body || {};
-
-  if (!message) {
-    return res.status(400).json({ error: 'El mensaje es obligatorio' });
-  }
-
-  const body = `Nuevo mensaje de contacto:\n\n` +
-    (fullName ? `Nombre: ${fullName}\n` : '') +
-    (email ? `Correo: ${email}\n` : '') +
-    (phone ? `Teléfono: ${phone}\n` : '') +
-    (subject ? `Asunto: ${subject}\n` : '') +
-    `Mensaje:\n${message}`;
-
+  if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
+  const body = `Nuevo mensaje:\n\n` + (fullName ? `Nombre: ${fullName}\n` : '') + (email ? `Correo: ${email}\n` : '') + (phone ? `Tel: ${phone}\n` : '') + (subject ? `Asunto: ${subject}\n` : '') + `Msj:\n${message}`;
   try {
     const client = getTwilioClient();
-    if (!client) {
-      return res.status(500).json({
-        error: 'Twilio no está configurado',
-        details: 'Faltan TWILIO_ACCOUNT_SID y/o TWILIO_AUTH_TOKEN en variables de entorno',
-      });
-    }
-    if (!TWILIO_FROM_NUMBER || !TWILIO_TO_NUMBER) {
-      return res.status(500).json({
-        error: 'Twilio no está configurado',
-        details: 'Faltan TWILIO_FROM_NUMBER y/o TWILIO_TO_NUMBER en variables de entorno',
-      });
-    }
-
-    const msg = await client.messages.create({
-      body: body,
-      from: TWILIO_FROM_NUMBER,
-      to: TWILIO_TO_NUMBER
-    });
-
-    console.log('SMS sent:', msg.sid);
+    if (!client) return res.status(500).json({ error: 'Twilio no configurado', details: 'Faltan credenciales' });
+    if (!TWILIO_FROM_NUMBER || !TWILIO_TO_NUMBER) return res.status(500).json({ error: 'Twilio no configurado', details: 'Faltan números' });
+    const msg = await client.messages.create({ body, from: TWILIO_FROM_NUMBER, to: TWILIO_TO_NUMBER });
     res.json({ success: true, sid: msg.sid });
   } catch (error) {
-    console.error('Error sending SMS:', error);
-    // Return detailed error so we can debug if the number is missing
     res.status(500).json({ error: 'Error enviando SMS', details: error.message });
   }
 });
@@ -82,617 +57,458 @@ function authMiddleware(req, res, next) {
   }
 }
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!user) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-  if (!bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+  const [rows] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
+  const user = rows[0];
+  if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
   res.json({ token, username: user.username });
 });
 
-app.get('/api/products', (req, res) => {
-  const rows = db.prepare('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id').all();
-  res.json(rows.map((r) => ({ ...r, originalPrice: r.originalPrice ?? undefined, rating: r.rating ?? undefined, tag: r.tag ?? undefined })));
+app.get('/api/products', async (req, res) => {
+  const [rows] = await db.query('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
+  res.json(rows.map(r => ({ ...r, price: Number(r.price), originalPrice: r.originalPrice ? Number(r.originalPrice) : undefined, stock: Number(r.stock) })));
 });
 
-app.get('/api/products/:id', (req, res) => {
-  const row = db.prepare('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?').get(req.params.id);
+app.get('/api/products/:id', async (req, res) => {
+  const [rows] = await db.query('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [req.params.id]);
+  const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
-  res.json({ ...row, originalPrice: row.originalPrice ?? undefined, rating: row.rating ?? undefined, tag: row.tag ?? undefined });
+  res.json({ ...row, price: Number(row.price), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined, stock: Number(row.stock) });
 });
 
-app.post('/api/products', authMiddleware, (req, res) => {
+app.post('/api/products', authMiddleware, async (req, res) => {
   const { name, price, image, category, description, stock, rating, originalPrice, tag } = req.body;
   if (!name || price == null || !category || stock == null) return res.status(400).json({ error: 'Faltan campos requeridos' });
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-  db.prepare('INSERT INTO products (id, name, price, image, category, description, stock, rating, original_price, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, name, Number(price), image || '/product-drill.jpg', category, description || '', Number(stock), rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag || null);
-  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
-  res.status(201).json({ id: row.id, name: row.name, price: row.price, image: row.image, category: row.category, description: row.description, stock: row.stock, rating: row.rating ?? undefined, originalPrice: row.original_price ?? undefined, tag: row.tag ?? undefined });
+  await db.query(
+    'INSERT INTO products (id, name, price, image, category, description, stock, rating, original_price, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, name, Number(price), image || '/product-drill.jpg', category, description || '', Number(stock), rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag || null]
+  );
+  const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+  const row = rows[0];
+  res.status(201).json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.original_price ? Number(row.original_price) : undefined });
 });
 
-app.put('/api/products/:id', authMiddleware, (req, res) => {
+app.put('/api/products/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { name, price, image, category, description, stock, rating, originalPrice, tag } = req.body;
-  const existing = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+  const [existingRows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+  const existing = existingRows[0];
   if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
-  db.prepare('UPDATE products SET name=?, price=?, image=?, category=?, description=?, stock=?, rating=?, original_price=?, tag=? WHERE id=?')
-    .run(name ?? existing.name, price != null ? Number(price) : existing.price, image ?? existing.image, category ?? existing.category, description ?? existing.description, stock != null ? Number(stock) : existing.stock, rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag ?? null, id);
-  const row = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
-  res.json({ id: row.id, name: row.name, price: row.price, image: row.image, category: row.category, description: row.description, stock: row.stock, rating: row.rating ?? undefined, originalPrice: row.original_price ?? undefined, tag: row.tag ?? undefined });
+  await db.query(
+    'UPDATE products SET name=?, price=?, image=?, category=?, description=?, stock=?, rating=?, original_price=?, tag=? WHERE id=?',
+    [name ?? existing.name, price != null ? Number(price) : existing.price, image ?? existing.image, category ?? existing.category, description ?? existing.description, stock != null ? Number(stock) : existing.stock, rating != null ? Number(rating) : existing.rating, originalPrice !== undefined ? (originalPrice != null ? Number(originalPrice) : null) : existing.original_price, tag !== undefined ? (tag || null) : existing.tag, id]
+  );
+  const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+  const row = rows[0];
+  res.json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.original_price ? Number(row.original_price) : undefined });
 });
 
-app.delete('/api/products/:id', authMiddleware, (req, res) => {
+app.delete('/api/products/:id', authMiddleware, async (req, res) => {
   const id = req.params.id;
-  const product = db.prepare('SELECT id FROM products WHERE id = ?').get(id);
-  if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+  const [productRows] = await db.query('SELECT id FROM products WHERE id = ?', [id]);
+  if (!productRows.length) return res.status(404).json({ error: 'Producto no encontrado' });
   try {
-    db.pragma('foreign_keys = OFF');
-    db.prepare('DELETE FROM order_items WHERE product_id = ?').run(id);
-    db.prepare('DELETE FROM offers WHERE product_id = ?').run(id);
-    const result = db.prepare('DELETE FROM products WHERE id = ?').run(id);
-    if (result.changes === 0) return res.status(404).json({ error: 'Producto no encontrado' });
+    const connection = await db.getConnection();
+    await connection.query('SET FOREIGN_KEY_CHECKS = 0');
+    await connection.query('DELETE FROM order_items WHERE product_id = ?', [id]);
+    await connection.query('DELETE FROM offers WHERE product_id = ?', [id]);
+    const [result] = await connection.query('DELETE FROM products WHERE id = ?', [id]);
+    await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+    connection.release();
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Producto no encontrado' });
     res.status(204).send();
-  } finally {
-    db.pragma('foreign_keys = ON');
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar' });
   }
 });
 
-// Categorías (público)
-app.get('/api/categories', (req, res) => {
-  ensureCategoriesTable();
-  const rows = db.prepare('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories ORDER BY sort_order ASC, name ASC').all();
-  res.json(rows.map((r) => ({ id: String(r.id), name: r.name, icon: r.icon || 'Wrench', sortOrder: r.sortOrder ?? 0, filterKey: r.filterKey ?? null })));
+app.get('/api/categories', async (req, res) => {
+  await ensureCategoriesTable();
+  const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories ORDER BY sort_order ASC, name ASC');
+  res.json(rows.map(r => ({ ...r, id: String(r.id) })));
 });
 
-// Categorías (admin)
-app.post('/api/categories', authMiddleware, (req, res) => {
-  ensureCategoriesTable();
+app.post('/api/categories', authMiddleware, async (req, res) => {
+  await ensureCategoriesTable();
   const { name, icon, filterKey } = req.body || {};
-  if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'El nombre de la categoría es obligatorio' });
-  const count = db.prepare('SELECT COUNT(*) as n FROM categories').get();
-  const sortOrder = count.n;
+  if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+  const [countRows] = await db.query('SELECT COUNT(*) as n FROM categories');
   try {
-    db.prepare('INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)')
-      .run(name.trim(), (icon && String(icon).trim()) || 'Wrench', sortOrder, (filterKey && String(filterKey).trim()) || null);
+    const [result] = await db.query('INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)', [name.trim(), (icon && String(icon).trim()) || 'Wrench', countRows[0].n, (filterKey && String(filterKey).trim()) || null]);
+    const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories WHERE id=?', [result.insertId]);
+    res.status(201).json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
-    if (e && e.message && e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Ya existe una categoría con ese nombre' });
-    throw e;
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
+    res.status(500).json({ error: e.message });
   }
-  const row = db.prepare('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories ORDER BY id DESC LIMIT 1').get();
-  res.status(201).json({ id: String(row.id), name: row.name, icon: row.icon || 'Wrench', sortOrder: row.sortOrder, filterKey: row.filterKey ?? null });
 });
 
-app.put('/api/categories/:id', authMiddleware, (req, res) => {
+app.put('/api/categories/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { name, icon, sortOrder, filterKey } = req.body || {};
-  const existing = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Categoría no encontrada' });
+  const [existingRows] = await db.query('SELECT * FROM categories WHERE id = ?', [id]);
+  const existing = existingRows[0];
+  if (!existing) return res.status(404).json({ error: 'No encontrado' });
   const newName = name !== undefined ? String(name).trim() : existing.name;
-  if (!newName) return res.status(400).json({ error: 'El nombre no puede estar vacío' });
+  if (!newName) return res.status(400).json({ error: 'Nombre vacío' });
   try {
-    db.prepare('UPDATE categories SET name = ?, icon = ?, sort_order = ?, filter_key = ? WHERE id = ?')
-      .run(newName, (icon !== undefined ? String(icon) : existing.icon) || 'Wrench', sortOrder != null ? Number(sortOrder) : existing.sort_order, filterKey !== undefined ? (filterKey && String(filterKey).trim()) || null : existing.filter_key, id);
+    await db.query('UPDATE categories SET name=?, icon=?, sort_order=?, filter_key=? WHERE id=?', [newName, (icon !== undefined ? String(icon) : existing.icon) || 'Wrench', sortOrder != null ? Number(sortOrder) : existing.sort_order, filterKey !== undefined ? (filterKey && String(filterKey).trim() || null) : existing.filter_key, id]);
+    const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories WHERE id=?', [id]);
+    res.json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
-    if (e && e.message && e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Ya existe una categoría con ese nombre' });
-    throw e;
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
+    res.status(500).json({ error: e.message });
   }
-  const row = db.prepare('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories WHERE id = ?').get(id);
-  res.json({ id: String(row.id), name: row.name, icon: row.icon || 'Wrench', sortOrder: row.sortOrder, filterKey: row.filterKey ?? null });
 });
 
-app.delete('/api/categories/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const result = db.prepare('DELETE FROM categories WHERE id = ?').run(id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Categoría no encontrada' });
+app.delete('/api/categories/:id', authMiddleware, async (req, res) => {
+  const [result] = await db.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
   res.status(204).send();
 });
 
-// Grupos de filtro (sidebar tienda) — público
-app.get('/api/filter-groups', (req, res) => {
-  ensureFilterGroupsTable();
-  const rows = db.prepare('SELECT id, name, key, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC').all();
-  res.json(rows.map((r) => ({ id: String(r.id), name: r.name, key: r.key, sortOrder: r.sortOrder ?? 0 })));
+app.get('/api/filter-groups', async (req, res) => {
+  await ensureFilterGroupsTable();
+  const [rows] = await db.query('SELECT id, name, \`key\`, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC');
+  res.json(rows.map(r => ({ ...r, id: String(r.id) })));
 });
 
-app.post('/api/filter-groups', authMiddleware, (req, res) => {
-  ensureFilterGroupsTable();
+app.post('/api/filter-groups', authMiddleware, async (req, res) => {
+  await ensureFilterGroupsTable();
   const { name, key } = req.body || {};
-  if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'El nombre es obligatorio' });
+  if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nombre obligatorio' });
   const keyVal = (key != null && String(key).trim()) ? String(key).trim().toLowerCase().replace(/\s+/g, '-') : name.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 32);
-  if (!keyVal) return res.status(400).json({ error: 'Indica un nombre para generar la clave' });
-  const count = db.prepare('SELECT COUNT(*) as n FROM filter_groups').get();
-  const sortOrder = count.n;
+  if (!keyVal) return res.status(400).json({ error: 'Indica nombre' });
+  const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
   try {
-    db.prepare('INSERT INTO filter_groups (name, key, sort_order) VALUES (?, ?, ?)').run(name.trim(), keyVal, sortOrder);
+    const [result] = await db.query('INSERT INTO filter_groups (name, \`key\`, sort_order) VALUES (?, ?, ?)', [name.trim(), keyVal, countRows[0].n]);
+    const [rows] = await db.query('SELECT id, name, \`key\`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [result.insertId]);
+    res.status(201).json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
-    if (e && e.message && e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Ya existe un grupo con esa clave' });
-    throw e;
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
+    res.status(500).json({ error: e.message });
   }
-  const row = db.prepare('SELECT id, name, key, sort_order AS sortOrder FROM filter_groups ORDER BY id DESC LIMIT 1').get();
-  res.status(201).json({ id: String(row.id), name: row.name, key: row.key, sortOrder: row.sortOrder });
 });
 
-app.put('/api/filter-groups/:id', authMiddleware, (req, res) => {
+app.put('/api/filter-groups/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { name, key, sortOrder } = req.body || {};
-  const existing = db.prepare('SELECT * FROM filter_groups WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Grupo no encontrado' });
+  const [existingRows] = await db.query('SELECT * FROM filter_groups WHERE id = ?', [id]);
+  const existing = existingRows[0];
+  if (!existing) return res.status(404).json({ error: 'No encontrado' });
   const newName = name !== undefined ? String(name).trim() : existing.name;
   const newKey = key !== undefined ? String(key).trim().toLowerCase().replace(/\s+/g, '-') : existing.key;
-  if (!newName) return res.status(400).json({ error: 'El nombre no puede estar vacío' });
-  if (!newKey) return res.status(400).json({ error: 'La clave no puede estar vacía' });
+  if (!newName || !newKey) return res.status(400).json({ error: 'Vacío' });
   try {
-    db.prepare('UPDATE filter_groups SET name = ?, key = ?, sort_order = ? WHERE id = ?')
-      .run(newName, newKey, sortOrder != null ? Number(sortOrder) : existing.sort_order, id);
+    await db.query('UPDATE filter_groups SET name=?, \`key\`=?, sort_order=? WHERE id=?', [newName, newKey, sortOrder != null ? Number(sortOrder) : existing.sort_order, id]);
+    const [rows] = await db.query('SELECT id, name, \`key\`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [id]);
+    res.json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
-    if (e && e.message && e.message.includes('UNIQUE')) return res.status(400).json({ error: 'Ya existe un grupo con esa clave' });
-    throw e;
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
+    res.status(500).json({ error: e.message });
   }
-  const row = db.prepare('SELECT id, name, key, sort_order AS sortOrder FROM filter_groups WHERE id = ?').get(id);
-  res.json({ id: String(row.id), name: row.name, key: row.key, sortOrder: row.sortOrder });
 });
 
-app.delete('/api/filter-groups/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const row = db.prepare('SELECT key FROM filter_groups WHERE id = ?').get(id);
-  if (!row) return res.status(404).json({ error: 'Grupo no encontrado' });
-  db.prepare('UPDATE categories SET filter_key = NULL WHERE filter_key = ?').run(row.key);
-  db.prepare('DELETE FROM filter_groups WHERE id = ?').run(id);
+app.delete('/api/filter-groups/:id', authMiddleware, async (req, res) => {
+  const [rows] = await db.query('SELECT \`key\` FROM filter_groups WHERE id = ?', [req.params.id]);
+  if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
+  await db.query('UPDATE categories SET filter_key = NULL WHERE filter_key = ?', [rows[0].key]);
+  await db.query('DELETE FROM filter_groups WHERE id = ?', [req.params.id]);
   res.status(204).send();
 });
 
-
-
-app.get('/api/orders', authMiddleware, (req, res) => {
-  const rows = db.prepare('SELECT id, customer_name, customer_phone, customer_address, customer_notes, total, payment_method, status, created_at FROM orders ORDER BY created_at DESC').all();
-  const orders = rows.map((row) => {
-    const items = db.prepare('SELECT product_id AS productId, product_name AS productName, product_price AS productPrice, product_image AS productImage, quantity FROM order_items WHERE order_id = ?').all(row.id);
-    return {
+app.get('/api/orders', authMiddleware, async (req, res) => {
+  const [rows] = await db.query('SELECT id, customer_name, customer_phone, customer_address, customer_notes, total, payment_method, status, created_at FROM orders ORDER BY created_at DESC');
+  const orders = [];
+  for (const row of rows) {
+    const [items] = await db.query('SELECT product_id AS productId, product_name AS productName, product_price AS productPrice, product_image AS productImage, quantity FROM order_items WHERE order_id = ?', [row.id]);
+    orders.push({
       id: row.id,
       customer: { name: row.customer_name, phone: row.customer_phone, address: row.customer_address, notes: row.customer_notes },
-      items: items.map((i) => ({ product: { id: i.productId, name: i.productName, price: i.productPrice, image: i.productImage }, quantity: i.quantity })),
-      total: row.total,
+      items: items.map(i => ({ product: { id: i.productId, name: i.productName, price: Number(i.productPrice), image: i.productImage }, quantity: i.quantity })),
+      total: Number(row.total),
       paymentMethod: row.payment_method,
       status: row.status,
-      createdAt: row.created_at,
-    };
-  });
+      createdAt: row.created_at
+    });
+  }
   res.json(orders);
 });
 
-app.patch('/api/orders/:id/status', authMiddleware, (req, res) => {
+app.patch('/api/orders/:id/status', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
   if (!['pending', 'paid', 'shipped', 'delivered', 'cancelled'].includes(status)) return res.status(400).json({ error: 'Estado inválido' });
-  const result = db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(status, id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
+  const [result] = await db.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
   res.json({ id, status });
 });
 
-// Carrusel (público)
-// Carrusel (público)
-app.get('/api/carousel', (req, res) => {
-  const rows = db.prepare('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides ORDER BY sort_order ASC').all();
-  res.json(rows.map((r) => ({
-    id: r.id,
-    src: r.image,
-    alt: r.alt || '',
-    title: r.title || '',
-    highlight: r.highlight || '',
-    description: r.description || '',
-    sortOrder: r.sortOrder
-  })));
-});
-
-// Carrusel (admin)
-// Carrusel (admin)
-app.post('/api/carousel', authMiddleware, (req, res) => {
-  const { image, alt, title, highlight, description } = req.body || {};
-  if (!image || typeof image !== 'string' || !image.trim()) return res.status(400).json({ error: 'URL de imagen requerida' });
-  const count = db.prepare('SELECT COUNT(*) as n FROM carousel_slides').get();
-  const sortOrder = count.n;
-  db.prepare('INSERT INTO carousel_slides (image, alt, title, highlight, description, sort_order) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(
-      image.trim(),
-      (alt && String(alt).trim()) || '',
-      (title && String(title).trim()) || null,
-      (highlight && String(highlight).trim()) || null,
-      (description && String(description).trim()) || null,
-      sortOrder
-    );
-  const row = db.prepare('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides ORDER BY id DESC LIMIT 1').get();
-  res.status(201).json({
-    id: row.id,
-    src: row.image,
-    alt: row.alt || '',
-    title: row.title || '',
-    highlight: row.highlight || '',
-    description: row.description || '',
-    sortOrder: row.sortOrder
-  });
-});
-
-app.put('/api/carousel/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const { image, alt, title, highlight, description, sortOrder } = req.body || {};
-  const existing = db.prepare('SELECT * FROM carousel_slides WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Slide no encontrado' });
-
-  db.prepare('UPDATE carousel_slides SET image = ?, alt = ?, title = ?, highlight = ?, description = ?, sort_order = ? WHERE id = ?')
-    .run(
-      image != null ? String(image).trim() : existing.image,
-      alt != null ? String(alt).trim() : existing.alt,
-      title !== undefined ? (title ? String(title).trim() : null) : existing.title,
-      highlight !== undefined ? (highlight ? String(highlight).trim() : null) : existing.highlight,
-      description !== undefined ? (description ? String(description).trim() : null) : existing.description,
-      sortOrder != null ? Number(sortOrder) : existing.sort_order,
-      id
-    );
-
-  const row = db.prepare('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides WHERE id = ?').get(id);
-  res.json({
-    id: row.id,
-    src: row.image,
-    alt: row.alt || '',
-    title: row.title || '',
-    highlight: row.highlight || '',
-    description: row.description || '',
-    sortOrder: row.sortOrder
-  });
-});
-
-app.delete('/api/carousel/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const result = db.prepare('DELETE FROM carousel_slides WHERE id = ?').run(id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Slide no encontrado' });
-  const rows = db.prepare('SELECT id, sort_order FROM carousel_slides ORDER BY sort_order ASC').all();
-  rows.forEach((row, i) => {
-    if (row.sort_order !== i) db.prepare('UPDATE carousel_slides SET sort_order = ? WHERE id = ?').run(i, row.id);
-  });
-  res.status(204).send();
-});
-
-app.patch('/api/carousel/reorder', authMiddleware, (req, res) => {
-  const { order } = req.body || {};
-  if (!Array.isArray(order) || order.length === 0) return res.status(400).json({ error: 'order debe ser un array de ids' });
-  order.forEach((id, i) => {
-    db.prepare('UPDATE carousel_slides SET sort_order = ? WHERE id = ?').run(i, id);
-  });
-  const rows = db.prepare('SELECT id, image, alt, title, description, sort_order AS sortOrder FROM carousel_slides ORDER BY sort_order ASC').all();
-  res.json(rows.map((r) => ({
-    id: r.id,
-    src: r.image,
-    alt: r.alt || '',
-    title: r.title || '',
-    description: r.description || '',
-    sortOrder: r.sortOrder
-  })));
-});
-
-// Banners promocionales (público)
-app.get('/api/promo-banners', (req, res) => {
-  const rows = db.prepare('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners ORDER BY sort_order ASC').all();
-  res.json(rows.map((r) => ({ id: r.id, image: r.image, title: r.title || '', description: r.description || '', sortOrder: r.sortOrder })));
-});
-
-// Banners promocionales (admin)
-app.post('/api/promo-banners', authMiddleware, (req, res) => {
-  ensurePromoBannersTable();
+app.post('/api/orders', async (req, res) => {
+  const { id, customer, items, total, paymentMethod, stripePaymentId } = req.body;
+  const connection = await db.getConnection();
   try {
-    const { image, title, description } = req.body || {};
-    if (!image || typeof image !== 'string' || !image.trim()) return res.status(400).json({ error: 'URL de imagen requerida' });
-    const count = db.prepare('SELECT COUNT(*) as n FROM promo_banners').get();
-    const sortOrder = count.n;
-    db.prepare('INSERT INTO promo_banners (image, title, description, sort_order) VALUES (?, ?, ?, ?)')
-      .run(image.trim(), (title && String(title).trim()) || '', (description && String(description).trim()) || '', sortOrder);
-    const row = db.prepare('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners ORDER BY id DESC LIMIT 1').get();
-    res.status(201).json({ id: row.id, image: row.image, title: row.title || '', description: row.description || '', sortOrder: row.sortOrder });
-  } catch (err) {
-    console.error('POST /api/promo-banners:', err);
-    const msg = err && err.message ? err.message : 'Error al crear el banner';
-    res.status(500).json({ error: msg });
+    await connection.beginTransaction();
+    await connection.query(
+      'INSERT INTO orders (id, customer_name, customer_phone, customer_address, customer_notes, total, payment_method, stripe_payment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, customer.name, customer.phone, customer.address, customer.notes, Number(total), paymentMethod, stripePaymentId || null]
+    );
+    for (const item of items) {
+      await connection.query(
+        'INSERT INTO order_items (order_id, product_id, product_name, product_price, product_image, quantity) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, item.product.id, item.product.name, Number(item.product.price), item.product.image, item.quantity]
+      );
+    }
+    await connection.commit();
+    res.status(201).json({ success: true, id });
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+    res.status(500).json({ error: 'Error al crear pedido' });
+  } finally {
+    connection.release();
   }
 });
 
-app.put('/api/promo-banners/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const { image, title, description, sortOrder } = req.body || {};
-  const existing = db.prepare('SELECT * FROM promo_banners WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Banner no encontrado' });
-  db.prepare('UPDATE promo_banners SET image = ?, title = ?, description = ?, sort_order = ? WHERE id = ?')
-    .run(image != null ? String(image).trim() : existing.image, title !== undefined ? String(title || '').trim() : existing.title, description !== undefined ? String(description || '').trim() : existing.description, sortOrder != null ? Number(sortOrder) : existing.sort_order, id);
-  const row = db.prepare('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners WHERE id = ?').get(id);
-  res.json({ id: row.id, image: row.image, title: row.title || '', description: row.description || '', sortOrder: row.sortOrder });
+app.get('/api/carousel', async (req, res) => {
+  const [rows] = await db.query('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides ORDER BY sort_order ASC');
+  res.json(rows.map(r => ({ id: r.id, src: r.image, alt: r.alt||'', title: r.title||'', highlight: r.highlight||'', description: r.description||'', sortOrder: r.sortOrder })));
 });
 
-app.delete('/api/promo-banners/:id', authMiddleware, (req, res) => {
+app.post('/api/carousel', authMiddleware, async (req, res) => {
+  const { image, alt, title, highlight, description } = req.body || {};
+  if (!image) return res.status(400).json({ error: 'URL de imagen requerida' });
+  const [countRows] = await db.query('SELECT COUNT(*) as n FROM carousel_slides');
+  const [result] = await db.query(
+    'INSERT INTO carousel_slides (image, alt, title, highlight, description, sort_order) VALUES (?, ?, ?, ?, ?, ?)',
+    [image.trim(), alt?.trim() || '', title?.trim() || null, highlight?.trim() || null, description?.trim() || null, countRows[0].n]
+  );
+  const [rows] = await db.query('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides WHERE id=?', [result.insertId]);
+  const row = rows[0];
+  res.status(201).json({ id: row.id, src: row.image, alt: row.alt||'', title: row.title||'', highlight: row.highlight||'', description: row.description||'', sortOrder: row.sortOrder });
+});
+
+app.put('/api/carousel/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const result = db.prepare('DELETE FROM promo_banners WHERE id = ?').run(id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Banner no encontrado' });
-  const rows = db.prepare('SELECT id, sort_order FROM promo_banners ORDER BY sort_order ASC').all();
-  rows.forEach((row, i) => {
-    if (row.sort_order !== i) db.prepare('UPDATE promo_banners SET sort_order = ? WHERE id = ?').run(i, row.id);
-  });
+  const { image, alt, title, highlight, description, sortOrder } = req.body || {};
+  const [existingRows] = await db.query('SELECT * FROM carousel_slides WHERE id = ?', [id]);
+  const existing = existingRows[0];
+  if (!existing) return res.status(404).json({ error: 'Slide no encontrado' });
+  await db.query(
+    'UPDATE carousel_slides SET image=?, alt=?, title=?, highlight=?, description=?, sort_order=? WHERE id=?',
+    [image ?? existing.image, alt ?? existing.alt, title !== undefined ? title : existing.title, highlight !== undefined ? highlight : existing.highlight, description !== undefined ? description : existing.description, sortOrder ?? existing.sort_order, id]
+  );
+  const [rows] = await db.query('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides WHERE id=?', [id]);
+  const row = rows[0];
+  res.json({ id: row.id, src: row.image, alt: row.alt||'', title: row.title||'', highlight: row.highlight||'', description: row.description||'', sortOrder: row.sortOrder });
+});
+
+app.delete('/api/carousel/:id', authMiddleware, async (req, res) => {
+  const [result] = await db.query('DELETE FROM carousel_slides WHERE id = ?', [req.params.id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'Slide no encontrado' });
+  const [rows] = await db.query('SELECT id, sort_order FROM carousel_slides ORDER BY sort_order ASC');
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].sort_order !== i) await db.query('UPDATE carousel_slides SET sort_order = ? WHERE id = ?', [i, rows[i].id]);
+  }
   res.status(204).send();
 });
 
-app.patch('/api/promo-banners/reorder', authMiddleware, (req, res) => {
+app.patch('/api/carousel/reorder', authMiddleware, async (req, res) => {
   const { order } = req.body || {};
-  if (!Array.isArray(order) || order.length === 0) return res.status(400).json({ error: 'order debe ser un array de ids' });
-  order.forEach((id, i) => {
-    db.prepare('UPDATE promo_banners SET sort_order = ? WHERE id = ?').run(i, id);
-  });
-  const rows = db.prepare('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners ORDER BY sort_order ASC').all();
-  res.json(rows.map((r) => ({ id: r.id, image: r.image, title: r.title || '', description: r.description || '', sortOrder: r.sortOrder })));
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order array requerido' });
+  for (let i = 0; i < order.length; i++) {
+    await db.query('UPDATE carousel_slides SET sort_order = ? WHERE id = ?', [i, order[i]]);
+  }
+  const [rows] = await db.query('SELECT id, image, alt, title, description, sort_order AS sortOrder FROM carousel_slides ORDER BY sort_order ASC');
+  res.json(rows.map(r => ({ id: r.id, src: r.image, alt: r.alt||'', title: r.title||'', description: r.description||'', sortOrder: r.sortOrder })));
 });
 
-// Ofertas (público): solo ofertas activas con datos del producto
-function mapProductRow(r) {
-  return { id: r.id, name: r.name, price: r.price, image: r.image, category: r.category, description: r.description, stock: r.stock, rating: r.rating ?? undefined, originalPrice: r.originalPrice ?? undefined, tag: r.tag ?? undefined };
-}
-app.get('/api/offers', (req, res) => {
-  const now = new Date().toISOString().slice(0, 10);
-  const rows = db.prepare(`
+app.get('/api/promo-banners', async (req, res) => {
+  const [rows] = await db.query('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners ORDER BY sort_order ASC');
+  res.json(rows);
+});
+
+app.post('/api/promo-banners', authMiddleware, async (req, res) => {
+  await ensurePromoBannersTable();
+  const { image, title, description } = req.body || {};
+  if (!image) return res.status(400).json({ error: 'Imagen requerida' });
+  const [countRows] = await db.query('SELECT COUNT(*) as n FROM promo_banners');
+  const [result] = await db.query('INSERT INTO promo_banners (image, title, description, sort_order) VALUES (?, ?, ?, ?)', [image, title||'', description||'', countRows[0].n]);
+  const [rows] = await db.query('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners WHERE id=?', [result.insertId]);
+  res.status(201).json(rows[0]);
+});
+
+app.put('/api/promo-banners/:id', authMiddleware, async (req, res) => {
+  const { image, title, description, sortOrder } = req.body || {};
+  const [existingRows] = await db.query('SELECT * FROM promo_banners WHERE id = ?', [req.params.id]);
+  if (!existingRows.length) return res.status(404).json({ error: 'No encontrado' });
+  await db.query('UPDATE promo_banners SET image=?, title=?, description=?, sort_order=? WHERE id=?', [image ?? existingRows[0].image, title ?? existingRows[0].title, description ?? existingRows[0].description, sortOrder ?? existingRows[0].sort_order, req.params.id]);
+  const [rows] = await db.query('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners WHERE id=?', [req.params.id]);
+  res.json(rows[0]);
+});
+
+app.delete('/api/promo-banners/:id', authMiddleware, async (req, res) => {
+  const [result] = await db.query('DELETE FROM promo_banners WHERE id = ?', [req.params.id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
+  const [rows] = await db.query('SELECT id, sort_order FROM promo_banners ORDER BY sort_order ASC');
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].sort_order !== i) await db.query('UPDATE promo_banners SET sort_order = ? WHERE id = ?', [i, rows[i].id]);
+  }
+  res.status(204).send();
+});
+
+app.patch('/api/promo-banners/reorder', authMiddleware, async (req, res) => {
+  const { order } = req.body || {};
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order array requerido' });
+  for (let i = 0; i < order.length; i++) {
+    await db.query('UPDATE promo_banners SET sort_order = ? WHERE id = ?', [i, order[i]]);
+  }
+  const [rows] = await db.query('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners ORDER BY sort_order ASC');
+  res.json(rows);
+});
+
+app.get('/api/offers', async (req, res) => {
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const [rows] = await db.query(`
     SELECT o.id, o.product_id AS productId, o.discount_percent AS discountPercent, o.valid_until AS validUntil,
            p.id AS p_id, p.name AS p_name, p.price AS p_price, p.image AS p_image, p.category AS p_category,
            p.description AS p_description, p.stock AS p_stock, p.rating AS p_rating, p.original_price AS p_original_price, p.tag AS p_tag
-    FROM offers o
-    JOIN products p ON p.id = o.product_id
+    FROM offers o JOIN products p ON p.id = o.product_id
     WHERE o.valid_until IS NULL OR o.valid_until >= ?
     ORDER BY o.id DESC
-  `).all(now);
-  res.json(rows.map((r) => ({
-    id: r.id,
-    productId: r.productId,
-    discountPercent: r.discountPercent,
-    validUntil: r.validUntil || undefined,
-    product: mapProductRow({ id: r.p_id, name: r.p_name, price: r.p_price, image: r.p_image, category: r.p_category, description: r.p_description, stock: r.p_stock, rating: r.p_rating, originalPrice: r.p_original_price, tag: r.p_tag }),
+  `, [now]);
+  res.json(rows.map(r => ({
+    id: r.id, productId: r.productId, discountPercent: Number(r.discountPercent), validUntil: r.validUntil || undefined,
+    product: { id: r.p_id, name: r.p_name, price: Number(r.p_price), image: r.p_image, category: r.p_category, description: r.p_description, stock: Number(r.p_stock), rating: r.p_rating ? Number(r.p_rating) : undefined, originalPrice: r.p_original_price ? Number(r.p_original_price) : undefined, tag: r.p_tag }
   })));
 });
 
-// Ofertas (admin): listar todas
-app.get('/api/offers/all', authMiddleware, (req, res) => {
-  const rows = db.prepare(`
+app.get('/api/offers/all', authMiddleware, async (req, res) => {
+  const [rows] = await db.query(`
     SELECT o.id, o.product_id AS productId, o.discount_percent AS discountPercent, o.valid_until AS validUntil,
            p.id AS p_id, p.name AS p_name, p.price AS p_price, p.image AS p_image, p.category AS p_category,
            p.description AS p_description, p.stock AS p_stock, p.rating AS p_rating, p.original_price AS p_original_price, p.tag AS p_tag
-    FROM offers o
-    JOIN products p ON p.id = o.product_id
-    ORDER BY o.id DESC
-  `).all();
-  res.json(rows.map((r) => ({
-    id: r.id,
-    productId: r.productId,
-    discountPercent: r.discountPercent,
-    validUntil: r.validUntil || undefined,
-    product: mapProductRow({ id: r.p_id, name: r.p_name, price: r.p_price, image: r.p_image, category: r.p_category, description: r.p_description, stock: r.p_stock, rating: r.p_rating, originalPrice: r.p_original_price, tag: r.p_tag }),
+    FROM offers o JOIN products p ON p.id = o.product_id ORDER BY o.id DESC
+  `);
+  res.json(rows.map(r => ({
+    id: r.id, productId: r.productId, discountPercent: Number(r.discountPercent), validUntil: r.validUntil || undefined,
+    product: { id: r.p_id, name: r.p_name, price: Number(r.p_price), image: r.p_image, category: r.p_category, description: r.p_description, stock: Number(r.p_stock), rating: r.p_rating ? Number(r.p_rating) : undefined, originalPrice: r.p_original_price ? Number(r.p_original_price) : undefined, tag: r.p_tag }
   })));
 });
 
-app.post('/api/offers', authMiddleware, (req, res) => {
+app.post('/api/offers', authMiddleware, async (req, res) => {
   const { productId, discountPercent, validUntil } = req.body || {};
-  if (!productId || discountPercent == null) return res.status(400).json({ error: 'Producto y descuento requeridos' });
-  const product = db.prepare('SELECT id FROM products WHERE id = ?').get(productId);
-  if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
-  const existing = db.prepare('SELECT id FROM offers WHERE product_id = ?').get(productId);
-  if (existing) return res.status(400).json({ error: 'Este producto ya tiene una oferta' });
-  db.prepare('INSERT INTO offers (product_id, discount_percent, valid_until) VALUES (?, ?, ?)').run(productId, Number(discountPercent), validUntil && String(validUntil).trim() ? String(validUntil).trim() : null);
-  const row = db.prepare('SELECT o.id, o.product_id AS productId, o.discount_percent AS discountPercent, o.valid_until AS validUntil FROM offers o ORDER BY o.id DESC LIMIT 1').get();
-  const p = db.prepare('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?').get(productId);
-  res.status(201).json({ id: row.id, productId: row.productId, discountPercent: row.discountPercent, validUntil: row.validUntil || undefined, product: mapProductRow(p) });
+  if (!productId || discountPercent == null) return res.status(400).json({ error: 'Faltan datos' });
+  const [pRows] = await db.query('SELECT id FROM products WHERE id = ?', [productId]);
+  if (!pRows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+  const [existingRows] = await db.query('SELECT id FROM offers WHERE product_id = ?', [productId]);
+  if (existingRows.length) return res.status(400).json({ error: 'Ya tiene oferta' });
+  const [result] = await db.query('INSERT INTO offers (product_id, discount_percent, valid_until) VALUES (?, ?, ?)', [productId, Number(discountPercent), validUntil || null]);
+  const [rows] = await db.query('SELECT * FROM offers WHERE id=?', [result.insertId]);
+  res.status(201).json(rows[0]);
 });
 
-app.put('/api/offers/:id', authMiddleware, (req, res) => {
+app.put('/api/offers/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
   const { discountPercent, validUntil } = req.body || {};
-  const existing = db.prepare('SELECT * FROM offers WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Oferta no encontrada' });
-  db.prepare('UPDATE offers SET discount_percent = ?, valid_until = ? WHERE id = ?').run(discountPercent != null ? Number(discountPercent) : existing.discount_percent, validUntil !== undefined ? (validUntil && String(validUntil).trim() ? String(validUntil).trim() : null) : existing.valid_until, id);
-  const row = db.prepare('SELECT o.id, o.product_id AS productId, o.discount_percent AS discountPercent, o.valid_until AS validUntil FROM offers o WHERE o.id = ?').get(id);
-  const p = db.prepare('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?').get(row.productId);
-  res.json({ id: row.id, productId: row.productId, discountPercent: row.discountPercent, validUntil: row.validUntil || undefined, product: mapProductRow(p) });
+  const [existingRows] = await db.query('SELECT * FROM offers WHERE id = ?', [id]);
+  if (!existingRows.length) return res.status(404).json({ error: 'Oferta no encontrada' });
+  await db.query('UPDATE offers SET discount_percent=?, valid_until=? WHERE id=?', [discountPercent ?? existingRows[0].discount_percent, validUntil !== undefined ? validUntil : existingRows[0].valid_until, id]);
+  const [rows] = await db.query('SELECT * FROM offers WHERE id=?', [id]);
+  res.json(rows[0]);
 });
 
-// Stripe Config
+app.delete('/api/offers/:id', authMiddleware, async (req, res) => {
+  const [result] = await db.query('DELETE FROM offers WHERE id = ?', [req.params.id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'Oferta no encontrada' });
+  res.status(204).send();
+});
+
 import dns from 'node:dns';
 import https from 'node:https';
 import net from 'node:net';
 import Stripe from 'stripe';
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-
 const stripeHttpAgent = new https.Agent({
   lookup: (hostname, options, callback) => {
-    if (typeof options === 'function') {
-      callback = options;
-      options = {};
-    }
-    if (typeof options === 'number') {
-      options = { family: options };
-    }
-
+    if (typeof options === 'function') { callback = options; options = {}; }
+    if (typeof options === 'number') { options = { family: options }; }
     const ipFamily = net.isIP(hostname);
-    if (ipFamily) {
-      return callback(null, hostname, ipFamily);
-    }
-
+    if (ipFamily) return callback(null, hostname, ipFamily);
     const wantAll = Boolean(options && options.all);
-
     dns.resolve4(hostname, (err, addresses) => {
       if (err) return callback(err);
-      if (!addresses || addresses.length === 0) return callback(new Error('DNS resolve4 returned no addresses'));
-      if (wantAll) {
-        return callback(null, addresses.map((a) => ({ address: a, family: 4 })));
-      }
+      if (!addresses || addresses.length === 0) return callback(new Error('no addresses'));
+      if (wantAll) return callback(null, addresses.map(a => ({ address: a, family: 4 })));
       return callback(null, addresses[0], 4);
     });
   },
 });
 
-function getStripeClient() {
-  if (!STRIPE_SECRET_KEY) return null;
-  return new Stripe(STRIPE_SECRET_KEY, { httpAgent: stripeHttpAgent });
-}
-
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
-    const stripe = getStripeClient();
-    if (!stripe) {
-      return res.status(500).send({
-        error: 'Stripe no está configurado',
-        details: 'Falta STRIPE_SECRET_KEY en variables de entorno',
-      });
-    }
-
+    if (!STRIPE_SECRET_KEY) return res.status(500).send({ error: 'Stripe no configurado' });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { httpAgent: stripeHttpAgent });
     const { items, customer } = req.body;
-
-    // Calcular total en el backend para seguridad
-    // NOTA: En producción, deberías buscar los precios en la DB usando los IDs de los items
-    // Aquí usamos los precios enviados, pero validamos que los productos existan.
     let total = 0;
-
-    // Basic validation and calculation
-    // TODO: Fetch real prices from DB to prevent client-side price manipulation
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     for (const item of items) {
-      const product = db.prepare('SELECT price, original_price AS originalPrice FROM products WHERE id = ?').get(item.product.id);
-      if (product) {
-        const offer = db.prepare("SELECT discount_percent FROM offers WHERE product_id = ? AND (valid_until IS NULL OR valid_until > datetime('now'))").get(item.product.id);
-
-        let price = product.price;
-        if (offer) {
-          price = price * (1 - offer.discount_percent / 100);
-        }
+      const [pRows] = await db.query('SELECT price FROM products WHERE id = ?', [item.product.id]);
+      if (pRows.length) {
+        const [oRows] = await db.query("SELECT discount_percent FROM offers WHERE product_id = ? AND (valid_until IS NULL OR valid_until > ?)", [item.product.id, now]);
+        let price = Number(pRows[0].price);
+        if (oRows.length) price *= (1 - Number(oRows[0].discount_percent) / 100);
         total += price * item.quantity;
       }
     }
-
     const shipping = total > 500 ? 0 : 25;
-    const tax = Math.round(total * 0.08 * 100) / 100; // Impuesto estimado en ejemplo
-    const finalAmount = Math.round((total + shipping + tax) * 100); // En centavos
-
+    const tax = Math.round(total * 0.08 * 100) / 100;
+    const finalAmount = Math.round((total + shipping + tax) * 100);
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: finalAmount,
-      currency: 'pen', // Soles
-      automatic_payment_methods: {
-        enabled: true,
-      },
-      metadata: {
-        customer_name: customer?.name || '',
-        customer_email: customer?.email || '',
-      }
+      amount: finalAmount, currency: 'pen', automatic_payment_methods: { enabled: true },
+      metadata: { customer_name: customer?.name || '', customer_email: customer?.email || '' }
     });
-
-    res.send({
-      clientSecret: paymentIntent.client_secret,
-    });
+    res.send({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
-    console.error('Error creating payment intent:', error);
     res.status(500).send({ error: error.message });
   }
 });
 
-// Endpoint modificado para validar el pago
-app.post('/api/orders', (req, res) => {
-  const { id, customer, items, total, paymentMethod, stripePaymentId } = req.body;
-
-  try {
-    // Si el método es tarjeta, verificar el estado del pago en Stripe
-    if (paymentMethod === 'card' && stripePaymentId) {
-      // Opcional: Verificar con stripe.paymentIntents.retrieve(stripePaymentId)
-      // Por ahora confiamos en el flujo del frontend + stripePaymentId presente
-    }
-
-    const insertOrder = db.prepare(`
-      INSERT INTO orders (id, customer_name, customer_phone, customer_address, customer_notes, total, payment_method, stripe_payment_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertItem = db.prepare(`
-      INSERT INTO order_items (order_id, product_id, product_name, product_price, product_image, quantity)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const transaction = db.transaction(() => {
-      insertOrder.run(id, customer.name, customer.phone, customer.address, customer.notes, total, paymentMethod, stripePaymentId || null);
-      for (const item of items) {
-        insertItem.run(
-          id,
-          item.product.id,
-          item.product.name,
-          item.product.price, // Guardamos el precio base, o el calculado si se prefiere
-          item.product.image,
-          item.quantity
-        );
-      }
-    });
-
-    transaction();
-    res.status(201).json({ success: true, id });
-  } catch (error) {
-    console.error('Error creating order:', error);
-    res.status(500).json({ error: 'Error al crear el pedido' });
-  }
-});
-
-// Keep existing verify-token endpoint just before the delete endpoint to avoid context issues
 app.get('/api/auth/verify-token', authMiddleware, (req, res) => {
   res.json({ valid: true, user: req.user });
 });
 
-app.delete('/api/offers/:id', authMiddleware, (req, res) => {
-  const result = db.prepare('DELETE FROM offers WHERE id = ?').run(req.params.id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Oferta no encontrada' });
-  res.status(204).send();
-});
-
-// Servicios / Blog (Público)
-app.get('/api/services', (req, res) => {
-  ensureServicesTable();
-  const rows = db.prepare('SELECT id, title, category, description, image, video, content, created_at FROM services ORDER BY created_at DESC').all();
+app.get('/api/services', async (req, res) => {
+  await ensureServicesTable();
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, created_at FROM services ORDER BY created_at DESC');
   res.json(rows);
 });
 
-// Servicios / Blog (Admin)
-app.post('/api/services', authMiddleware, (req, res) => {
-  ensureServicesTable();
+app.post('/api/services', authMiddleware, async (req, res) => {
+  await ensureServicesTable();
   const { title, category, description, image, video, content } = req.body || {};
-  if (!title || !category || !description) return res.status(400).json({ error: 'Título, categoría y descripción son obligatorios' });
-
-  db.prepare('INSERT INTO services (title, category, description, image, video, content) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(title.trim(), category.trim(), description.trim(), image || null, video || null, content || null);
-
-  const row = db.prepare('SELECT * FROM services ORDER BY id DESC LIMIT 1').get();
-  res.status(201).json(row);
+  if (!title || !category || !description) return res.status(400).json({ error: 'Faltan campos' });
+  const [result] = await db.query('INSERT INTO services (title, category, description, image, video, content) VALUES (?, ?, ?, ?, ?, ?)', [title.trim(), category.trim(), description.trim(), image||null, video||null, content||null]);
+  const [rows] = await db.query('SELECT * FROM services WHERE id=?', [result.insertId]);
+  res.status(201).json(rows[0]);
 });
 
-app.put('/api/services/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
+app.put('/api/services/:id', authMiddleware, async (req, res) => {
   const { title, category, description, image, video, content } = req.body || {};
-
-  const existing = db.prepare('SELECT * FROM services WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Servicio no encontrado' });
-
-  db.prepare('UPDATE services SET title = ?, category = ?, description = ?, image = ?, video = ?, content = ? WHERE id = ?')
-    .run(
-      title ? title.trim() : existing.title,
-      category ? category.trim() : existing.category,
-      description ? description.trim() : existing.description,
-      image !== undefined ? image : existing.image,
-      video !== undefined ? video : existing.video,
-      content !== undefined ? content : existing.content,
-      id
-    );
-
-  const row = db.prepare('SELECT * FROM services WHERE id = ?').get(id);
-  res.json(row);
+  const [existingRows] = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
+  if (!existingRows.length) return res.status(404).json({ error: 'No encontrado' });
+  await db.query('UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=? WHERE id=?', [title ?? existingRows[0].title, category ?? existingRows[0].category, description ?? existingRows[0].description, image !== undefined ? image : existingRows[0].image, video !== undefined ? video : existingRows[0].video, content !== undefined ? content : existingRows[0].content, req.params.id]);
+  const [rows] = await db.query('SELECT * FROM services WHERE id=?', [req.params.id]);
+  res.json(rows[0]);
 });
 
-app.delete('/api/services/:id', authMiddleware, (req, res) => {
-  const { id } = req.params;
-  const result = db.prepare('DELETE FROM services WHERE id = ?').run(id);
-  if (result.changes === 0) return res.status(404).json({ error: 'Servicio no encontrado' });
+app.delete('/api/services/:id', authMiddleware, async (req, res) => {
+  const [result] = await db.query('DELETE FROM services WHERE id = ?', [req.params.id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
   res.status(204).send();
 });
 

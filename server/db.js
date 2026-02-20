@@ -1,196 +1,215 @@
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import path from 'path';
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
+// Ensures env variables are loaded if not loaded yet
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, 'ecommerce.db');
-export const db = new Database(dbPath);
+dotenv.config({ path: path.join(__dirname, ".env") });
 
-// Desactivar comprobación de claves foráneas para poder eliminar productos
-// aunque existan ofertas o ítems de pedidos que los referencien
-db.pragma('foreign_keys = OFF');
+export const db = mysql.createPool({
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "ecommerce",
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
-export function initDb() {
-  db.exec(`
+export async function initDb() {
+  await db.query("SET FOREIGN_KEY_CHECKS = 0");
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS products (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      price REAL NOT NULL,
-      image TEXT,
-      category TEXT NOT NULL,
-      description TEXT,
-      stock INTEGER NOT NULL DEFAULT 0,
-      rating REAL,
-      original_price REAL,
-      tag TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS orders (
-      id TEXT PRIMARY KEY,
-      customer_name TEXT NOT NULL,
-      customer_phone TEXT NOT NULL,
-      customer_address TEXT NOT NULL,
-      customer_notes TEXT,
-      total REAL NOT NULL,
-      payment_method TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS order_items (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      order_id TEXT NOT NULL,
-      product_id TEXT NOT NULL,
-      product_name TEXT NOT NULL,
-      product_price REAL NOT NULL,
-      product_image TEXT,
-      quantity INTEGER NOT NULL,
-      FOREIGN KEY (order_id) REFERENCES orders(id)
-    );
-    CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-    CREATE TABLE IF NOT EXISTS carousel_slides (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      image TEXT NOT NULL,
-      alt TEXT NOT NULL DEFAULT '',
-      title TEXT,
-      highlight TEXT,
-      description TEXT,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS promo_banners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      image TEXT NOT NULL,
-      title TEXT NOT NULL DEFAULT '',
-      description TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS offers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      product_id TEXT NOT NULL,
-      discount_percent REAL NOT NULL,
-      valid_until TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (product_id) REFERENCES products(id)
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
-  // Migration for carousel_slides
-  try {
-    const tableInfo = db.pragma('table_info(carousel_slides)');
-    const hasTitle = tableInfo.some(col => col.name === 'title');
-    const hasDesc = tableInfo.some(col => col.name === 'description');
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS products (
+      id VARCHAR(255) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      price DECIMAL(10,2) NOT NULL,
+      image TEXT,
+      category VARCHAR(255) NOT NULL,
+      description TEXT,
+      stock INT NOT NULL DEFAULT 0,
+      rating FLOAT,
+      original_price DECIMAL(10,2),
+      tag VARCHAR(100),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
 
-    if (!hasTitle) {
-      db.prepare('ALTER TABLE carousel_slides ADD COLUMN title TEXT').run();
-    }
-    if (!hasDesc) {
-      db.prepare('ALTER TABLE carousel_slides ADD COLUMN description TEXT').run();
-    }
-    const hasHighlight = tableInfo.some(col => col.name === 'highlight');
-    if (!hasHighlight) {
-      db.prepare('ALTER TABLE carousel_slides ADD COLUMN highlight TEXT').run();
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS orders (
+      id VARCHAR(255) PRIMARY KEY,
+      customer_name VARCHAR(255) NOT NULL,
+      customer_phone VARCHAR(50) NOT NULL,
+      customer_address TEXT NOT NULL,
+      customer_notes TEXT,
+      total DECIMAL(10,2) NOT NULL,
+      payment_method VARCHAR(50) NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'pending',
+      stripe_payment_id VARCHAR(255),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS order_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_id VARCHAR(255) NOT NULL,
+      product_id VARCHAR(255) NOT NULL,
+      product_name VARCHAR(255) NOT NULL,
+      product_price DECIMAL(10,2) NOT NULL,
+      product_image TEXT,
+      quantity INT NOT NULL,
+      FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Index for order_items if it doesn't exist
+  try {
+    const [rows] = await db.query(
+      "SHOW INDEX FROM order_items WHERE Key_name = 'idx_order_items_order_id'",
+    );
+    if (rows.length === 0) {
+      await db.query(
+        "CREATE INDEX idx_order_items_order_id ON order_items(order_id)",
+      );
     }
   } catch (error) {
-    console.error('Error migrating carousel_slides:', error);
+    // Index creation ignore error
   }
 
-  // Migration for orders (Stripe)
-  try {
-    const tableInfo = db.pragma('table_info(orders)');
-    const hasStripeId = tableInfo.some(col => col.name === 'stripe_payment_id');
-    if (!hasStripeId) {
-      db.prepare('ALTER TABLE orders ADD COLUMN stripe_payment_id TEXT').run();
-    }
-  } catch (error) {
-    console.error('Error migrating orders:', error);
-  }
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS carousel_slides (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      image TEXT NOT NULL,
+      alt VARCHAR(255) NOT NULL DEFAULT '',
+      title VARCHAR(255) DEFAULT '',
+      highlight VARCHAR(255) DEFAULT '',
+      description TEXT,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS promo_banners (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      image TEXT NOT NULL,
+      title VARCHAR(255) NOT NULL DEFAULT '',
+      description TEXT,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS offers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      product_id VARCHAR(255) NOT NULL,
+      discount_percent DECIMAL(5,2) NOT NULL,
+      valid_until DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+    );
+  `);
+
+  await db.query("SET FOREIGN_KEY_CHECKS = 1");
 }
 
 /** Asegura que la tabla categories exista y tenga datos iniciales. */
-export function ensureCategoriesTable() {
-  db.exec(`
+export async function ensureCategoriesTable() {
+  await db.query(`
     CREATE TABLE IF NOT EXISTS categories (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      icon TEXT NOT NULL DEFAULT 'Wrench',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      filter_key TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL UNIQUE,
+      icon VARCHAR(255) NOT NULL DEFAULT 'Wrench',
+      sort_order INT NOT NULL DEFAULT 0,
+      filter_key VARCHAR(255),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  const count = db.prepare('SELECT COUNT(*) as n FROM categories').get();
-  if (count.n === 0) {
-    const insert = db.prepare('INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)');
+  const [rows] = await db.query("SELECT COUNT(*) as n FROM categories");
+  if (rows[0].n === 0) {
     const initial = [
-      ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
-      ['Herramientas Manuales', 'Wrench', 1, 'tools'],
-      ['Materiales de Construcción', 'Building2', 2, 'raw'],
-      ['Pinturas y Acabados', 'Paintbrush', 3, 'landscaping'],
-      ['Fontanería', 'Droplets', 4, 'landscaping'],
-      ['Electricidad', 'Lightbulb', 5, 'safety'],
+      ["Herramientas Eléctricas", "Zap", 0, "tools"],
+      ["Herramientas Manuales", "Wrench", 1, "tools"],
+      ["Materiales de Construcción", "Building2", 2, "raw"],
+      ["Pinturas y Acabados", "Paintbrush", 3, "landscaping"],
+      ["Fontanería", "Droplets", 4, "landscaping"],
+      ["Electricidad", "Lightbulb", 5, "safety"],
     ];
-    initial.forEach(([name, icon, sortOrder, filterKey], i) => {
-      insert.run(name, icon, sortOrder, filterKey);
-    });
+    for (const [name, icon, sortOrder, filterKey] of initial) {
+      await db.query(
+        "INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)",
+        [name, icon, sortOrder, filterKey],
+      );
+    }
   }
 }
 
 /** Grupos del filtro lateral de la tienda (Herramientas, Materias primas, etc.). */
-export function ensureFilterGroupsTable() {
-  db.exec(`
+export async function ensureFilterGroupsTable() {
+  await db.query(`
     CREATE TABLE IF NOT EXISTS filter_groups (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      key TEXT NOT NULL UNIQUE,
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      \`key\` VARCHAR(255) NOT NULL UNIQUE,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  const count = db.prepare('SELECT COUNT(*) as n FROM filter_groups').get();
-  if (count.n === 0) {
-    const insert = db.prepare('INSERT INTO filter_groups (name, key, sort_order) VALUES (?, ?, ?)');
-    [
-      ['Herramientas', 'tools', 0],
-      ['Materias primas', 'raw', 1],
-      ['Jardinería', 'landscaping', 2],
-      ['Seguridad', 'safety', 3],
-    ].forEach(([name, key, sortOrder], i) => insert.run(name, key, sortOrder));
+  const [rows] = await db.query("SELECT COUNT(*) as n FROM filter_groups");
+  if (rows[0].n === 0) {
+    const initial = [
+      ["Herramientas", "tools", 0],
+      ["Materias primas", "raw", 1],
+      ["Jardinería", "landscaping", 2],
+      ["Seguridad", "safety", 3],
+    ];
+    for (const [name, key, sortOrder] of initial) {
+      await db.query(
+        "INSERT INTO filter_groups (name, \`key\`, sort_order) VALUES (?, ?, ?)",
+        [name, key, sortOrder],
+      );
+    }
   }
 }
 
-/** Asegura que la tabla promo_banners exista (por si el servidor no se reinició tras añadirla). */
-export function ensurePromoBannersTable() {
-  db.exec(`
+/** Asegura que la tabla promo_banners exista. */
+export async function ensurePromoBannersTable() {
+  await db.query(`
     CREATE TABLE IF NOT EXISTS promo_banners (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id INT AUTO_INCREMENT PRIMARY KEY,
       image TEXT NOT NULL,
-      title TEXT NOT NULL DEFAULT '',
-      description TEXT NOT NULL DEFAULT '',
-      sort_order INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now'))
+      title VARCHAR(255) NOT NULL DEFAULT '',
+      description TEXT,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 }
 
 /** Asegura que la tabla services exista (blog/servicios). */
-export function ensureServicesTable() {
-  db.exec(`
+export async function ensureServicesTable() {
+  await db.query(`
     CREATE TABLE IF NOT EXISTS services (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      category TEXT NOT NULL,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      category VARCHAR(255) NOT NULL,
       description TEXT NOT NULL,
       image TEXT,
       video TEXT,
       content TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
 }

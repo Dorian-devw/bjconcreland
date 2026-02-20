@@ -18,6 +18,9 @@ import type { Order } from '@/types';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { generateReceipt } from '../lib/generateReceipt';
+import { API } from '@/lib/api';
+
+
 
 const stripePromise = loadStripe('pk_test_51T0bG9B7JC0XRRBAnsPhW00XkgbpMyTzAUrAgClrrM0MPZFL3bz6AbLfSQy0ka9AYT0SUcuhArw4Yb80RzsfzKUT00tkCxWbK9');
 
@@ -81,7 +84,7 @@ function PaymentForm({
       };
 
       try {
-        const res = await fetch('/api/orders', {
+        const res = await fetch(`${API}/orders`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(orderPayload),
@@ -169,7 +172,7 @@ export function Checkout() {
       // Reset clientSecret if items o datos de cliente cambian
       setClientSecret('');
 
-      fetch('/api/create-payment-intent', {
+      fetch(`${API}/create-payment-intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items, customer: { name: formData.fullName, email: formData.email } }),

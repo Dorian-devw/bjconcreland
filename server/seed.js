@@ -1,32 +1,67 @@
 import bcrypt from 'bcryptjs';
 import { db, initDb } from './db.js';
 import { initialProducts } from './seed-data.js';
+import { fileURLToPath } from 'url';
 
-initDb();
-const defaultPassword = 'admin123';
-const hash = bcrypt.hashSync(defaultPassword, 10);
-const insertUser = db.prepare('INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)');
-insertUser.run('admin', hash);
-console.log('Usuario admin creado (contraseña: admin123)');
+export async function seed() {
+  await initDb();
+  const defaultPassword = 'admin123';
+  const hash = bcrypt.hashSync(defaultPassword, 10);
+  
+  // Insert user admin if it doesn't exist
+  try {
+    await db.query('INSERT INTO users (username, password_hash) VALUES (?, ?)', ['admin', hash]);
+    console.log('Usuario admin creado (contraseña: admin123)');
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') {
+      console.log('Usuario admin ya existe.');
+    } else {
+      throw e;
+    }
+  }
 
-const insertProduct = db.prepare(`
-  INSERT OR IGNORE INTO products (id, name, price, image, category, description, stock, rating, original_price, tag)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`);
-for (const p of initialProducts) {
-  insertProduct.run(p.id, p.name, p.price, p.image, p.category, p.description, p.stock, p.rating ?? null, p.originalPrice ?? null, p.tag ?? null);
+  // Insert products
+  for (const p of initialProducts) {
+    try {
+      await db.query(`
+        INSERT INTO products (id, name, price, image, category, description, stock, rating, original_price, tag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        p.id, p.name, p.price, p.image, p.category, p.description, p.stock, p.rating ?? null, p.originalPrice ?? null, p.tag ?? null
+      ]);
+    } catch (e) {
+      if (e.code === 'ER_DUP_ENTRY') {
+        // ignore duplicate products
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  const [rows] = await db.query('SELECT COUNT(*) as n FROM carousel_slides');
+  if (rows[0].n === 0) {
+    const slides = [
+      ['/hero-banner.jpg', 'Obra en construcción', 0],
+      ['/promo-tools.jpg', 'Herramientas', 1],
+      ['/promo-materials.jpg', 'Materiales', 2],
+      ['/promo-shipping.jpg', 'Envíos', 3],
+    ];
+    for (const [image, alt, sortOrder] of slides) {
+      await db.query('INSERT INTO carousel_slides (image, alt, sort_order) VALUES (?, ?, ?)', [image, alt, sortOrder]);
+    }
+    console.log('Carrusel: slides iniciales insertados.');
+  }
 }
-console.log('Productos insertados.');
 
-const carouselCount = db.prepare('SELECT COUNT(*) as n FROM carousel_slides').get();
-if (carouselCount.n === 0) {
-  const insertSlide = db.prepare('INSERT INTO carousel_slides (image, alt, sort_order) VALUES (?, ?, ?)');
-  [
-    ['/hero-banner.jpg', 'Obra en construcción', 0],
-    ['/promo-tools.jpg', 'Herramientas', 1],
-    ['/promo-materials.jpg', 'Materiales', 2],
-    ['/promo-shipping.jpg', 'Envíos', 3],
-  ].forEach(([image, alt], i) => insertSlide.run(image, alt, i));
-  console.log('Carrusel: slides iniciales insertados.');
+// Ejecutar si se llama directamente via CLI (ej. 'node seed.js')
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  seed()
+    .then(() => {
+      console.log('Seed completado a través de CLI.');
+      process.exit(0);
+    })
+    .catch((error) => {
+      console.error('Error durante el seed:', error);
+      process.exit(1);
+    });
 }
-console.log('Seed completado.');

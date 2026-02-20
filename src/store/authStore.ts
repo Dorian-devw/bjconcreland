@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { API } from '@/lib/api';
 
 interface AuthState {
   token: string | null;
@@ -8,8 +9,6 @@ interface AuthState {
   logout: () => void;
   isAuthenticated: () => boolean;
 }
-
-const API = '/api';
 
 export const useAuthStore = create<AuthState>()(
   persist(

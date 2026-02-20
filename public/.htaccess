@@ -1,0 +1,8 @@
+RewriteEngine On
+RewriteBase /
+
+# Si la ruta no corresponde a un archivo o directorio existente,
+# sirve index.html para que React Router maneje el enrutado (SPA).
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.html [L]

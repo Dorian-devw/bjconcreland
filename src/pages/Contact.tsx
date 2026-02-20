@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/context/LanguageContext';
+import { API } from '@/lib/api';
 
 export function Contact() {
   const { t } = useLanguage();
@@ -29,7 +30,7 @@ export function Contact() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/contact/sms', {
+      const response = await fetch(`${API}/contact/sms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

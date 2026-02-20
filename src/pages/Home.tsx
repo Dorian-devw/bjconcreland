@@ -23,7 +23,7 @@ const HERO_SLIDES_FALLBACK: HeroSlide[] = [
 ];
 const HERO_INTERVAL_MS = 5000;
 const PROMO_CAROUSEL_INTERVAL_MS = 6000;
-const API = '/api';
+import { API } from '@/lib/api';
 
 interface PromoBannerItem {
   id: number;

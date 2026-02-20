@@ -14,7 +14,7 @@ interface Service {
     created_at?: string;
 }
 
-const API = 'http://localhost:3002/api';
+import { API } from '@/lib/api';
 
 const getIconForCategory = (category: string) => {
     switch (category) {

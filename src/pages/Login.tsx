@@ -98,9 +98,6 @@ export function Login() {
             </Button>
           </form>
 
-          <p className="text-center text-gray-400 text-xs mt-6">
-            {t('login.default_cred')} <strong>admin</strong>, {t('login.password_lbl')} <strong>admin123</strong>
-          </p>
         </div>
       </div>
     </div>

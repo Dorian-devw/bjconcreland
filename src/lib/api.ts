@@ -1,6 +1,5 @@
-// Permite configurar la URL del backend vía variable de entorno en build.
-// Si no se define VITE_API_URL, seguirá usando la ruta relativa /api.
-const API = import.meta.env.VITE_API_URL ?? '/api';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'https://api.bjconcreland.com';
+const API = `${API_BASE.replace(/\/$/, '')}/api`;
 
 export function getToken(): string | null {
   try {
