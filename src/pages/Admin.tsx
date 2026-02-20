@@ -203,6 +203,21 @@ export function Admin() {
 
   const [filterGroups, setFilterGroups] = useState<FilterGroup[]>([]);
   const [filterGroupsLoading, setFilterGroupsLoading] = useState(false);
+  const [filterGroupDialogOpen, setFilterGroupDialogOpen] = useState(false);
+  const [editingFilterGroupId, setEditingFilterGroupId] = useState<string | null>(null);
+  const [filterGroupForm, setFilterGroupForm] = useState({ name: '', key: '' });
+  const [filterGroupSaving, setFilterGroupSaving] = useState(false);
+  const [filterGroupToDelete, setFilterGroupToDelete] = useState<FilterGroup | null>(null);
+
+  // Upload state per entity
+  const [uploadingProductImage, setUploadingProductImage] = useState(false);
+  const [uploadProductImageError, setUploadProductImageError] = useState<string | null>(null);
+  const [uploadingSlideImage, setUploadingSlideImage] = useState(false);
+  const [uploadSlideImageError, setUploadSlideImageError] = useState<string | null>(null);
+  const [uploadingBannerImage, setUploadingBannerImage] = useState(false);
+  const [uploadBannerImageError, setUploadBannerImageError] = useState<string | null>(null);
+  const [uploadingServiceImage, setUploadingServiceImage] = useState(false);
+  const [uploadServiceImageError, setUploadServiceImageError] = useState<string | null>(null);
 
   const handleLanguageToggle = async () => {
     const next = language === 'es' ? 'en' : 'es';
@@ -224,12 +239,37 @@ export function Admin() {
       setLanguage(next);
     }
   };
-  const [filterGroupDialogOpen, setFilterGroupDialogOpen] = useState(false);
-  const [editingFilterGroupId, setEditingFilterGroupId] = useState<string | null>(null);
-  const [filterGroupForm, setFilterGroupForm] = useState({ name: '', key: '' });
-  const [filterGroupSaving, setFilterGroupSaving] = useState(false);
 
-  const [filterGroupToDelete, setFilterGroupToDelete] = useState<FilterGroup | null>(null);
+  // ---- Helper: Upload image to server via Multer ----
+  const uploadImageToServer = async (
+    file: File,
+    type: 'products' | 'carousel' | 'banners' | 'services',
+    setUploading: (v: boolean) => void,
+    setError: (v: string | null) => void,
+    onSuccess: (url: string) => void,
+  ) => {
+    setUploading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetchWithAuth(`${API}/upload/${type}`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string }).error || `Error al subir imagen (${res.status})`);
+      }
+      const data = await res.json();
+      if (!data.url) throw new Error('El servidor no devolvió la URL de la imagen');
+      onSuccess(data.url as string);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al subir imagen');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
@@ -2447,18 +2487,28 @@ export function Admin() {
                     className="sr-only"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (!file || !file.type.startsWith('image/')) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const dataUrl = reader.result as string;
-                        setProductForm((f) => ({ ...f, image: dataUrl }));
-                      };
-                      reader.readAsDataURL(file);
+                      if (!file) return;
                       e.target.value = '';
+                      uploadImageToServer(
+                        file,
+                        'products',
+                        setUploadingProductImage,
+                        setUploadProductImageError,
+                        (url) => setProductForm((f) => ({ ...f, image: url })),
+                      );
                     }}
                   />
                 </label>
-                {productForm.image && (
+                {uploadingProductImage && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
+                    Subiendo...
+                  </span>
+                )}
+                {uploadProductImageError && (
+                  <span className="text-xs text-red-500">{uploadProductImageError}</span>
+                )}
+                {productForm.image && !uploadingProductImage && (
                   <div className="w-16 h-16 rounded border border-gray-200 overflow-hidden bg-[#f8f8f8] flex-shrink-0">
                     <img
                       src={productForm.image}
@@ -2595,14 +2645,15 @@ export function Admin() {
                   id="slide-file-upload"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (!file || !file.type.startsWith('image/')) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const result = reader.result;
-                      if (typeof result === 'string') setSlideForm((f) => ({ ...f, image: result }));
-                    };
-                    reader.readAsDataURL(file);
+                    if (!file) return;
                     e.target.value = '';
+                    uploadImageToServer(
+                      file,
+                      'carousel',
+                      setUploadingSlideImage,
+                      setUploadSlideImageError,
+                      (url) => setSlideForm((f) => ({ ...f, image: url })),
+                    );
                   }}
                 />
                 <Label
@@ -2612,8 +2663,17 @@ export function Admin() {
                   <Upload className="w-4 h-4" />
                   Elegir archivo
                 </Label>
-                {slideForm.image && slideForm.image.startsWith('data:') && (
-                  <span className="text-xs text-green-600">Imagen seleccionada</span>
+                {uploadingSlideImage && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
+                    Subiendo...
+                  </span>
+                )}
+                {uploadSlideImageError && (
+                  <span className="text-xs text-red-500">{uploadSlideImageError}</span>
+                )}
+                {slideForm.image && !slideForm.image.startsWith('data:') && !uploadingSlideImage && (
+                  <span className="text-xs text-green-600">✓ Imagen subida</span>
                 )}
               </div>
             </div>
@@ -2836,14 +2896,15 @@ export function Admin() {
                   id="promo-banner-file"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (!file || !file.type.startsWith('image/')) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const result = reader.result;
-                      if (typeof result === 'string') setPromoBannerForm((f) => ({ ...f, image: result }));
-                    };
-                    reader.readAsDataURL(file);
+                    if (!file) return;
                     e.target.value = '';
+                    uploadImageToServer(
+                      file,
+                      'banners',
+                      setUploadingBannerImage,
+                      setUploadBannerImageError,
+                      (url) => setPromoBannerForm((f) => ({ ...f, image: url })),
+                    );
                   }}
                 />
                 <Label
@@ -2853,6 +2914,18 @@ export function Admin() {
                   <Upload className="w-4 h-4" />
                   Elegir archivo
                 </Label>
+                {uploadingBannerImage && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
+                    Subiendo...
+                  </span>
+                )}
+                {uploadBannerImageError && (
+                  <span className="text-xs text-red-500">{uploadBannerImageError}</span>
+                )}
+                {promoBannerForm.image && !promoBannerForm.image.startsWith('data:') && !uploadingBannerImage && (
+                  <span className="text-xs text-green-600">✓ Imagen subida</span>
+                )}
               </div>
             </div>
             <div className="grid gap-2">
@@ -3080,14 +3153,15 @@ export function Admin() {
                   id="service-file"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
-                    if (!file || !file.type.startsWith('image/')) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      const result = reader.result;
-                      if (typeof result === 'string') setServiceForm((f) => ({ ...f, image: result }));
-                    };
-                    reader.readAsDataURL(file);
+                    if (!file) return;
                     e.target.value = '';
+                    uploadImageToServer(
+                      file,
+                      'services',
+                      setUploadingServiceImage,
+                      setUploadServiceImageError,
+                      (url) => setServiceForm((f) => ({ ...f, image: url })),
+                    );
                   }}
                 />
                 <Label
@@ -3096,6 +3170,15 @@ export function Admin() {
                 >
                   Subir imagen
                 </Label>
+                {uploadingServiceImage && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
+                    Subiendo...
+                  </span>
+                )}
+                {uploadServiceImageError && (
+                  <span className="text-xs text-red-500">{uploadServiceImageError}</span>
+                )}
               </div>
             </div>
             <div className="grid gap-2">

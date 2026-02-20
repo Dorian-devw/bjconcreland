@@ -5,6 +5,9 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureServicesTable } = require('./db.js');
 const { seed } = require('./seed.js');
 
@@ -43,6 +46,67 @@ app.use(cors({
 
 
 app.use(express.json({ limit: '10mb' }));
+
+// ========== STATIC FILE SERVING FOR UPLOADS ==========
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+app.use('/uploads', express.static(UPLOADS_DIR));
+
+// ========== MULTER CONFIG ==========
+const VALID_UPLOAD_TYPES = ['products', 'carousel', 'banners', 'services'];
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const type = req.params.type || 'misc';
+    const dir = path.join(UPLOADS_DIR, type);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const uniqueName = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+    cb(null, uniqueName);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+  if (allowed.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Tipo de archivo no permitido. Solo se aceptan imágenes (JPG, PNG, WEBP, GIF, SVG).'), false);
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
+// ========== UPLOAD ENDPOINT ==========
+const SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'https://api.bjconcreland.com';
+
+app.post('/api/upload/:type', authMiddleware, (req, res) => {
+  const { type } = req.params;
+  if (!VALID_UPLOAD_TYPES.includes(type)) {
+    return res.status(400).json({ error: `Tipo inválido. Usa: ${VALID_UPLOAD_TYPES.join(', ')}` });
+  }
+  upload.single('image')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ error: 'El archivo es demasiado grande. Máximo 5MB.' });
+      }
+      return res.status(400).json({ error: err.message || 'Error al subir archivo' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se recibió ninguna imagen' });
+    }
+    const url = `${SERVER_BASE_URL}/uploads/${type}/${req.file.filename}`;
+    res.json({ url });
+  });
+});
+
 
 app.post('/api/contact/sms', async (req, res) => {
   const { fullName, email, phone, subject, message } = req.body || {};
