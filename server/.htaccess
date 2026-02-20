@@ -1,19 +1,14 @@
-
-# Force HTTPS without 307 redirect (use 301 - preserves POST method via 308 alternative)
-RewriteEngine On
-RewriteCond %{HTTPS} off
-RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
-# Handle OPTIONS preflight - respond immediately with 204
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule .* - [R=204,L]
-
-# CORS Headers - always set on every response
+# CORS Headers - set on every response (including errors)
 Header always set Access-Control-Allow-Origin "https://bjconcreland.com"
 Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, PATCH, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
 Header always set Access-Control-Allow-Credentials "true"
 Header always set Access-Control-Max-Age "3600"
+
+# Handle OPTIONS preflight - respond immediately with 204 (no redirect, no proxy)
+RewriteEngine On
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule .* - [R=204,L]
 
 # Allow larger request bodies (50MB)
 LimitRequestBody 52428800
