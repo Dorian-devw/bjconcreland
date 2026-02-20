@@ -37,22 +37,10 @@ const allowedOrigins = [
 ];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // Permitir peticiones sin origin (ej: curl, apps móviles) y orígenes en la lista
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 204,
+  origin: allowedOrigins,
+  credentials: true
 }));
 
-// Responder explícitamente a preflight OPTIONS en todas las rutas
-app.options('*', cors());
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -110,15 +98,55 @@ function authMiddleware(req, res, next) {
 }
 
 app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body || {};
-  if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
-  const [rows] = await db.query('SELECT * FROM users WHERE username = ?', [username]);
-  const user = rows[0];
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
-  const token = jwt.sign({ id: user.id, username: user.username }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, username: user.username });
-});
+  try {
+    const { username, password } = req.body || {};
 
+    if (!username || !password) {
+      return res.status(400).json({
+        error: 'Usuario y contraseña requeridos'
+      });
+    }
+
+    const [rows] = await db.query(
+      'SELECT * FROM users WHERE username = ?',
+      [username]
+    );
+
+    const user = rows[0];
+
+    if (!user) {
+      return res.status(401).json({
+        error: 'Usuario o contraseña incorrectos'
+      });
+    }
+
+    const passwordValid = bcrypt.compareSync(password, user.password_hash);
+
+    if (!passwordValid) {
+      return res.status(401).json({
+        error: 'Usuario o contraseña incorrectos'
+      });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return res.status(200).json({
+      token,
+      username: user.username
+    });
+
+  } catch (error) {
+    console.error('Error en login:', error);
+
+    return res.status(500).json({
+      error: 'Error interno del servidor'
+    });
+  }
+});
 app.get('/api/products', async (req, res) => {
   const [rows] = await db.query('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
   res.json(rows.map(r => ({ ...r, price: Number(r.price), originalPrice: r.originalPrice ? Number(r.originalPrice) : undefined, stock: Number(r.stock) })));
