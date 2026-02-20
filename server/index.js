@@ -1,11 +1,12 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import twilio from 'twilio';
-import { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureServicesTable } from './db.js';
-import { seed } from './seed.js';
+'use strict';
+require('dotenv/config');
+const express = require('express');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const twilio = require('twilio');
+const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureServicesTable } = require('./db.js');
+const { seed } = require('./seed.js');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-cambiar-en-produccion';
 const PORT = process.env.PORT || 3002;
@@ -224,7 +225,7 @@ app.delete('/api/categories/:id', authMiddleware, async (req, res) => {
 
 app.get('/api/filter-groups', async (req, res) => {
   await ensureFilterGroupsTable();
-  const [rows] = await db.query('SELECT id, name, \`key\`, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC');
+  const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC');
   res.json(rows.map(r => ({ ...r, id: String(r.id) })));
 });
 
@@ -236,8 +237,8 @@ app.post('/api/filter-groups', authMiddleware, async (req, res) => {
   if (!keyVal) return res.status(400).json({ error: 'Indica nombre' });
   const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
   try {
-    const [result] = await db.query('INSERT INTO filter_groups (name, \`key\`, sort_order) VALUES (?, ?, ?)', [name.trim(), keyVal, countRows[0].n]);
-    const [rows] = await db.query('SELECT id, name, \`key\`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [result.insertId]);
+    const [result] = await db.query('INSERT INTO filter_groups (name, `key`, sort_order) VALUES (?, ?, ?)', [name.trim(), keyVal, countRows[0].n]);
+    const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [result.insertId]);
     res.status(201).json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
@@ -255,8 +256,8 @@ app.put('/api/filter-groups/:id', authMiddleware, async (req, res) => {
   const newKey = key !== undefined ? String(key).trim().toLowerCase().replace(/\s+/g, '-') : existing.key;
   if (!newName || !newKey) return res.status(400).json({ error: 'Vacío' });
   try {
-    await db.query('UPDATE filter_groups SET name=?, \`key\`=?, sort_order=? WHERE id=?', [newName, newKey, sortOrder != null ? Number(sortOrder) : existing.sort_order, id]);
-    const [rows] = await db.query('SELECT id, name, \`key\`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [id]);
+    await db.query('UPDATE filter_groups SET name=?, `key`=?, sort_order=? WHERE id=?', [newName, newKey, sortOrder != null ? Number(sortOrder) : existing.sort_order, id]);
+    const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [id]);
     res.json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
@@ -265,7 +266,7 @@ app.put('/api/filter-groups/:id', authMiddleware, async (req, res) => {
 });
 
 app.delete('/api/filter-groups/:id', authMiddleware, async (req, res) => {
-  const [rows] = await db.query('SELECT \`key\` FROM filter_groups WHERE id = ?', [req.params.id]);
+  const [rows] = await db.query('SELECT `key` FROM filter_groups WHERE id = ?', [req.params.id]);
   if (!rows.length) return res.status(404).json({ error: 'No encontrado' });
   await db.query('UPDATE categories SET filter_key = NULL WHERE filter_key = ?', [rows[0].key]);
   await db.query('DELETE FROM filter_groups WHERE id = ?', [req.params.id]);
@@ -479,10 +480,10 @@ app.delete('/api/offers/:id', authMiddleware, async (req, res) => {
   res.status(204).send();
 });
 
-import dns from 'node:dns';
-import https from 'node:https';
-import net from 'node:net';
-import Stripe from 'stripe';
+const dns = require('node:dns');
+const https = require('node:https');
+const net = require('node:net');
+const Stripe = require('stripe');
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const stripeHttpAgent = new https.Agent({
   lookup: (hostname, options, callback) => {

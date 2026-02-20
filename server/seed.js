@@ -1,13 +1,13 @@
-import bcrypt from 'bcryptjs';
-import { db, initDb } from './db.js';
-import { initialProducts } from './seed-data.js';
-import { fileURLToPath } from 'url';
+'use strict';
+const bcrypt = require('bcryptjs');
+const { db, initDb } = require('./db.js');
+const { initialProducts } = require('./seed-data.js');
 
-export async function seed() {
+async function seed() {
   await initDb();
   const defaultPassword = 'admin123';
   const hash = bcrypt.hashSync(defaultPassword, 10);
-  
+
   // Insert user admin if it doesn't exist
   try {
     await db.query('INSERT INTO users (username, password_hash) VALUES (?, ?)', ['admin', hash]);
@@ -53,8 +53,10 @@ export async function seed() {
   }
 }
 
+module.exports = { seed };
+
 // Ejecutar si se llama directamente via CLI (ej. 'node seed.js')
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (require.main === module) {
   seed()
     .then(() => {
       console.log('Seed completado a través de CLI.');

@@ -1,4 +1,5 @@
-export const initialProducts = [
+'use strict';
+const initialProducts = [
   { id: '1', name: 'Taladro Percutor 750W', price: 299, image: '/product-drill.jpg', category: 'Herramientas Eléctricas', description: 'Taladro percutor profesional de 750W.', stock: 15, rating: 4.8, originalPrice: null, tag: 'TOOLS' },
   { id: '2', name: 'Cemento Portland 42.5kg', price: 32.5, image: '/product-cement.jpg', category: 'Materiales de Construcción', description: 'Cemento Portland tipo I.', stock: 100, rating: 4.9, originalPrice: null, tag: 'IN STOCK' },
   { id: '3', name: 'Set de Destornilladores 6pzs', price: 12.5, image: '/product-screwdrivers.jpg', category: 'Herramientas Manuales', description: 'Set 6 destornilladores.', stock: 30, rating: 4.7, originalPrice: 15, tag: 'SALE' },
@@ -12,3 +13,5 @@ export const initialProducts = [
   { id: '11', name: 'Martillo de Uña 16oz', price: 28.5, image: '/product-wrench.jpg', category: 'Herramientas Manuales', description: 'Martillo 16 onzas.', stock: 18, rating: 4.8, originalPrice: null, tag: 'IN STOCK' },
   { id: '12', name: 'Sellador Acrílico 300ml', price: 15.9, image: '/product-paint.jpg', category: 'Pinturas y Acabados', description: 'Sellador acrílico 300ml.', stock: 35, rating: 4.5, originalPrice: null, tag: 'IN STOCK' },
 ];
+
+module.exports = { initialProducts };
