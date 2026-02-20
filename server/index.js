@@ -27,7 +27,32 @@ seed().then(() => {
 }).catch(console.error);
 
 const app = express();
-app.use(cors({ origin: true, credentials: true }));
+
+const allowedOrigins = [
+  'https://bjconcreland.com',
+  'https://www.bjconcreland.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir peticiones sin origin (ej: curl, apps móviles) y orígenes en la lista
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 204,
+}));
+
+// Responder explícitamente a preflight OPTIONS en todas las rutas
+app.options('*', cors());
+
 app.use(express.json({ limit: '10mb' }));
 
 app.post('/api/contact/sms', async (req, res) => {
