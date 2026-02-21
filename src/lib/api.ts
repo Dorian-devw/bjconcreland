@@ -12,16 +12,19 @@ export function getToken(): string | null {
   }
 }
 
-export function authHeaders(): HeadersInit {
+export function authHeaders(includeContentType = true): HeadersInit {
   const token = getToken();
   return {
-    'Content-Type': 'application/json',
+    ...(includeContentType ? { 'Content-Type': 'application/json' } : {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
 export async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  return fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers as object) } });
+  // Si el body es FormData, NO forzar Content-Type (el navegador lo pone con el boundary correcto)
+  const isFormData = options.body instanceof FormData;
+  const baseHeaders = authHeaders(!isFormData);
+  return fetch(url, { ...options, headers: { ...baseHeaders, ...(options.headers as object) } });
 }
 
 export { API };
