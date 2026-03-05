@@ -10,7 +10,7 @@ export function Footer() {
     <footer className="bg-[#333] text-white">
       <div className="container-custom py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {/* Column 1: Logo & Description */}
+          {/* logo description*/}
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
               <span className="text-xl font-bold text-[#1e5631]">JJ construccion</span>
@@ -20,7 +20,7 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Column 2: Categorías Populares */}
+          {/* categories*/}
           <div>
             <h4 className="text-lg font-medium mb-4 text-[#c8a48c]">{t('footer.popular_categories')}</h4>
             <ul className="space-y-2">
@@ -44,7 +44,7 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Column 3: Atención al Cliente */}
+          {/* client side */}
           <div>
             <h4 className="text-lg font-bold mb-4 text-[#2d9d5f]">{t('footer.contact_title')}</h4>
             <ul className="space-y-3">
@@ -78,7 +78,7 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Column 4: Redes Sociales */}
+          {/* social network */}
           <div>
             <h4 className="text-lg font-bold mb-4 text-[#2d9d5f]">{t('footer.follow_us')}</h4>
             <div className="flex gap-4">
@@ -109,7 +109,7 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Bottom Bar */}
+      {/* bottom bar */}
       <div className="border-t border-gray-700">
         <div className="container-custom py-4">
           <p className="text-center text-gray-500 text-sm">

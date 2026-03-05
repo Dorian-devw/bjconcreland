@@ -14,6 +14,8 @@ import { ProductDetail } from '@/pages/ProductDetail';
 import { Ofertas } from '@/pages/Ofertas';
 import { EquipoPesado } from '@/pages/EquipoPesado';
 import { Services } from '@/pages/Services';
+import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
+import { TermsConditions } from '@/pages/TermsConditions';
 import './App.css';
 import { Toaster } from 'sonner';
 
@@ -41,6 +43,8 @@ function AppContent() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/jozarzc" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+          <Route path="/politica" element={<PrivacyPolicy />} />
+          <Route path="/terminos" element={<TermsConditions />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}

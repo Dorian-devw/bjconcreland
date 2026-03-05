@@ -56,7 +56,6 @@ export function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Removed scroll logic for services as it's now a separate page
 
   const navLinks = [
     { path: '/', label: t('nav.home') },
@@ -94,7 +93,7 @@ export function Navbar() {
     <header className="fixed top-0 left-0 right-0 z-[100] bg-white shadow-sm" role="banner">
       <nav className="bg-white shadow-sm h-[6.25rem]" role="navigation" aria-label="Menú principal">
         <div className="container-custom h-full flex items-center justify-between">
-          {/* Logo JJ Construcción - Inicio (navegación programática para garantizar redirección) */}
+          {/* logo JJ Construcción  */}
           <button
             type="button"
             onClick={() => {

@@ -11,7 +11,7 @@ interface Service {
     image: string;
     video?: string;
     icon: React.ElementType;
-    // Add these for compatibility with modal, although they might be missing or different
+    // compatibility with modal
     created_at?: string;
     content?: string;
 }
@@ -56,7 +56,7 @@ export function ServicesSection() {
             .catch(err => console.error('Error fetching services:', err));
     }, []);
 
-    // Extract unique categories from fetched services
+    //  unique categories
     const uniqueCategories = Array.from(new Set(services.map(s => s.category)));
     const filters = ['all', ...uniqueCategories];
 
@@ -146,7 +146,6 @@ export function ServicesSection() {
                                                 </div>
                                             );
                                         } else {
-                                            // Assume direct file or base64
                                             return (
                                                 <video
                                                     src={service.video}
@@ -162,7 +161,6 @@ export function ServicesSection() {
                                             src={service.image}
                                             alt={service.title}
                                             onError={(e) => {
-                                                // Fallback if image fails to load
                                                 e.currentTarget.src = 'https://placehold.co/600x400/e2e8f0/1e5631?text=' + encodeURIComponent(service.category);
                                             }}
                                             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"

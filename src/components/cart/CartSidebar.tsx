@@ -25,7 +25,7 @@ export function CartSidebar() {
         aria-hidden
       />
 
-      {/* Panel del carrito - por encima del header y del backdrop */}
+      {/* Panel del carrito */}
       <div className="fixed top-0 right-0 h-full w-full max-w-[400px] bg-white z-[120] shadow-2xl flex flex-col animate-slideInRight">
         {/* Header */}
         <div className="bg-[#f8f0ed] p-6 border-b border-[#c8a48c] flex items-center justify-between">
@@ -68,7 +68,7 @@ export function CartSidebar() {
                   key={item.product.id}
                   className="flex gap-4 p-3 bg-white border border-[#c8a48c]/30 rounded-lg"
                 >
-                  {/* Product Image */}
+                  {/* product image*/}
                   <div className="w-20 h-20 flex-shrink-0 bg-[#f8f0ed] rounded-md overflow-hidden">
                     <img
                       src={item.product.image}
@@ -77,7 +77,7 @@ export function CartSidebar() {
                     />
                   </div>
 
-                  {/* Product Details */}
+                  {/* product details */}
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium text-[#333] truncate">
                       {item.product.name}
@@ -93,7 +93,7 @@ export function CartSidebar() {
                       </p>
                     </div>
 
-                    {/* Quantity Controls */}
+                    {/* quantity items */}
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={() =>
@@ -117,7 +117,7 @@ export function CartSidebar() {
                     </div>
                   </div>
 
-                  {/* Remove Button */}
+                  {/* remove button */}
                   <button
                     onClick={() => removeFromCart(item.product.id)}
                     className="text-gray-400 hover:text-red-500 transition-colors"
@@ -130,7 +130,7 @@ export function CartSidebar() {
           )}
         </div>
 
-        {/* Footer */}
+        {/* footer */}
         {items.length > 0 && (
           <div className="border-t border-[#c8a48c] p-6 bg-[#f8f0ed]">
             <div className="flex items-center justify-between mb-4">

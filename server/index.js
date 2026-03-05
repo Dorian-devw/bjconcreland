@@ -14,7 +14,7 @@ const { seed } = require('./seed.js');
 const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-cambiar-en-produccion';
 const PORT = process.env.PORT || 3002;
 
-// Twilio Config
+// twilio
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const TWILIO_FROM_NUMBER = process.env.TWILIO_FROM_NUMBER;
@@ -25,7 +25,7 @@ function getTwilioClient() {
   return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 }
 
-// Initialize DB structure and run seed
+// db
 seed().then(() => {
   console.log('Base de datos inicializada (y poblada si estaba vacía) desde index.js.');
 }).catch(console.error);
@@ -47,12 +47,12 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
-// ========== STATIC FILE SERVING FOR UPLOADS ==========
+// static files
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// ========== MULTER CONFIG ==========
+// multer config
 const VALID_UPLOAD_TYPES = ['products', 'carousel', 'banners', 'services'];
 
 const storage = multer.diskStorage({
@@ -84,7 +84,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
 });
 
-// ========== UPLOAD ENDPOINT ==========
+// upload endpoint
 const SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'https://api.bjconcreland.com';
 
 app.post('/api/upload/:type', authMiddleware, (req, res) => {

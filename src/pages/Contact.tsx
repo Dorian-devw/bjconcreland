@@ -14,6 +14,7 @@ export function Contact() {
     phone: '',
     subject: '',
     message: '',
+    agreeSms: false,
   });
 
   const ASUNTO_OPTIONS = [
@@ -49,7 +50,7 @@ export function Contact() {
       }
 
       setSubmitStatus({ type: 'success', text: t('contact.success') });
-      setForm({ fullName: '', email: '', phone: '', subject: '', message: '' });
+      setForm({ fullName: '', email: '', phone: '', subject: '', message: '', agreeSms: false });
     } catch (error) {
       console.error('Error submitting form:', error);
       setSubmitStatus({ type: 'error', text: t('contact.error') });
@@ -206,19 +207,41 @@ export function Contact() {
                   className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-[#333] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631] focus:border-[#1e5631] resize-none"
                 />
               </div>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-[#e85d04] hover:bg-[#d35400] text-white font-semibold py-3 text-base disabled:opacity-70 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? t('contact.sending') : t('contact.send')}
-                {!isSubmitting && <Send className="w-5 h-5 ml-2" />}
-              </Button>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="agreeSms"
+                  required
+                  checked={form.agreeSms}
+                  onChange={(e) => setForm((f) => ({ ...f, agreeSms: e.target.checked }))}
+                  className="mt-1.5 h-4 w-4 shrink-0 rounded border-gray-300 text-[#e85d04] focus:ring-[#e85d04] focus:ring-offset-0"
+                />
+                <Label htmlFor="agreeSms" className="text-sm text-gray-500 font-normal leading-snug cursor-pointer">
+                  I agree to receive SMS messages from JJ construcción. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance.
+                </Label>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#e85d04] hover:bg-[#d35400] text-white font-semibold py-3 text-base disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? t('contact.sending') : t('contact.send')}
+                  {!isSubmitting && <Send className="w-5 h-5 ml-2" />}
+                </Button>
+                <div className="flex flex-col text-sm text-gray-500 mt-2 text-center">
+                  <span>
+                    View Privacy Policy: <a href="/politica" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-[#e85d04]">https://www.bjconcreland.com/politica</a>
+                  </span>
+                  <span>
+                    Terms: <a href="/terminos" target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-[#e85d04]">https://www.bjconcreland.com/terminos</a>
+                  </span>
+                </div>
+              </div>
               {submitStatus && (
                 <p
-                  className={`text-sm font-medium ${
-                    submitStatus.type === 'success' ? 'text-green-600' : 'text-red-600'
-                  }`}
+                  className={`text-sm font-medium ${submitStatus.type === 'success' ? 'text-green-600' : 'text-red-600'
+                    }`}
                 >
                   {submitStatus.text}
                 </p>

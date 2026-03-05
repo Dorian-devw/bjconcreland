@@ -8,7 +8,7 @@ async function seed() {
   const defaultPassword = 'admin123';
   const hash = bcrypt.hashSync(defaultPassword, 10);
 
-  // Insert user admin if it doesn't exist
+  // user admin
   try {
     await db.query('INSERT INTO users (username, password_hash) VALUES (?, ?)', ['admin', hash]);
     console.log('Usuario admin creado (contraseña: admin123)');
@@ -20,7 +20,7 @@ async function seed() {
     }
   }
 
-  // Insert products
+  // products
   for (const p of initialProducts) {
     try {
       await db.query(`
@@ -31,7 +31,7 @@ async function seed() {
       ]);
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') {
-        // ignore duplicate products
+        // duplicate products
       } else {
         throw e;
       }
@@ -55,7 +55,7 @@ async function seed() {
 
 module.exports = { seed };
 
-// Ejecutar si se llama directamente via CLI (ej. 'node seed.js')
+// via node seed.js
 if (require.main === module) {
   seed()
     .then(() => {

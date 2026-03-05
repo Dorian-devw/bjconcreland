@@ -24,7 +24,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
     const { t } = useLanguage();
     const [currentSlide, setCurrentSlide] = useState(0);
 
-    // Prevent body scroll when modal is open
+    // prevent body scroll 
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -34,7 +34,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
             document.body.style.paddingRight = '0px';
         }
 
-        // Add paddingRight to avoid layout shift due to scrollbar removal
+        //  paddingRight to avoid layout shift
         const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
         if (isOpen && scrollbarWidth > 0) {
             document.body.style.paddingRight = `${scrollbarWidth}px`;
@@ -48,7 +48,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
 
     if (!isOpen || !service) return null;
 
-    // Build media list
+    // media list
     const mediaItems = [
         { type: 'image', url: service.image },
         ...(service.video ? [{ type: 'video', url: service.video }] : [])
@@ -124,7 +124,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                     <X className="w-5 h-5" />
                 </button>
 
-                {/* Left Side: Media Carousel */}
+                {/* Left Side */}
                 <div className="w-full lg:w-[65%] bg-black flex flex-col relative group">
                     <div className="flex-1 relative w-full h-full flex items-center justify-center overflow-hidden">
                         {/* Current Slide */}
@@ -132,7 +132,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                             {renderMediaItem(mediaItems[currentSlide])}
                         </div>
 
-                        {/* Navigation Arrows (Only if more than 1 item) */}
+                        {/* Navigation Arrows */}
                         {mediaItems.length > 1 && (
                             <>
                                 <button
@@ -152,7 +152,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                             </>
                         )}
 
-                        {/* Pagination Dots */}
+                        {/* pagination dots */}
                         {mediaItems.length > 1 && (
                             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                                 {mediaItems.map((_, idx) => (
@@ -169,7 +169,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                     </div>
                 </div>
 
-                {/* Right Side: Content (Scrollable Details) */}
+                {/* Right Side */}
                 <div className="w-full lg:w-[35%] flex flex-col bg-white border-l border-gray-100 h-full">
                     {/* Header Fixed */}
                     <div className="px-6 lg:px-8 py-6 border-b border-gray-100 shrink-0">
