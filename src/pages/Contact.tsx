@@ -35,7 +35,7 @@ export function Contact() {
     setSubmitStatus(null);
 
     try {
-      const response = await fetch(`${API}/contact/sms`, {
+      const smsPromise = fetch(`${API}/contact/sms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,12 +43,37 @@ export function Contact() {
         body: JSON.stringify(form),
       });
 
-      const data = await response.json();
+      const emailPromise = fetch(`${API}/contact/email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(form),
+      });
 
-      if (!response.ok) {
-        throw new Error(data.details || data.error || 'Error al enviar el mensaje');
+      // Send both simultaneously
+      const results = await Promise.allSettled([smsPromise, emailPromise]);
+      const [smsResult, emailResult] = results;
+
+      let smsSuccess = false;
+      let emailSuccess = false;
+
+      // Check SMS result
+      if (smsResult.status === 'fulfilled' && smsResult.value.ok) {
+        smsSuccess = true;
       }
 
+      // Check Email result
+      if (emailResult.status === 'fulfilled' && emailResult.value.ok) {
+        emailSuccess = true;
+      }
+
+      // If both fail, throw error
+      if (!smsSuccess && !emailSuccess) {
+        throw new Error('No se pudo enviar ni por SMS ni por correo.');
+      }
+
+      // At least one succeeded
       setSubmitStatus({ type: 'success', text: t('contact.success') });
       setForm({ fullName: '', email: '', phone: '', subject: '', message: '', agreeSms: false });
     } catch (error) {

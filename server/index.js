@@ -5,6 +5,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
+const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -120,6 +121,44 @@ app.post('/api/contact/sms', async (req, res) => {
     res.json({ success: true, sid: msg.sid });
   } catch (error) {
     res.status(500).json({ error: 'Error enviando SMS', details: error.message });
+  }
+});
+
+// ========== NODEMAILER CONFIG ==========
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+app.post('/api/contact/email', async (req, res) => {
+  const { fullName, email, phone, subject, message } = req.body || {};
+
+  if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: 'tears.lambda@gmail.com',
+    subject: `Nueva Consulta Web: ${subject || 'Contacto General'}`,
+    html: `
+      <h2>Nuevo mensaje de contacto desde la web</h2>
+      <p><strong>Nombre:</strong> ${fullName || 'No especificado'}</p>
+      <p><strong>Email:</strong> ${email || 'No especificado'}</p>
+      <p><strong>Teléfono:</strong> ${phone || 'No especificado'}</p>
+      <p><strong>Asunto:</strong> ${subject || 'No especificado'}</p>
+      <h3>Mensaje:</h3>
+      <p style="white-space: pre-wrap;">${message}</p>
+    `,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: 'Correo enviado exitosamente' });
+  } catch (error) {
+    console.error('Error enviando correo:', error);
+    res.status(500).json({ error: 'Error enviando el correo', details: error.message });
   }
 });
 
@@ -420,7 +459,7 @@ app.post('/api/orders', async (req, res) => {
 
 app.get('/api/carousel', async (req, res) => {
   const [rows] = await db.query('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides ORDER BY sort_order ASC');
-  res.json(rows.map(r => ({ id: r.id, src: r.image, alt: r.alt||'', title: r.title||'', highlight: r.highlight||'', description: r.description||'', sortOrder: r.sortOrder })));
+  res.json(rows.map(r => ({ id: r.id, src: r.image, alt: r.alt || '', title: r.title || '', highlight: r.highlight || '', description: r.description || '', sortOrder: r.sortOrder })));
 });
 
 app.post('/api/carousel', authMiddleware, async (req, res) => {
@@ -433,7 +472,7 @@ app.post('/api/carousel', authMiddleware, async (req, res) => {
   );
   const [rows] = await db.query('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides WHERE id=?', [result.insertId]);
   const row = rows[0];
-  res.status(201).json({ id: row.id, src: row.image, alt: row.alt||'', title: row.title||'', highlight: row.highlight||'', description: row.description||'', sortOrder: row.sortOrder });
+  res.status(201).json({ id: row.id, src: row.image, alt: row.alt || '', title: row.title || '', highlight: row.highlight || '', description: row.description || '', sortOrder: row.sortOrder });
 });
 
 app.put('/api/carousel/:id', authMiddleware, async (req, res) => {
@@ -448,7 +487,7 @@ app.put('/api/carousel/:id', authMiddleware, async (req, res) => {
   );
   const [rows] = await db.query('SELECT id, image, alt, title, highlight, description, sort_order AS sortOrder FROM carousel_slides WHERE id=?', [id]);
   const row = rows[0];
-  res.json({ id: row.id, src: row.image, alt: row.alt||'', title: row.title||'', highlight: row.highlight||'', description: row.description||'', sortOrder: row.sortOrder });
+  res.json({ id: row.id, src: row.image, alt: row.alt || '', title: row.title || '', highlight: row.highlight || '', description: row.description || '', sortOrder: row.sortOrder });
 });
 
 app.delete('/api/carousel/:id', authMiddleware, async (req, res) => {
@@ -468,7 +507,7 @@ app.patch('/api/carousel/reorder', authMiddleware, async (req, res) => {
     await db.query('UPDATE carousel_slides SET sort_order = ? WHERE id = ?', [i, order[i]]);
   }
   const [rows] = await db.query('SELECT id, image, alt, title, description, sort_order AS sortOrder FROM carousel_slides ORDER BY sort_order ASC');
-  res.json(rows.map(r => ({ id: r.id, src: r.image, alt: r.alt||'', title: r.title||'', description: r.description||'', sortOrder: r.sortOrder })));
+  res.json(rows.map(r => ({ id: r.id, src: r.image, alt: r.alt || '', title: r.title || '', description: r.description || '', sortOrder: r.sortOrder })));
 });
 
 app.get('/api/promo-banners', async (req, res) => {
@@ -481,7 +520,7 @@ app.post('/api/promo-banners', authMiddleware, async (req, res) => {
   const { image, title, description } = req.body || {};
   if (!image) return res.status(400).json({ error: 'Imagen requerida' });
   const [countRows] = await db.query('SELECT COUNT(*) as n FROM promo_banners');
-  const [result] = await db.query('INSERT INTO promo_banners (image, title, description, sort_order) VALUES (?, ?, ?, ?)', [image, title||'', description||'', countRows[0].n]);
+  const [result] = await db.query('INSERT INTO promo_banners (image, title, description, sort_order) VALUES (?, ?, ?, ?)', [image, title || '', description || '', countRows[0].n]);
   const [rows] = await db.query('SELECT id, image, title, description, sort_order AS sortOrder FROM promo_banners WHERE id=?', [result.insertId]);
   res.status(201).json(rows[0]);
 });
@@ -636,7 +675,7 @@ app.post('/api/services', authMiddleware, async (req, res) => {
   await ensureServicesTable();
   const { title, category, description, image, video, content } = req.body || {};
   if (!title || !category || !description) return res.status(400).json({ error: 'Faltan campos' });
-  const [result] = await db.query('INSERT INTO services (title, category, description, image, video, content) VALUES (?, ?, ?, ?, ?, ?)', [title.trim(), category.trim(), description.trim(), image||null, video||null, content||null]);
+  const [result] = await db.query('INSERT INTO services (title, category, description, image, video, content) VALUES (?, ?, ?, ?, ?, ?)', [title.trim(), category.trim(), description.trim(), image || null, video || null, content || null]);
   const [rows] = await db.query('SELECT * FROM services WHERE id=?', [result.insertId]);
   res.status(201).json(rows[0]);
 });
