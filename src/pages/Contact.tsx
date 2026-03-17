@@ -4,10 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useLanguage } from '@/context/LanguageContext';
+import { useSettingsStore } from '@/store/settingsStore';
 import { API } from '@/lib/api';
+import { useEffect } from 'react';
 
 export function Contact() {
   const { t } = useLanguage();
+  const { contactInfo, fetchContactInfo } = useSettingsStore();
+
+  useEffect(() => {
+    if (!contactInfo) {
+      fetchContactInfo();
+    }
+  }, [contactInfo, fetchContactInfo]);
+
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -91,13 +101,13 @@ export function Contact() {
           {/* Panel izquierdo - verde oscuro */}
           <div className="bg-[#1e5631] text-white p-10 lg:p-12 flex flex-col justify-between relative overflow-hidden">
             <div className="relative z-10">
-              <h1 className="text-3xl lg:text-4xl font-bold mb-4">{t('contact.title')}</h1>
-              <p className="text-white/95 text-base lg:text-lg leading-relaxed mb-10">
-                {t('contact.description')}
+              <h1 className="text-3xl lg:text-4xl font-bold mb-4">{contactInfo?.title || t('contact.title')}</h1>
+              <p className="text-white/95 text-base lg:text-lg leading-relaxed mb-10 whitespace-pre-wrap">
+                {contactInfo?.description || t('contact.description')}
               </p>
               <div className="space-y-6">
                 <a
-                  href="tel:+18013472165"
+                  href={`tel:${contactInfo?.phone ? contactInfo.phone.replace(/[^0-9+]/g, '') : '+18013472165'}`}
                   className="flex items-center gap-4 text-white hover:opacity-90 transition-opacity"
                 >
                   <div className="w-12 h-12 rounded-full bg-[#e85d04] flex items-center justify-center shrink-0">
@@ -105,11 +115,11 @@ export function Contact() {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-white/80">Teléfono</p>
-                    <p className="text-lg font-semibold">+1 (801) 347-2165</p>
+                    <p className="text-lg font-semibold">{contactInfo?.phone || '+1 (801) 347-2165'}</p>
                   </div>
                 </a>
                 <a
-                  href="mailto:josarzc@hotmail.com"
+                  href={`mailto:${contactInfo?.email || 'josarzc@hotmail.com'}`}
                   className="flex items-center gap-4 text-white hover:opacity-90 transition-opacity"
                 >
                   <div className="w-12 h-12 rounded-full bg-[#e85d04] flex items-center justify-center shrink-0">
@@ -117,7 +127,7 @@ export function Contact() {
                   </div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-white/80">{t('contact.email')}</p>
-                    <p className="text-lg font-semibold break-all">josarzc@hotmail.com</p>
+                    <p className="text-lg font-semibold break-all">{contactInfo?.email || 'josarzc@hotmail.com'}</p>
                   </div>
                 </a>
               </div>

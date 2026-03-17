@@ -294,6 +294,78 @@ app.put('/api/settings/privacy', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/settings/services_header', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'services_header'");
+    const data = rows[0]?.value ? JSON.parse(rows[0].value) : null;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo settings de servicios' });
+  }
+});
+
+app.put('/api/settings/services_header', authMiddleware, async (req, res) => {
+  const { servicesHeader } = req.body || {};
+  if (!servicesHeader) return res.status(400).json({ error: 'Datos inválidos' });
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('services_header', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [JSON.stringify(servicesHeader)],
+    );
+    res.json({ servicesHeader });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando settings de servicios' });
+  }
+});
+
+app.get('/api/settings/contact_info', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'contact_info'");
+    const data = rows[0]?.value ? JSON.parse(rows[0].value) : null;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo info de contacto' });
+  }
+});
+
+app.put('/api/settings/contact_info', authMiddleware, async (req, res) => {
+  const { contactInfo } = req.body || {};
+  if (!contactInfo) return res.status(400).json({ error: 'Datos inválidos' });
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('contact_info', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [JSON.stringify(contactInfo)],
+    );
+    res.json({ contactInfo });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando info de contacto' });
+  }
+});
+
+app.get('/api/settings/heavy_equipment', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'heavy_equipment'");
+    const data = rows[0]?.value ? JSON.parse(rows[0].value) : null;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo info de equipo pesado' });
+  }
+});
+
+app.put('/api/settings/heavy_equipment', authMiddleware, async (req, res) => {
+  const { heavyEquipment } = req.body || {};
+  if (!heavyEquipment) return res.status(400).json({ error: 'Datos inválidos' });
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('heavy_equipment', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [JSON.stringify(heavyEquipment)],
+    );
+    res.json({ heavyEquipment });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando info de equipo pesado' });
+  }
+});
+
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;

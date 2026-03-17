@@ -224,7 +224,15 @@ export function Admin() {
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadLogoError, setUploadLogoError] = useState<string | null>(null);
-  const { logo, setLogo, footer, setFooter, terms, setTerms, privacyPolicy, setPrivacyPolicy, fetchTerms, fetchPrivacyPolicy, fetchFooter } = useSettingsStore();
+  const { 
+    logo, setLogo, 
+    footer, setFooter, fetchFooter,
+    terms, setTerms, fetchTerms,
+    privacyPolicy, setPrivacyPolicy, fetchPrivacyPolicy,
+    servicesHeader, setServicesHeader, fetchServicesHeader,
+    contactInfo, setContactInfo, fetchContactInfo,
+    heavyEquipment, setHeavyEquipment, fetchHeavyEquipment
+  } = useSettingsStore();
 
   const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
@@ -249,6 +257,48 @@ export function Admin() {
       setPrivacyForm(privacyPolicy);
     }
   }, [privacyPolicy, fetchPrivacyPolicy]);
+
+  const [servicesHeaderForm, setServicesHeaderForm] = useState({ title: '', highlight: '', description: '' });
+  const [servicesHeaderSaving, setServicesHeaderSaving] = useState(false);
+  const [servicesHeaderError, setServicesHeaderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (servicesHeader === null) fetchServicesHeader();
+    else setServicesHeaderForm({
+      title: servicesHeader.title || '',
+      highlight: servicesHeader.highlight || '',
+      description: servicesHeader.description || ''
+    });
+  }, [servicesHeader, fetchServicesHeader]);
+
+  const [contactInfoForm, setContactInfoForm] = useState({ title: '', description: '', phone: '', email: '' });
+  const [contactInfoSaving, setContactInfoSaving] = useState(false);
+  const [contactInfoError, setContactInfoError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (contactInfo === null) fetchContactInfo();
+    else setContactInfoForm({
+      title: contactInfo.title || '',
+      description: contactInfo.description || '',
+      phone: contactInfo.phone || '',
+      email: contactInfo.email || ''
+    });
+  }, [contactInfo, fetchContactInfo]);
+
+  const [heavyEqForm, setHeavyEqForm] = useState({ badge: '', title: '', highlight: '', description: '', bottomText: '' });
+  const [heavyEqSaving, setHeavyEqSaving] = useState(false);
+  const [heavyEqError, setHeavyEqError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (heavyEquipment === null) fetchHeavyEquipment();
+    else setHeavyEqForm({
+      badge: heavyEquipment.badge || '',
+      title: heavyEquipment.title || '',
+      highlight: heavyEquipment.highlight || '',
+      description: heavyEquipment.description || '',
+      bottomText: heavyEquipment.bottomText || ''
+    });
+  }, [heavyEquipment, fetchHeavyEquipment]);
 
   const [footerForm, setFooterForm] = useState({
     description: '',
@@ -354,6 +404,71 @@ export function Admin() {
     }
   };
 
+  const handleSaveServicesHeader = async () => {
+    setServicesHeaderSaving(true);
+    setServicesHeaderError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/services_header`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ servicesHeader: servicesHeaderForm })
+      });
+      if (res.status === 401) return logoutAndRedirect();
+      if (!res.ok) throw new Error('Error al guardar encabezado de servicios');
+      setServicesHeader(servicesHeaderForm);
+      toast.success('Encabezado de servicios actualizado');
+    } catch (e) {
+      setServicesHeaderError(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setServicesHeaderSaving(false);
+    }
+  };
+
+  const handleSaveContactInfo = async () => {
+    setContactInfoSaving(true);
+    setContactInfoError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/contact_info`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contactInfo: contactInfoForm })
+      });
+      if (res.status === 401) return logoutAndRedirect();
+      if (!res.ok) throw new Error('Error al guardar info de contacto');
+      setContactInfo(contactInfoForm);
+      toast.success('Información de contacto actualizada');
+    } catch (e) {
+      setContactInfoError(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setContactInfoSaving(false);
+    }
+  };
+
+  const handleSaveHeavyEq = async () => {
+    setHeavyEqSaving(true);
+    setHeavyEqError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/heavy_equipment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ heavyEquipment: heavyEqForm })
+      });
+      if (res.status === 401) return logoutAndRedirect();
+      if (!res.ok) throw new Error('Error al guardar info de equipo pesado');
+      setHeavyEquipment(heavyEqForm);
+      toast.success('Información de equipo pesado actualizada');
+    } catch (e) {
+      setHeavyEqError(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setHeavyEqSaving(false);
+    }
+  };
+
+  const logoutAndRedirect = () => {
+    logout();
+    navigate('/login');
+  };
+
   const handleSaveLogo = async (newLogoUrl: string) => {
     try {
       setUploadLogoError(null);
@@ -396,7 +511,7 @@ export function Admin() {
     }
   };
 
-  // ---- Helper: Upload image to server via Multer ----
+  // Imagen al server via Multer ----
   const uploadImageToServer = async (
     file: File,
     type: 'products' | 'carousel' | 'banners' | 'services' | 'settings',
@@ -2751,6 +2866,169 @@ export function Admin() {
                   >
                     {privacySaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
                     Guardar Política
+                  </Button>
+                </div>
+              </div>
+
+              {/* ========== SERVICES HEADER SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Encabezado de Servicios (Home)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Título Principal</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={servicesHeaderForm.title} 
+                      onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, title: e.target.value })} 
+                      placeholder="Our Specialized Services" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Texto Destacado (Verde)</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={servicesHeaderForm.highlight} 
+                      onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, highlight: e.target.value })} 
+                      placeholder="" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Descripción</Label>
+                    <textarea 
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
+                      value={servicesHeaderForm.description}
+                      onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, description: e.target.value })}
+                      placeholder=""
+                    />
+                  </div>
+                </div>
+                {servicesHeaderError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {servicesHeaderError}
+                  </div>
+                )}
+                <div className="mt-6 flex justify-end">
+                  <Button onClick={handleSaveServicesHeader} disabled={servicesHeaderSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
+                    {servicesHeaderSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Guardar Servicios
+                  </Button>
+                </div>
+              </div>
+
+              {/* ========== CONTACT INFO SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Página de Contacto</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Label>Título</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={contactInfoForm.title} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, title: e.target.value })} 
+                      placeholder="Contact Us" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Descripción</Label>
+                    <textarea 
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
+                      value={contactInfoForm.description}
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, description: e.target.value })}
+                      placeholder="We are here to help you build your dreams. Get in touch with our team of experts."
+                    />
+                  </div>
+                  <div>
+                    <Label>Teléfono de Contacto</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={contactInfoForm.phone} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, phone: e.target.value })} 
+                      placeholder="+1 (801) 347-2165" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Email de Contacto</Label>
+                    <Input 
+                      className="mt-1" 
+                      type="email"
+                      value={contactInfoForm.email} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, email: e.target.value })} 
+                      placeholder="josarzc@hotmail.com" 
+                    />
+                  </div>
+                </div>
+                {contactInfoError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {contactInfoError}
+                  </div>
+                )}
+                <div className="mt-6 flex justify-end">
+                  <Button onClick={handleSaveContactInfo} disabled={contactInfoSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
+                    {contactInfoSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Guardar Contacto
+                  </Button>
+                </div>
+              </div>
+
+              {/* ========== HEAVY EQUIPMENT SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Página Equipo Pesado (Banner)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Etiqueta / Badge superior</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={heavyEqForm.badge} 
+                      onChange={(e) => setHeavyEqForm({ ...heavyEqForm, badge: e.target.value })} 
+                      placeholder="Coming Soon!" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Título Principal</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={heavyEqForm.title} 
+                      onChange={(e) => setHeavyEqForm({ ...heavyEqForm, title: e.target.value })} 
+                      placeholder="Heavy Equipment" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Texto Destacado (Naranja)</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={heavyEqForm.highlight} 
+                      onChange={(e) => setHeavyEqForm({ ...heavyEqForm, highlight: e.target.value })} 
+                      placeholder="Professional" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Texto Inferior Gigante</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={heavyEqForm.bottomText} 
+                      onChange={(e) => setHeavyEqForm({ ...heavyEqForm, bottomText: e.target.value })} 
+                      placeholder="Coming Soon!" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Descripción Central</Label>
+                    <textarea 
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
+                      value={heavyEqForm.description}
+                      onChange={(e) => setHeavyEqForm({ ...heavyEqForm, description: e.target.value })}
+                      placeholder="We are renewing our catalog with the most powerful machinery on the market. Excavators, backhoes, and industrial mixers ready for your next project."
+                    />
+                  </div>
+                </div>
+                {heavyEqError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {heavyEqError}
+                  </div>
+                )}
+                <div className="mt-6 flex justify-end">
+                  <Button onClick={handleSaveHeavyEq} disabled={heavyEqSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
+                    {heavyEqSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Guardar Equipo Pesado
                   </Button>
                 </div>
               </div>

@@ -2,6 +2,8 @@ import { ArrowRight, Zap, Building2, Wrench, Hammer, Factory, HardHat } from 'lu
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/context/LanguageContext';
 import { ServiceDetailModal } from '@/components/ServiceDetailModal';
+import { useSettingsStore } from '@/store/settingsStore';
+import { API } from '@/lib/api';
 
 interface Service {
     id: string;
@@ -34,8 +36,16 @@ export function ServicesSection() {
     const [activeFilter, setActiveFilter] = useState<string>('all');
     const [selectedService, setSelectedService] = useState<Service | null>(null);
 
+    const { servicesHeader, fetchServicesHeader } = useSettingsStore();
+
     useEffect(() => {
-        fetch('/api/services')
+        if (!servicesHeader) {
+            fetchServicesHeader();
+        }
+    }, [servicesHeader, fetchServicesHeader]);
+
+    useEffect(() => {
+        fetch(`${API}/services`)
             .then(res => res.json())
             .then(data => {
                 if (Array.isArray(data)) {
@@ -76,10 +86,10 @@ export function ServicesSection() {
                 {/* Header */}
                 <div className="text-center mb-16">
                     <h2 className="text-4xl md:text-5xl font-bold text-[#333] mb-4">
-                        {t('services.title')} <span className="text-[#1e5631]">{t('services.title_highlight')}</span>
+                        {servicesHeader?.title || t('services.title')} <span className="text-[#1e5631]">{servicesHeader?.highlight || t('services.title_highlight')}</span>
                     </h2>
-                    <p className="text-gray-500 max-w-2xl mx-auto mb-8 text-lg">
-                        {t('services.description')}
+                    <p className="text-gray-500 max-w-2xl mx-auto mb-8 text-lg whitespace-pre-wrap">
+                        {servicesHeader?.description || t('services.description')}
                     </p>
 
                     {/* Separator */}

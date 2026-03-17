@@ -13,6 +13,27 @@ export interface FooterSettings {
   twitterUrl: string;
 }
 
+export interface ServicesHeaderSettings {
+  title: string;
+  highlight: string;
+  description: string;
+}
+
+export interface ContactInfoSettings {
+  title: string;
+  description: string;
+  phone: string;
+  email: string;
+}
+
+export interface HeavyEquipmentSettings {
+  badge: string;
+  title: string;
+  highlight: string;
+  description: string;
+  bottomText: string;
+}
+
 interface SettingsState {
   logo: string | null;
   footer: FooterSettings | null;
@@ -27,6 +48,15 @@ interface SettingsState {
   setTerms: (terms: string) => void;
   fetchPrivacyPolicy: () => Promise<void>;
   setPrivacyPolicy: (policy: string) => void;
+  servicesHeader: ServicesHeaderSettings | null;
+  fetchServicesHeader: () => Promise<void>;
+  setServicesHeader: (header: ServicesHeaderSettings) => void;
+  contactInfo: ContactInfoSettings | null;
+  fetchContactInfo: () => Promise<void>;
+  setContactInfo: (info: ContactInfoSettings) => void;
+  heavyEquipment: HeavyEquipmentSettings | null;
+  fetchHeavyEquipment: () => Promise<void>;
+  setHeavyEquipment: (eq: HeavyEquipmentSettings) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -34,6 +64,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   footer: null,
   terms: null,
   privacyPolicy: null,
+  servicesHeader: null,
+  contactInfo: null,
+  heavyEquipment: null,
   loading: false,
   fetchLogo: async () => {
     set({ loading: true });
@@ -106,4 +139,52 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
   setPrivacyPolicy: (privacyPolicy) => set({ privacyPolicy }),
+
+  fetchServicesHeader: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/services_header`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) set({ servicesHeader: data });
+      }
+    } catch (error) {
+      console.error('Error fetching services header:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setServicesHeader: (servicesHeader) => set({ servicesHeader }),
+
+  fetchContactInfo: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/contact_info`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) set({ contactInfo: data });
+      }
+    } catch (error) {
+      console.error('Error fetching contact info:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setContactInfo: (contactInfo) => set({ contactInfo }),
+
+  fetchHeavyEquipment: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/heavy_equipment`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) set({ heavyEquipment: data });
+      }
+    } catch (error) {
+      console.error('Error fetching heavy equipment:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setHeavyEquipment: (heavyEquipment) => set({ heavyEquipment }),
 }));
