@@ -224,7 +224,7 @@ export function Admin() {
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadLogoError, setUploadLogoError] = useState<string | null>(null);
-  const { logo, setLogo, footer, setFooter, terms, setTerms, privacyPolicy, setPrivacyPolicy } = useSettingsStore();
+  const { logo, setLogo, footer, setFooter, terms, setTerms, privacyPolicy, setPrivacyPolicy, fetchTerms, fetchPrivacyPolicy, fetchFooter } = useSettingsStore();
 
   const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
@@ -235,16 +235,20 @@ export function Admin() {
   const [privacyError, setPrivacyError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (terms !== null) {
+    if (terms === null) {
+      fetchTerms();
+    } else {
       setTermsForm(terms);
     }
-  }, [terms]);
+  }, [terms, fetchTerms]);
 
   useEffect(() => {
-    if (privacyPolicy !== null) {
+    if (privacyPolicy === null) {
+      fetchPrivacyPolicy();
+    } else {
       setPrivacyForm(privacyPolicy);
     }
-  }, [privacyPolicy]);
+  }, [privacyPolicy, fetchPrivacyPolicy]);
 
   const [footerForm, setFooterForm] = useState({
     description: '',
@@ -261,7 +265,9 @@ export function Admin() {
   const [footerError, setFooterError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (footer) {
+    if (footer === null) {
+      fetchFooter();
+    } else {
       setFooterForm({
         description: footer.description || '',
         phone: footer.phone || '',
@@ -274,7 +280,7 @@ export function Admin() {
         twitterUrl: footer.twitterUrl || ''
       });
     }
-  }, [footer]);
+  }, [footer, fetchFooter]);
 
   const handleSaveFooter = async () => {
     setFooterSaving(true);
