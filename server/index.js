@@ -268,6 +268,32 @@ app.put('/api/settings/terms', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/settings/privacy', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'privacy_policy'");
+    const privacyPolicy = rows[0]?.value || '';
+    res.json({ privacyPolicy });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo política de privacidad' });
+  }
+});
+
+app.put('/api/settings/privacy', authMiddleware, async (req, res) => {
+  const { privacyPolicy } = req.body || {};
+  if (typeof privacyPolicy !== 'string') {
+    return res.status(400).json({ error: 'Política de privacidad inválida' });
+  }
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('privacy_policy', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [privacyPolicy],
+    );
+    res.json({ privacyPolicy });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando política de privacidad' });
+  }
+});
+
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;

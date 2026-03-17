@@ -224,17 +224,27 @@ export function Admin() {
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadLogoError, setUploadLogoError] = useState<string | null>(null);
-  const { logo, setLogo, footer, setFooter, terms, setTerms } = useSettingsStore();
+  const { logo, setLogo, footer, setFooter, terms, setTerms, privacyPolicy, setPrivacyPolicy } = useSettingsStore();
 
-  const [termsForm, setTermsForm] = useState('');
+  const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
+
+  const [privacyForm, setPrivacyForm] = useState(privacyPolicy || '');
+  const [privacySaving, setPrivacySaving] = useState(false);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (terms !== null) {
       setTermsForm(terms);
     }
   }, [terms]);
+
+  useEffect(() => {
+    if (privacyPolicy !== null) {
+      setPrivacyForm(privacyPolicy);
+    }
+  }, [privacyPolicy]);
 
   const [footerForm, setFooterForm] = useState({
     description: '',
@@ -311,6 +321,30 @@ export function Admin() {
       setTermsError(e instanceof Error ? e.message : 'Error al guardar términos');
     } finally {
       setTermsSaving(false);
+    }
+  };
+
+  const handleSavePrivacy = async () => {
+    setPrivacySaving(true);
+    setPrivacyError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/privacy`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ privacyPolicy: privacyForm })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error al guardar política de privacidad');
+      setPrivacyPolicy(privacyForm);
+      toast.success('Política de privacidad actualizada');
+    } catch (e) {
+      setPrivacyError(e instanceof Error ? e.message : 'Error al guardar política');
+    } finally {
+      setPrivacySaving(false);
     }
   };
 
@@ -2676,6 +2710,41 @@ export function Admin() {
                   >
                     {termsSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
                     Guardar Términos
+                  </Button>
+                </div>
+              </div>
+
+              {/* ========== PRIVACY POLICY SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Política de Privacidad</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Edita el texto público que los usuarios ven en la página de Política de Privacidad. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
+                </p>
+                <div className="grid grid-cols-1">
+                  <div className="md:col-span-1">
+                    <textarea 
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[300px]"
+                      value={privacyForm}
+                      onChange={(e) => setPrivacyForm(e.target.value)}
+                      placeholder="Escribe aquí la política de privacidad..."
+                    />
+                  </div>
+                </div>
+
+                {privacyError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {privacyError}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button 
+                    onClick={handleSavePrivacy} 
+                    disabled={privacySaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28]"
+                  >
+                    {privacySaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Guardar Política
                   </Button>
                 </div>
               </div>

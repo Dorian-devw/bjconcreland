@@ -17,6 +17,7 @@ interface SettingsState {
   logo: string | null;
   footer: FooterSettings | null;
   terms: string | null;
+  privacyPolicy: string | null;
   loading: boolean;
   fetchLogo: () => Promise<void>;
   setLogo: (logo: string) => void;
@@ -24,12 +25,15 @@ interface SettingsState {
   setFooter: (footer: FooterSettings) => void;
   fetchTerms: () => Promise<void>;
   setTerms: (terms: string) => void;
+  fetchPrivacyPolicy: () => Promise<void>;
+  setPrivacyPolicy: (policy: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   logo: null,
   footer: null,
   terms: null,
+  privacyPolicy: null,
   loading: false,
   fetchLogo: async () => {
     set({ loading: true });
@@ -84,4 +88,22 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
   setTerms: (terms) => set({ terms }),
+
+  fetchPrivacyPolicy: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/privacy`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.privacyPolicy !== undefined) {
+          set({ privacyPolicy: data.privacyPolicy });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching privacy policy:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setPrivacyPolicy: (privacyPolicy) => set({ privacyPolicy }),
 }));
