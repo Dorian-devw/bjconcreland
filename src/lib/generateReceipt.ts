@@ -29,8 +29,8 @@ export const generateReceipt = (order: Order) => {
         const itemData = [
             item.product.name,
             item.quantity,
-            `S/ ${item.product.price.toFixed(2)}`,
-            `S/ ${(item.product.price * item.quantity).toFixed(2)}`
+            `$${item.product.price.toFixed(2)}`,
+            `$${(item.product.price * item.quantity).toFixed(2)}`
         ];
         tableRows.push(itemData);
     });
@@ -44,7 +44,7 @@ export const generateReceipt = (order: Order) => {
     // totals
     const finalY = (doc as any).lastAutoTable.finalY + 10;
 
-    doc.text(`Total: S/ ${order.total.toFixed(2)}`, 14, finalY);
+    doc.text(`Total: $${order.total.toFixed(2)}`, 14, finalY);
 
     // footer
     doc.text('Thank you for your purchase!', 14, finalY + 10);

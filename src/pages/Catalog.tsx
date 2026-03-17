@@ -220,8 +220,8 @@ export function Catalog() {
                   className="mb-4"
                 />
                 <div className="flex justify-between text-sm text-[#333]">
-                  <span>S/ 0</span>
-                  <span>S/ {priceRange[1] === 1000 ? '1000+' : priceRange[1]}</span>
+                  <span>$0</span>
+                  <span>${priceRange[1] === 1000 ? '1000+' : priceRange[1]}</span>
                 </div>
               </div>
             </div>

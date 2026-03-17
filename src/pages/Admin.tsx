@@ -27,6 +27,8 @@ import {
   Percent,
   Upload,
   Filter,
+  Settings,
+  Loader,
 
   Languages,
   BookOpen,
@@ -36,6 +38,7 @@ import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { useProductsStore, type ProductFormData } from '@/store/productsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAuthStore } from '@/store/authStore';
 import { fetchWithAuth, API } from '@/lib/api';
 import { toast } from 'sonner';
@@ -62,7 +65,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import type { Order, Product, ProductTag } from '@/types';
 
-type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services';
+type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'settings';
 
 export interface Offer {
   id: number;
@@ -219,6 +222,119 @@ export function Admin() {
   const [uploadingServiceImage, setUploadingServiceImage] = useState(false);
   const [uploadServiceImageError, setUploadServiceImageError] = useState<string | null>(null);
 
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadLogoError, setUploadLogoError] = useState<string | null>(null);
+  const { logo, setLogo, footer, setFooter, terms, setTerms } = useSettingsStore();
+
+  const [termsForm, setTermsForm] = useState('');
+  const [termsSaving, setTermsSaving] = useState(false);
+  const [termsError, setTermsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (terms !== null) {
+      setTermsForm(terms);
+    }
+  }, [terms]);
+
+  const [footerForm, setFooterForm] = useState({
+    description: '',
+    phone: '',
+    email: '',
+    scheduleWeekdays: '',
+    scheduleWeekends: '',
+    mapUrl: '',
+    facebookUrl: '',
+    instagramUrl: '',
+    twitterUrl: ''
+  });
+  const [footerSaving, setFooterSaving] = useState(false);
+  const [footerError, setFooterError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (footer) {
+      setFooterForm({
+        description: footer.description || '',
+        phone: footer.phone || '',
+        email: footer.email || '',
+        scheduleWeekdays: footer.scheduleWeekdays || '',
+        scheduleWeekends: footer.scheduleWeekends || '',
+        mapUrl: footer.mapUrl || '',
+        facebookUrl: footer.facebookUrl || '',
+        instagramUrl: footer.instagramUrl || '',
+        twitterUrl: footer.twitterUrl || ''
+      });
+    }
+  }, [footer]);
+
+  const handleSaveFooter = async () => {
+    setFooterSaving(true);
+    setFooterError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/footer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ footer: footerForm })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error al guardar pie de página');
+      setFooter(footerForm);
+      toast.success('Pie de página actualizado correctamente');
+    } catch (e) {
+      setFooterError(e instanceof Error ? e.message : 'Error al guardar');
+    } finally {
+      setFooterSaving(false);
+    }
+  };
+
+  const handleSaveTerms = async () => {
+    setTermsSaving(true);
+    setTermsError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/terms`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ terms: termsForm })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error al guardar términos y condiciones');
+      setTerms(termsForm);
+      toast.success('Términos y condiciones actualizados');
+    } catch (e) {
+      setTermsError(e instanceof Error ? e.message : 'Error al guardar términos');
+    } finally {
+      setTermsSaving(false);
+    }
+  };
+
+  const handleSaveLogo = async (newLogoUrl: string) => {
+    try {
+      setUploadLogoError(null);
+      const res = await fetchWithAuth(`${API}/settings/logo`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logo: newLogoUrl })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error al guardar logo');
+      setLogo(newLogoUrl);
+      toast.success('Logo actualizado correctamente');
+    } catch (e) {
+      setUploadLogoError(e instanceof Error ? e.message : 'Error al guardar logo');
+    }
+  };
+
   const handleLanguageToggle = async () => {
     const next = language === 'es' ? 'en' : 'es';
     try {
@@ -243,7 +359,7 @@ export function Admin() {
   // ---- Helper: Upload image to server via Multer ----
   const uploadImageToServer = async (
     file: File,
-    type: 'products' | 'carousel' | 'banners' | 'services',
+    type: 'products' | 'carousel' | 'banners' | 'services' | 'settings',
     setUploading: (v: boolean) => void,
     setError: (v: string | null) => void,
     onSuccess: (url: string) => void,
@@ -1397,6 +1513,15 @@ export function Admin() {
                 <BookOpen className="w-5 h-5 shrink-0" />
                 <span className="min-w-0 flex-1">{t('admin.services')}</span>
               </button>
+              <button
+                onClick={() => setSection('settings')}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'settings' ? 'bg-white/20' : 'hover:bg-white/10'
+                  }`}
+              >
+                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
+                <Settings className="w-5 h-5 shrink-0" />
+                <span className="min-w-0 flex-1">Configuración</span>
+              </button>
             </nav>
             <div className="shrink-0 mt-4 pt-4 border-t border-white/20">
               <button
@@ -1485,7 +1610,7 @@ export function Admin() {
                     <div>
                       <p className="text-gray-500 text-sm mb-1">{t('admin.total_sales')}</p>
                       <p className="text-2xl font-bold text-[#333]">
-                        S/ {stats.totalRevenue.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                        ${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </p>
                       <p className={`text-xs font-medium mt-2 ${pctRevenue >= 0 ? 'text-purple-600' : 'text-red-600'}`}>{fmtPct(pctRevenue)}</p>
                     </div>
@@ -1543,7 +1668,7 @@ export function Admin() {
                               <td className="px-6 py-4 text-sm font-medium text-[#333]">{order.customer.name}</td>
                               <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">{productLabel}</td>
                               <td className="px-6 py-4 text-sm text-gray-500">{formatOrderDate(order.createdAt)}</td>
-                              <td className="px-6 py-4 text-sm font-medium text-[#333]">S/ {order.total.toFixed(2)}</td>
+                              <td className="px-6 py-4 text-sm font-medium text-[#333]">${order.total.toFixed(2)}</td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex text-xs font-semibold px-2 py-1 rounded ${statusClass}`}>{statusLabel}</span>
                               </td>
@@ -1695,7 +1820,7 @@ export function Admin() {
                               {order.items.length} producto(s)
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-[#1e5631]">
-                              S/ {order.total.toFixed(2)}
+                              ${order.total.toFixed(2)}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-600">
                               {getPaymentMethodLabel(order.paymentMethod)}
@@ -1928,7 +2053,7 @@ export function Admin() {
                               {product.category}
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-[#333]">
-                              S/ {product.price.toFixed(2)}
+                              ${product.price.toFixed(2)}
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-600">
                               {product.stock}
@@ -2195,7 +2320,7 @@ export function Admin() {
                 </Button>
               </div>
               <p className="text-gray-600 mb-6">
-                Estos banners se muestran en la portada debajo del carrusel principal y rotan cada 6 segundos. Cada uno tiene título y descripción (ej. &quot;Envío Gratis&quot; / &quot;En compras mayores a S/500&quot;).
+                Estos banners se muestran en la portada debajo del carrusel principal y rotan cada 6 segundos. Cada uno tiene título y descripción (ej. &quot;Envío Gratis&quot; / &quot;En compras mayores a $500&quot;).
               </p>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {promoBannersLoading ? (
@@ -2314,8 +2439,8 @@ export function Admin() {
                                 <span className="font-bold text-[#e85d04]">-{offer.discountPercent}%</span>
                               </td>
                               <td className="px-6 py-4 text-sm">
-                                <span className="text-gray-400 line-through">S/ {offer.product.price.toFixed(2)}</span>
-                                <span className="ml-2 font-semibold text-[#1e5631]">S/ {offerPrice.toFixed(2)}</span>
+                                <span className="text-gray-400 line-through">${offer.product.price.toFixed(2)}</span>
+                                <span className="ml-2 font-semibold text-[#1e5631]">${offerPrice.toFixed(2)}</span>
                               </td>
                               <td className="px-6 py-4 text-sm text-gray-500">
                                 {offer.validUntil ? new Date(offer.validUntil).toLocaleDateString('es-PE') : 'Sin fecha'}
@@ -2338,6 +2463,223 @@ export function Admin() {
                   </div>
                 )}
               </div>
+            </>
+          )}
+
+          {/* ========== CONFIGURACION ========== */}
+          {section === 'settings' && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#333]">Configuración</h1>
+                  <p className="text-gray-500 text-sm mt-1">Ajustes generales del sitio</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-2xl">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Logo del Sitio</h3>
+                <div className="flex flex-col sm:flex-row gap-6 items-start">
+                  <div className="w-32 h-32 rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
+                    {logo ? (
+                      <img src={logo} alt="Logo actual" className="w-full h-full object-contain p-2" />
+                    ) : (
+                      <div className="text-center p-4">
+                        <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <span className="text-xs text-gray-400">Sin logo</span>
+                      </div>
+                    )}
+                    {uploadingLogo && (
+                      <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center">
+                        <Loader className="w-6 h-6 text-[#1e5631] animate-spin mb-1" />
+                        <span className="text-xs font-medium text-[#1e5631]">Subiendo...</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-600 mb-4">
+                      Sube una imagen para actualizar el logo que aparece en la barra de navegación y el pie de página. Se recomienda un formato PNG o SVG con fondo transparente.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      <Label
+                        htmlFor="logo-upload"
+                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors text-white ${uploadingLogo ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1e5631] hover:bg-[#164a28] cursor-pointer shadow-sm'}`}
+                      >
+                        <Upload className="w-4 h-4" />
+                        Añadir nuevo logo
+                      </Label>
+                      <input
+                        id="logo-upload"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingLogo}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          e.target.value = ''; // Reset
+                          uploadImageToServer(
+                            file,
+                            'settings',
+                            setUploadingLogo,
+                            setUploadLogoError,
+                            async (url) => {
+                              await handleSaveLogo(url);
+                            }
+                          );
+                        }}
+                      />
+                      {uploadLogoError && (
+                        <p className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded border border-red-100">
+                          {uploadLogoError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ========== FOOTER SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Pie de página (Footer)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <Label>Descripción corta</Label>
+                    <textarea 
+                      className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631]"
+                      rows={3}
+                      value={footerForm.description}
+                      onChange={(e) => setFooterForm({ ...footerForm, description: e.target.value })}
+                      placeholder="Texto descriptivo de la empresa..."
+                    />
+                  </div>
+                  <div>
+                    <Label>Teléfono</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.phone} 
+                      onChange={(e) => setFooterForm({ ...footerForm, phone: e.target.value })} 
+                      placeholder="+1 (801) 347-2165" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Correo electrónico</Label>
+                    <Input 
+                      className="mt-1" 
+                      type="email" 
+                      value={footerForm.email} 
+                      onChange={(e) => setFooterForm({ ...footerForm, email: e.target.value })} 
+                      placeholder="josarzc@hotmail.com" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Horario (Lunes a Viernes)</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.scheduleWeekdays} 
+                      onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekdays: e.target.value })} 
+                      placeholder="8:00 - 18:00" 
+                    />
+                  </div>
+                  <div>
+                    <Label>Horario (Sábados)</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.scheduleWeekends} 
+                      onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekends: e.target.value })} 
+                      placeholder="8:00 - 13:00" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>URL de Google Maps (Iframe SRC)</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.mapUrl} 
+                      onChange={(e) => setFooterForm({ ...footerForm, mapUrl: e.target.value })} 
+                      placeholder="https://maps.google.com/maps?q=..." 
+                    />
+                    <p className="text-xs text-gray-400 mt-1">Ingresa el enlace que va dentro del atributo src="..." del iframe de Google Maps.</p>
+                  </div>
+                  <div>
+                    <Label>Facebook URL</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.facebookUrl} 
+                      onChange={(e) => setFooterForm({ ...footerForm, facebookUrl: e.target.value })} 
+                      placeholder="https://facebook.com/..." 
+                    />
+                  </div>
+                  <div>
+                    <Label>Instagram URL</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.instagramUrl} 
+                      onChange={(e) => setFooterForm({ ...footerForm, instagramUrl: e.target.value })} 
+                      placeholder="https://instagram.com/..." 
+                    />
+                  </div>
+                  <div>
+                    <Label>Twitter (X) URL</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={footerForm.twitterUrl} 
+                      onChange={(e) => setFooterForm({ ...footerForm, twitterUrl: e.target.value })} 
+                      placeholder="https://twitter.com/..." 
+                    />
+                  </div>
+                </div>
+
+                {footerError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {footerError}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button 
+                    onClick={handleSaveFooter} 
+                    disabled={footerSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28]"
+                  >
+                    {footerSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Guardar Pie de Página
+                  </Button>
+                </div>
+              </div>
+
+              {/* ========== T&C SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Términos y Condiciones</h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Edita el texto público que los usuarios ven en la página de Términos y Condiciones. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
+                </p>
+                <div className="grid grid-cols-1">
+                  <div className="md:col-span-1">
+                    <textarea 
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[300px]"
+                      value={termsForm}
+                      onChange={(e) => setTermsForm(e.target.value)}
+                      placeholder="Escribe aquí las políticas, términos de servicio y condiciones..."
+                    />
+                  </div>
+                </div>
+
+                {termsError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {termsError}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button 
+                    onClick={handleSaveTerms} 
+                    disabled={termsSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28]"
+                  >
+                    {termsSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Guardar Términos
+                  </Button>
+                </div>
+              </div>
+
             </>
           )}
         </main>
@@ -2388,7 +2730,7 @@ export function Admin() {
                         <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
                       </div>
                       <p className="font-medium text-[#1e5631]">
-                        S/ {(item.product.price * item.quantity).toFixed(2)}
+                        ${(item.product.price * item.quantity).toFixed(2)}
                       </p>
                     </div>
                   ))}
@@ -2397,7 +2739,7 @@ export function Admin() {
               <div className="border-t border-gray-200 pt-4 flex justify-between items-center">
                 <span className="text-lg font-medium text-[#333]">Total</span>
                 <span className="text-2xl font-bold text-[#1e5631]">
-                  S/ {selectedOrder.total.toFixed(2)}
+                  ${selectedOrder.total.toFixed(2)}
                 </span>
               </div>
             </div>
@@ -2549,7 +2891,7 @@ export function Admin() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="originalPrice">Precio original (S/) - opcional</Label>
+                <Label htmlFor="originalPrice">Precio original ($) - opcional</Label>
                 <Input
                   id="originalPrice"
                   type="number"
@@ -2943,7 +3285,7 @@ export function Admin() {
                 id="promo-desc"
                 value={promoBannerForm.description}
                 onChange={(e) => setPromoBannerForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Ej. En compras mayores a S/500"
+                placeholder="Ej. En compras mayores a $500"
               />
             </div>
           </div>
@@ -3019,7 +3361,7 @@ export function Admin() {
               >
                 <option value="">Seleccionar producto...</option>
                 {(editingOfferId ? products : products.filter((p) => !offers.some((o) => o.productId === p.id))).map((p) => (
-                  <option key={p.id} value={p.id}>{p.name} — S/ {p.price.toFixed(2)}</option>
+                  <option key={p.id} value={p.id}>{p.name} — ${p.price.toFixed(2)}</option>
                 ))}
               </select>
               {editingOfferId && <p className="text-xs text-gray-500">No se puede cambiar el producto al editar.</p>}

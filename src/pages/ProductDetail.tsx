@@ -263,11 +263,11 @@ export function ProductDetail() {
             <div className="flex flex-wrap items-baseline gap-2 mb-4">
               {(hasOffer || product.originalPrice != null) && (
                 <span className="text-lg text-gray-400 line-through">
-                  S/ {(hasOffer ? product.price : product.originalPrice!).toFixed(2)}
+                  ${(hasOffer ? product.price : product.originalPrice!).toFixed(2)}
                 </span>
               )}
               <span className="text-2xl font-bold text-[#333]">
-                S/ {displayPrice.toFixed(2)}
+                ${displayPrice.toFixed(2)}
               </span>
               {hasOffer && <span className="text-sm font-semibold text-[#e85d04]">-{offer!.discountPercent}%</span>}
             </div>

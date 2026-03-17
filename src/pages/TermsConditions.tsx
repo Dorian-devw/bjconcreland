@@ -1,16 +1,27 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export function TermsConditions() {
+    const { terms, fetchTerms } = useSettingsStore();
+
     useEffect(() => {
         window.scrollTo(0, 0);
-    }, []);
+        fetchTerms();
+    }, [fetchTerms]);
 
     return (
         <div className="min-h-screen bg-gray-50 pt-[8.75rem] pb-24">
             <div className="max-w-3xl mx-auto px-[5%]">
                 <div className="bg-white rounded-2xl shadow-sm p-8 md:p-12">
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms &amp; Conditions &ndash; JJ construcci&oacute;n</h1>
+                    {/* If we have dynamic terms, render them */}
+                    {terms ? (
+                       <div className="space-y-4 text-gray-700 whitespace-pre-wrap">
+                           {terms}
+                       </div>
+                    ) : (
+                    <>
                     <p className="text-gray-500 mb-8">Effective Date: 04/03/2026</p>
 
                     <div className="space-y-8 text-gray-700">
@@ -63,6 +74,8 @@ export function TermsConditions() {
                             </p>
                         </section>
                     </div>
+                    </>
+                    )}
                 </div>
             </div>
         </div>

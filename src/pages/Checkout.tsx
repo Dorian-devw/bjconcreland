@@ -123,7 +123,7 @@ function PaymentForm({
         ) : (
           <>
             <Lock className="w-5 h-5" />
-            Pay S/ {total.toFixed(2)}
+            Pay ${total.toFixed(2)}
           </>
         )}
       </Button>
@@ -146,7 +146,7 @@ export function Checkout() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const subtotal = getTotalPrice();
-  const shipping = subtotal > 500 ? 0 : 25;
+  const shipping: number = 0; // Forced free shipping per request
   const taxEstimated = Math.round(subtotal * 0.08 * 100) / 100;
   const total = subtotal + shipping + taxEstimated;
 
@@ -274,7 +274,7 @@ export function Checkout() {
                       <p className="font-bold text-[#111] truncate">{item.product.name}</p>
                       <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                     </div>
-                    <p className="font-bold text-[#111]">S/ {(item.product.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-bold text-[#111]">${(item.product.price * item.quantity).toFixed(2)}</p>
                   </div>
                 ))}
               </div>
@@ -302,15 +302,15 @@ export function Checkout() {
             <div className="space-y-3 mb-8">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
-                <span className="font-medium">S/ {subtotal.toFixed(2)}</span>
+                <span className="font-medium">${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Tax (Included)</span>
-                <span className="font-medium">S/ {tax.toFixed(2)}</span>
+                <span className="font-medium">${tax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
                 <span className="text-xl font-bold text-[#111]">Total Paid</span>
-                <span className="text-2xl font-bold text-[#e85d04]">S/ {lastOrder.total.toFixed(2)}</span>
+                <span className="text-2xl font-bold text-[#e85d04]">${lastOrder.total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -414,7 +414,7 @@ export function Checkout() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="font-bold text-[#333]">
-                        S/ {(item.product.price * item.quantity).toFixed(2)}
+                        ${(item.product.price * item.quantity).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -502,23 +502,23 @@ export function Checkout() {
               <div className="space-y-2 mb-6">
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Subtotal</span>
-                  <span className="text-[#333]">S/ {subtotal.toFixed(2)}</span>
+                  <span className="text-[#333]">${subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Shipping</span>
                   <span className="text-[#2d9d5f] font-medium">
-                    {shipping === 0 ? 'Free' : `S/ ${shipping.toFixed(2)}`}
+                    {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>Tax (estimated)</span>
-                  <span className="text-[#333]">S/ {taxEstimated.toFixed(2)}</span>
+                  <span className="text-[#333]">${taxEstimated.toFixed(2)}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-gray-200 mb-6">
                 <span className="font-bold text-[#333]">Total</span>
                 <span className="text-xl font-bold text-[#1e5631]">
-                  S/ {total.toFixed(2)}
+                  ${total.toFixed(2)}
                 </span>
               </div>
 

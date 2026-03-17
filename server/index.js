@@ -54,7 +54,7 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // multer config
-const VALID_UPLOAD_TYPES = ['products', 'carousel', 'banners', 'services'];
+const VALID_UPLOAD_TYPES = ['products', 'carousel', 'banners', 'services', 'settings'];
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -185,6 +185,86 @@ app.put('/api/settings/language', authMiddleware, async (req, res) => {
     res.json({ language });
   } catch (error) {
     res.status(500).json({ error: 'Error guardando idioma' });
+  }
+});
+
+app.get('/api/settings/logo', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'logo'");
+    const logo = rows[0]?.value || null;
+    res.json({ logo });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo logo' });
+  }
+});
+
+app.put('/api/settings/logo', authMiddleware, async (req, res) => {
+  const { logo } = req.body || {};
+  if (!logo) {
+    return res.status(400).json({ error: 'Logo inválido' });
+  }
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('logo', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [logo],
+    );
+    res.json({ logo });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando logo' });
+  }
+});
+
+app.get('/api/settings/footer', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'footer_settings'");
+    const footerStr = rows[0]?.value;
+    const footer = footerStr ? JSON.parse(footerStr) : null;
+    res.json({ footer });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo configuración del footer' });
+  }
+});
+
+app.put('/api/settings/footer', authMiddleware, async (req, res) => {
+  const { footer } = req.body || {};
+  if (!footer || typeof footer !== 'object') {
+    return res.status(400).json({ error: 'Configuración de footer inválida' });
+  }
+  try {
+    const footerStr = JSON.stringify(footer);
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('footer_settings', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [footerStr],
+    );
+    res.json({ footer });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando configuración del footer' });
+  }
+});
+
+app.get('/api/settings/terms', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'terms_conditions'");
+    const terms = rows[0]?.value || '';
+    res.json({ terms });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo términos y condiciones' });
+  }
+});
+
+app.put('/api/settings/terms', authMiddleware, async (req, res) => {
+  const { terms } = req.body || {};
+  if (typeof terms !== 'string') {
+    return res.status(400).json({ error: 'Términos y condiciones inválidos' });
+  }
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('terms_conditions', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [terms],
+    );
+    res.json({ terms });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando términos y condiciones' });
   }
 });
 

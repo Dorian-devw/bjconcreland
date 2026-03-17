@@ -89,7 +89,7 @@ export function CartSidebar() {
                         </span>
                       )}
                       <p className="text-[#946545] font-semibold">
-                        S/ {item.product.price.toFixed(2)}
+                        ${item.product.price.toFixed(2)}
                       </p>
                     </div>
 
@@ -136,7 +136,7 @@ export function CartSidebar() {
             <div className="flex items-center justify-between mb-4">
               <span className="text-[#333] font-medium">{t('cart.subtotal')}</span>
               <span className="text-xl font-semibold text-[#946545]">
-                S/ {getTotalPrice().toFixed(2)}
+                ${getTotalPrice().toFixed(2)}
               </span>
             </div>
             <div className="space-y-2">

@@ -143,11 +143,11 @@ export function ProductCard({ product, offer }: ProductCardProps) {
         <div className="flex items-center gap-2 pt-2 flex-shrink-0">
           {showOriginalPrice && originalPrice != null && (
             <span className="text-sm text-gray-400 line-through">
-              S/ {originalPrice.toFixed(2)}
+              ${originalPrice.toFixed(2)}
             </span>
           )}
           <span className="text-lg font-bold text-[#333]">
-            S/ {displayPrice.toFixed(2)}
+            ${displayPrice.toFixed(2)}
           </span>
           {hasOffer && offer && (
             <span className="text-xs font-semibold text-[#e85d04]">-{offer.discountPercent}%</span>

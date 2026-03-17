@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Menu, X, Search, Truck } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useProductsStore } from '@/store/productsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +23,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const { toggleCart, getTotalItems } = useCartStore();
   const { products, fetchProducts } = useProductsStore();
+  const { logo, fetchLogo } = useSettingsStore();
   const { t } = useLanguage();
 
   const debouncedQuery = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -36,7 +38,8 @@ export function Navbar() {
 
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchLogo();
+  }, [fetchProducts, fetchLogo]);
 
   useEffect(() => {
     if (queryLength >= MIN_SEARCH_CHARS && searchResults.length > 0) setDropdownVisible(true);
@@ -104,7 +107,7 @@ export function Navbar() {
             aria-label="JJ Construcción - Ir a Inicio"
           >
             <img
-              src="/logo.png"
+              src={logo || "/logo.png"}
               alt="JJ Construcción"
               className="h-[6rem] w-auto max-h-[6.25rem] object-contain object-left"
             />
