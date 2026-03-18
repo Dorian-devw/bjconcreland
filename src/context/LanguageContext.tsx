@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { API } from '@/lib/api';
+import React, { createContext, useContext, useEffect } from 'react';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type Language = 'es' | 'en';
 
@@ -10,245 +10,245 @@ type Translations = {
     };
 };
 
-const translations: Translations = {
+export const translations: Translations = {
     // General
-    'loading': { es: 'Cargando...', en: 'Loading...' },
+    'loading': { es: 'Loading...', en: 'Loading...' },
     'error': { es: 'Error', en: 'Error' },
-    'success': { es: 'Éxito', en: 'Success' },
-    'save': { es: 'Guardar', en: 'Save' },
-    'cancel': { es: 'Cancelar', en: 'Cancel' },
-    'delete': { es: 'Eliminar', en: 'Delete' },
-    'edit': { es: 'Editar', en: 'Edit' },
-    'add': { es: 'Añadir', en: 'Add' },
-    'search': { es: 'Buscar', en: 'Search' },
-    'actions': { es: 'Acciones', en: 'Actions' },
-    'confirm': { es: 'Confirmar', en: 'Confirm' },
+    'success': { es: 'Success', en: 'Success' },
+    'save': { es: 'Save', en: 'Save' },
+    'cancel': { es: 'Cancel', en: 'Cancel' },
+    'delete': { es: 'Delete', en: 'Delete' },
+    'edit': { es: 'Edit', en: 'Edit' },
+    'add': { es: 'Add', en: 'Add' },
+    'search': { es: 'Search', en: 'Search' },
+    'actions': { es: 'Actions', en: 'Actions' },
+    'confirm': { es: 'Confirm', en: 'Confirm' },
 
     // Navbar
-    'nav.home': { es: 'Inicio', en: 'Home' },
-    'nav.services': { es: 'Servicios', en: 'Services' },
-    'nav.catalog': { es: 'Tienda', en: 'Store' },
-    'nav.offers': { es: 'Ofertas', en: 'Offers' },
-    'nav.heavy_equipment': { es: 'Equipo Pesado', en: 'Heavy Equipment' },
-    'nav.contact': { es: 'Contáctanos', en: 'Contact Us' },
-    'nav.login': { es: 'Iniciar sesión', en: 'Login' },
-    'nav.admin_panel': { es: 'Panel Admin', en: 'Admin Panel' },
-    'nav.search_placeholder': { es: 'Buscar productos...', en: 'Search products...' },
-    'nav.search': { es: 'Buscar', en: 'Search' },
-    'nav.shipping': { es: 'Envío de 3 a 5 días a todo nivel nacional', en: 'Shipping 3-5 days nationwide' },
-    'nav.cart_view': { es: 'Ver carrito', en: 'View cart' },
-    'nav.menu_open': { es: 'Abrir menú', en: 'Open menu' },
-    'nav.menu_close': { es: 'Cerrar menú', en: 'Close menu' },
+    'nav.home': { es: 'Home', en: 'Home' },
+    'nav.services': { es: 'Services', en: 'Services' },
+    'nav.catalog': { es: 'Store', en: 'Store' },
+    'nav.offers': { es: 'Offers', en: 'Offers' },
+    'nav.heavy_equipment': { es: 'Heavy Equipment', en: 'Heavy Equipment' },
+    'nav.contact': { es: 'Contact Us', en: 'Contact Us' },
+    'nav.login': { es: 'Login', en: 'Login' },
+    'nav.admin_panel': { es: 'Admin Panel', en: 'Admin Panel' },
+    'nav.search_placeholder': { es: 'Search products...', en: 'Search products...' },
+    'nav.search': { es: 'Search', en: 'Search' },
+    'nav.shipping': { es: 'Shipping 3-5 days nationwide', en: 'Shipping 3-5 days nationwide' },
+    'nav.cart_view': { es: 'View cart', en: 'View cart' },
+    'nav.menu_open': { es: 'Open menu', en: 'Open menu' },
+    'nav.menu_close': { es: 'Close menu', en: 'Close menu' },
 
     // Footer
-    'footer.description': { es: 'Suministros de concreto y jardinería. Equipo y materiales de calidad para tus proyectos.', en: 'Concrete and gardening supplies. Quality equipment and materials for your projects.' },
-    'footer.popular_categories': { es: 'Categorías Populares', en: 'Popular Categories' },
-    'footer.power_tools': { es: 'Herramientas Eléctricas', en: 'Power Tools' },
-    'footer.manual_tools': { es: 'Herramientas Manuales', en: 'Hand Tools' },
-    'footer.construction_materials': { es: 'Materiales de Construcción', en: 'Construction Materials' },
-    'footer.paints_finishes': { es: 'Pinturas y Acabados', en: 'Paints & Finishes' },
-    'footer.plumbing': { es: 'Fontanería', en: 'Plumbing' },
-    'footer.electricity': { es: 'Electricidad', en: 'Electrical' },
-    'footer.contact_title': { es: 'Contacto', en: 'Contact' },
-    'footer.follow_us': { es: 'Síguenos', en: 'Follow Us' },
-    'footer.mon_fri': { es: 'Lun - Vie', en: 'Mon - Fri' },
-    'footer.sat': { es: 'Sáb', en: 'Sat' },
-    'footer.rights': { es: 'Todos los derechos reservados.', en: 'All rights reserved.' },
+    'footer.description': { es: 'Concrete and gardening supplies. Quality equipment and materials for your projects.', en: 'Concrete and gardening supplies. Quality equipment and materials for your projects.' },
+    'footer.popular_categories': { es: 'Popular Categories', en: 'Popular Categories' },
+    'footer.power_tools': { es: 'Power Tools', en: 'Power Tools' },
+    'footer.manual_tools': { es: 'Hand Tools', en: 'Hand Tools' },
+    'footer.construction_materials': { es: 'Construction Materials', en: 'Construction Materials' },
+    'footer.paints_finishes': { es: 'Paints & Finishes', en: 'Paints & Finishes' },
+    'footer.plumbing': { es: 'Plumbing', en: 'Plumbing' },
+    'footer.electricity': { es: 'Electrical', en: 'Electrical' },
+    'footer.contact_title': { es: 'Contact', en: 'Contact' },
+    'footer.follow_us': { es: 'Follow Us', en: 'Follow Us' },
+    'footer.mon_fri': { es: 'Mon - Fri', en: 'Mon - Fri' },
+    'footer.sat': { es: 'Sat', en: 'Sat' },
+    'footer.rights': { es: 'All rights reserved.', en: 'All rights reserved.' },
 
     // Admin Sidebar
-    'admin.menu': { es: 'Menú principal', en: 'Main Menu' },
-    'admin.dashboard': { es: 'Panel', en: 'Dashboard' },
-    'admin.orders': { es: 'Compras / Pedidos', en: 'Orders' },
-    'admin.products': { es: 'Productos', en: 'Products' },
-    'admin.categories': { es: 'Categorías', en: 'Categories' },
-    'admin.filterGroups': { es: 'Grupos de filtro', en: 'Filter Groups' },
-    'admin.carousel': { es: 'Carrusel', en: 'Carousel' },
-    'admin.promoBanners': { es: 'Banners promocionales', en: 'Promo Banners' },
-    'admin.offers': { es: 'Ofertas', en: 'Offers' },
-    'admin.actions': { es: 'Acciones', en: 'Actions' },
-    'admin.services': { es: 'Servicios / Blog', en: 'Services / Blog' },
-    'admin.logout': { es: 'Cerrar sesión', en: 'Logout' },
-    'admin.language': { es: 'Idioma', en: 'Language' },
-    'admin.switch_language': { es: 'Switch to English', en: 'Cambiar a Español' },
+    'admin.menu': { es: 'Main Menu', en: 'Main Menu' },
+    'admin.dashboard': { es: 'Dashboard', en: 'Dashboard' },
+    'admin.orders': { es: 'Orders', en: 'Orders' },
+    'admin.products': { es: 'Products', en: 'Products' },
+    'admin.categories': { es: 'Categories', en: 'Categories' },
+    'admin.filterGroups': { es: 'Filter Groups', en: 'Filter Groups' },
+    'admin.carousel': { es: 'Carousel', en: 'Carousel' },
+    'admin.promoBanners': { es: 'Promo Banners', en: 'Promo Banners' },
+    'admin.offers': { es: 'Offers', en: 'Offers' },
+    'admin.actions': { es: 'Actions', en: 'Actions' },
+    'admin.services': { es: 'Services / Blog', en: 'Services / Blog' },
+    'admin.logout': { es: 'Logout', en: 'Logout' },
+    'admin.language': { es: 'Language', en: 'Language' },
+    'admin.switch_language': { es: 'Switch to English', en: 'Switch to English' },
 
     // Admin Dashboard
-    'admin.welcome': { es: 'Bienvenido de nuevo, aquí tienes el resumen de hoy.', en: 'Welcome back, here is your summary for today.' },
-    'admin.last_30_days': { es: 'Últimos 30 días', en: 'Last 30 days' },
-    'admin.total_orders': { es: 'Total Pedidos', en: 'Total Orders' },
-    'admin.pending': { es: 'Pendientes', en: 'Pending' },
-    'admin.shipped': { es: 'Enviados', en: 'Shipped' },
-    'admin.total_sales': { es: 'Ventas Totales', en: 'Total Sales' },
-    'admin.recent_orders': { es: 'Pedidos Recientes', en: 'Recent Orders' },
-    'admin.recent_orders_desc': { es: 'Listado de las últimas compras realizadas en la plataforma.', en: 'List of recent purchases made on the platform.' },
-    'admin.view_all': { es: 'Ver todos', en: 'View all' },
-    'admin.no_recent_orders': { es: 'No hay pedidos recientes.', en: 'No recent orders.' },
-    'admin.client': { es: 'Cliente', en: 'Client' },
-    'admin.product': { es: 'Producto', en: 'Product' },
-    'admin.date': { es: 'Fecha', en: 'Date' },
-    'admin.amount': { es: 'Monto', en: 'Amount' },
-    'admin.status': { es: 'Estado', en: 'Status' },
+    'admin.welcome': { es: 'Welcome back, here is your summary for today.', en: 'Welcome back, here is your summary for today.' },
+    'admin.last_30_days': { es: 'Last 30 days', en: 'Last 30 days' },
+    'admin.total_orders': { es: 'Total Orders', en: 'Total Orders' },
+    'admin.pending': { es: 'Pending', en: 'Pending' },
+    'admin.shipped': { es: 'Shipped', en: 'Shipped' },
+    'admin.total_sales': { es: 'Total Sales', en: 'Total Sales' },
+    'admin.recent_orders': { es: 'Recent Orders', en: 'Recent Orders' },
+    'admin.recent_orders_desc': { es: 'List of recent purchases made on the platform.', en: 'List of recent purchases made on the platform.' },
+    'admin.view_all': { es: 'View all', en: 'View all' },
+    'admin.no_recent_orders': { es: 'No recent orders.', en: 'No recent orders.' },
+    'admin.client': { es: 'Client', en: 'Client' },
+    'admin.product': { es: 'Product', en: 'Product' },
+    'admin.date': { es: 'Date', en: 'Date' },
+    'admin.amount': { es: 'Amount', en: 'Amount' },
+    'admin.status': { es: 'Status', en: 'Status' },
 
     // Admin Orders
-    'admin.orders_title': { es: 'Compras / Quién compró', en: 'Purchases / Who Bought' },
-    'admin.search_placeholder': { es: 'Buscar por cliente o ID...', en: 'Search by customer or ID...' },
-    'admin.all_status': { es: 'Todos los estados', en: 'All statuses' },
-    'admin.status_pending': { es: 'Pendiente', en: 'Pending' },
-    'admin.status_paid': { es: 'Pagado', en: 'Paid' },
-    'admin.status_shipped': { es: 'Enviado', en: 'Shipped' },
-    'admin.status_delivered': { es: 'Entregado', en: 'Delivered' },
-    'admin.status_cancelled': { es: 'Cancelado', en: 'Cancelled' },
+    'admin.orders_title': { es: 'Purchases / Who Bought', en: 'Purchases / Who Bought' },
+    'admin.search_placeholder': { es: 'Search by customer or ID...', en: 'Search by customer or ID...' },
+    'admin.all_status': { es: 'All statuses', en: 'All statuses' },
+    'admin.status_pending': { es: 'Pending', en: 'Pending' },
+    'admin.status_paid': { es: 'Paid', en: 'Paid' },
+    'admin.status_shipped': { es: 'Shipped', en: 'Shipped' },
+    'admin.status_delivered': { es: 'Delivered', en: 'Delivered' },
+    'admin.status_cancelled': { es: 'Cancelled', en: 'Cancelled' },
 
     // Admin Products
-    'admin.products_title': { es: 'Productos', en: 'Products' },
-    'admin.add_product': { es: 'Añadir producto', en: 'Add Product' },
-    'admin.image': { es: 'Imagen', en: 'Image' },
-    'admin.name': { es: 'Nombre', en: 'Name' },
-    'admin.category': { es: 'Categoría', en: 'Category' },
-    'admin.price': { es: 'Precio', en: 'Price' },
+    'admin.products_title': { es: 'Products', en: 'Products' },
+    'admin.add_product': { es: 'Add Product', en: 'Add Product' },
+    'admin.image': { es: 'Image', en: 'Image' },
+    'admin.name': { es: 'Name', en: 'Name' },
+    'admin.category': { es: 'Category', en: 'Category' },
+    'admin.price': { es: 'Price', en: 'Price' },
     'admin.stock': { es: 'Stock', en: 'Stock' },
-    'admin.tag': { es: 'Etiqueta', en: 'Tag' },
-    'admin.loading_orders': { es: 'Cargando pedidos...', en: 'Loading orders...' },
-    'admin.no_orders': { es: 'No hay pedidos', en: 'No orders' },
-    'admin.loading_products': { es: 'Cargando productos...', en: 'Loading products...' },
-    'admin.no_products': { es: 'No hay productos. Añade uno con el botón superior.', en: 'No products. Add one with the button above.' },
+    'admin.tag': { es: 'Tag', en: 'Tag' },
+    'admin.loading_orders': { es: 'Loading orders...', en: 'Loading orders...' },
+    'admin.no_orders': { es: 'No orders', en: 'No orders' },
+    'admin.loading_products': { es: 'Loading products...', en: 'Loading products...' },
+    'admin.no_products': { es: 'No products. Add one with the button above.', en: 'No products. Add one with the button above.' },
 
     // Products
-    'product.add_to_cart': { es: 'Añadir al carrito', en: 'Add to cart' },
-    'product.add_more': { es: 'Añadir más', en: 'Add more' },
-    'product.added': { es: 'Añadido', en: 'Added' },
-    'product.coming_soon': { es: 'Próximamente', en: 'Coming soon' },
-    'product.out_of_stock': { es: 'Sin stock', en: 'Out of stock' },
+    'product.add_to_cart': { es: 'Add to cart', en: 'Add to cart' },
+    'product.add_more': { es: 'Add more', en: 'Add more' },
+    'product.added': { es: 'Added', en: 'Added' },
+    'product.coming_soon': { es: 'Coming soon', en: 'Coming soon' },
+    'product.out_of_stock': { es: 'Out of stock', en: 'Out of stock' },
 
     // Admin Services
-    'admin.add_service': { es: 'Añadir servicio', en: 'Add Service' },
-    'admin.video_url': { es: 'URL del video', en: 'Video URL' },
-    'admin.content': { es: 'Contenido', en: 'Content' },
-    'admin.loading_services': { es: 'Cargando servicios...', en: 'Loading services...' },
-    'admin.no_services': { es: 'No hay servicios. Añade uno con el botón superior.', en: 'No services. Add one with the button above.' },
-    'admin.delete_service_confirm': { es: '¿Estás seguro de eliminar este servicio?', en: 'Are you sure you want to delete this service?' },
-    'admin.title': { es: 'Título', en: 'Title' },
-    'admin.description': { es: 'Descripción', en: 'Description' },
+    'admin.add_service': { es: 'Add Service', en: 'Add Service' },
+    'admin.video_url': { es: 'Video URL', en: 'Video URL' },
+    'admin.content': { es: 'Content', en: 'Content' },
+    'admin.loading_services': { es: 'Loading services...', en: 'Loading services...' },
+    'admin.no_services': { es: 'No services. Add one with the button above.', en: 'No services. Add one with the button above.' },
+    'admin.delete_service_confirm': { es: 'Are you sure you want to delete this service?', en: 'Are you sure you want to delete this service?' },
+    'admin.title': { es: 'Title', en: 'Title' },
+    'admin.description': { es: 'Description', en: 'Description' },
 
     // Home
-    'home.hero_title': { es: 'TODO LO QUE NECESITAS PARA TU', en: 'EVERYTHING YOU NEED FOR YOUR' },
-    'home.hero_highlight': { es: 'CONSTRUCCIÓN', en: 'CONSTRUCTION' },
-    'home.hero_desc': { es: 'Materiales de calidad, herramientas profesionales y los mejores precios para hacer realidad tus proyectos.', en: 'Quality materials, professional tools, and the best prices to make your projects a reality.' },
-    'home.view_products': { es: 'VER PRODUCTOS', en: 'VIEW PRODUCTS' },
-    'home.main_categories': { es: 'Categorías Principales', en: 'Main Categories' },
-    'home.no_categories': { es: 'No hay categorías aún. Añádelas desde el panel de administración.', en: 'No categories yet. Add them from the admin panel.' },
-    'home.featured_products': { es: 'Productos Destacados', en: 'Featured Products' },
-    'home.view_all': { es: 'Ver Todo', en: 'View All' },
-    'home.retry': { es: 'Reintentar', en: 'Retry' },
-    'home.no_featured': { es: 'No hay productos destacados en este momento.', en: 'No featured products at the moment.' },
-    'home.view_catalog': { es: 'Ver catálogo', en: 'View catalog' },
+    'home.hero_title': { es: 'EVERYTHING YOU NEED FOR YOUR', en: 'EVERYTHING YOU NEED FOR YOUR' },
+    'home.hero_highlight': { es: 'CONSTRUCTION', en: 'CONSTRUCTION' },
+    'home.hero_desc': { es: 'Quality materials, professional tools, and the best prices to make your projects a reality.', en: 'Quality materials, professional tools, and the best prices to make your projects a reality.' },
+    'home.view_products': { es: 'VIEW PRODUCTS', en: 'VIEW PRODUCTS' },
+    'home.main_categories': { es: 'Main Categories', en: 'Main Categories' },
+    'home.no_categories': { es: 'No categories yet. Add them from the admin panel.', en: 'No categories yet. Add them from the admin panel.' },
+    'home.featured_products': { es: 'Featured Products', en: 'Featured Products' },
+    'home.view_all': { es: 'View All', en: 'View All' },
+    'home.retry': { es: 'Retry', en: 'Retry' },
+    'home.no_featured': { es: 'No featured products at the moment.', en: 'No featured products at the moment.' },
+    'home.view_catalog': { es: 'View catalog', en: 'View catalog' },
 
     // Catalog
-    'catalog.hero_tag': { es: 'OFERTA LIMITADA', en: 'LIMITED OFFER' },
-    'catalog.hero_title': { es: 'Oferta de equipo pesado', en: 'Heavy equipment offer' },
-    'catalog.hero_desc': { es: 'Ahorra hasta 25% en mezcladoras de cemento y herramientas de pavimentación profesionales solo este fin de semana.', en: 'Save up to 25% on cement mixers and professional paving tools this weekend only.' },
-    'catalog.hero_disclaimer': { es: '*Válido mientras haya stock', en: '*Valid while stocks last' },
-    'catalog.view_equipment': { es: 'VER EQUIPO', en: 'VIEW EQUIPMENT' },
-    'catalog.search_title': { es: 'BUSCAR PRODUCTOS', en: 'SEARCH PRODUCTS' },
-    'catalog.search_placeholder': { es: 'Cemento, palas...', en: 'Cement, shovels...' },
-    'catalog.categories_title': { es: 'CATEGORÍAS', en: 'CATEGORIES' },
-    'catalog.price_range': { es: 'RANGO DE PRECIO', en: 'PRICE RANGE' },
-    'catalog.showing': { es: 'Mostrando', en: 'Showing' },
-    'catalog.of': { es: 'de', en: 'of' },
-    'catalog.products': { es: 'productos', en: 'products' },
-    'catalog.sort_by': { es: 'ORDENAR POR', en: 'SORT BY' },
-    'catalog.sort_newest': { es: 'Más recientes', en: 'Newest' },
-    'catalog.sort_price_asc': { es: 'Precio: menor a mayor', en: 'Price: Low to High' },
-    'catalog.sort_price_desc': { es: 'Precio: mayor a menor', en: 'Price: High to Low' },
-    'catalog.sort_name': { es: 'Nombre', en: 'Name' },
-    'catalog.no_results_title': { es: 'No se encontraron productos', en: 'No products found' },
-    'catalog.no_results_desc': { es: 'Prueba ajustando la búsqueda o los filtros.', en: 'Try adjusting your search or filters.' },
-    'catalog.clear_filters': { es: 'Limpiar filtros', en: 'Clear filters' },
+    'catalog.hero_tag': { es: 'LIMITED OFFER', en: 'LIMITED OFFER' },
+    'catalog.hero_title': { es: 'Heavy equipment offer', en: 'Heavy equipment offer' },
+    'catalog.hero_desc': { es: 'Save up to 25% on cement mixers and professional paving tools this weekend only.', en: 'Save up to 25% on cement mixers and professional paving tools this weekend only.' },
+    'catalog.hero_disclaimer': { es: '*Valid while stocks last', en: '*Valid while stocks last' },
+    'catalog.view_equipment': { es: 'VIEW EQUIPMENT', en: 'VIEW EQUIPMENT' },
+    'catalog.search_title': { es: 'SEARCH PRODUCTS', en: 'SEARCH PRODUCTS' },
+    'catalog.search_placeholder': { es: 'Cement, shovels...', en: 'Cement, shovels...' },
+    'catalog.categories_title': { es: 'CATEGORIES', en: 'CATEGORIES' },
+    'catalog.price_range': { es: 'PRICE RANGE', en: 'PRICE RANGE' },
+    'catalog.showing': { es: 'Showing', en: 'Showing' },
+    'catalog.of': { es: 'of', en: 'of' },
+    'catalog.products': { es: 'products', en: 'products' },
+    'catalog.sort_by': { es: 'SORT BY', en: 'SORT BY' },
+    'catalog.sort_newest': { es: 'Newest', en: 'Newest' },
+    'catalog.sort_price_asc': { es: 'Price: Low to High', en: 'Price: Low to High' },
+    'catalog.sort_price_desc': { es: 'Price: High to Low', en: 'Price: High to Low' },
+    'catalog.sort_name': { es: 'Name', en: 'Name' },
+    'catalog.no_results_title': { es: 'No products found', en: 'No products found' },
+    'catalog.no_results_desc': { es: 'Try adjusting your search or filters.', en: 'Try adjusting your search or filters.' },
+    'catalog.clear_filters': { es: 'Clear filters', en: 'Clear filters' },
 
     // Services
-    'services.title': { es: 'Nuestros Servicios', en: 'Our Specialized' },
-    'services.title_highlight': { es: 'Especializados', en: 'Services' },
-    'services.description': { es: 'En JJ CONSTRUCCIÓN combinamos experiencia técnica, materiales de alta calidad y un compromiso inquebrantable con la seguridad para transformar visiones en realidades estructurales duraderas.', en: 'At JJ CONSTRUCTION we combine technical expertise, high-quality materials, and an unwavering commitment to safety to transform visions into enduring structural realities.' },
-    'services.filter_all': { es: 'Todos', en: 'All' },
-    'services.filter_residential': { es: 'Residencial', en: 'Residential' },
-    'services.filter_commercial': { es: 'Comercial', en: 'Commercial' },
-    'services.filter_machinery': { es: 'Maquinaria', en: 'Machinery' },
-    'services.featured_tag': { es: 'Destacado', en: 'Featured' },
-    'services.read_article': { es: 'Leer artículo completo', en: 'Read full article' },
-    'services.view_details': { es: 'Ver detalles', en: 'View details' },
+    'services.title': { es: 'Our Specialized', en: 'Our Specialized' },
+    'services.title_highlight': { es: 'Services', en: 'Services' },
+    'services.description': { es: 'At JJ CONSTRUCTION we combine technical expertise, high-quality materials, and an unwavering commitment to safety to transform visions into enduring structural realities.', en: 'At JJ CONSTRUCTION we combine technical expertise, high-quality materials, and an unwavering commitment to safety to transform visions into enduring structural realities.' },
+    'services.filter_all': { es: 'All', en: 'All' },
+    'services.filter_residential': { es: 'Residential', en: 'Residential' },
+    'services.filter_commercial': { es: 'Commercial', en: 'Commercial' },
+    'services.filter_machinery': { es: 'Machinery', en: 'Machinery' },
+    'services.featured_tag': { es: 'Featured', en: 'Featured' },
+    'services.read_article': { es: 'Read full article', en: 'Read full article' },
+    'services.view_details': { es: 'View details', en: 'View details' },
 
     // Contact
-    'contact.title': { es: 'Contáctanos', en: 'Contact Us' },
-    'contact.description': { es: 'Estamos aquí para ayudarte a construir tus sueños. Ponte en contacto con nuestro equipo de expertos.', en: 'We are here to help you build your dreams. Get in touch with our team of experts.' },
-    'contact.phone': { es: 'Teléfono', en: 'Phone' },
-    'contact.phone_placeholder': { es: 'Ej. +1 801 123 4567', en: 'Ex. +1 801 123 4567' },
-    'contact.email': { es: 'Correo electrónico', en: 'Email' },
-    'contact.form_title': { es: 'Envíanos un mensaje', en: 'Send us a message' },
-    'contact.form_desc': { es: 'Nuestro equipo responderá en menos de 24 horas hábiles.', en: 'Our team will respond within 24 business hours.' },
-    'contact.name': { es: 'Nombre completo', en: 'Full Name' },
-    'contact.name_placeholder': { es: 'Ej. Juan Pérez', en: 'Ex. John Doe' },
-    'contact.subject': { es: 'Asunto', en: 'Subject' },
-    'contact.message': { es: 'Mensaje', en: 'Message' },
-    'contact.message_placeholder': { es: 'Cuéntanos en qué podemos ayudarte...', en: 'Tell us how we can help you...' },
-    'contact.send': { es: 'Enviar mensaje', en: 'Send Message' },
-    'contact.sending': { es: 'Enviando...', en: 'Sending...' },
-    'contact.success': { es: '¡Mensaje enviado correctamente! Nos pondremos en contacto contigo pronto.', en: 'Message sent successfully! We will contact you soon.' },
-    'contact.error': { es: 'Hubo un error al enviar el mensaje.', en: 'There was an error sending the message.' },
-    'contact.select_subject': { es: 'Selecciona un motivo', en: 'Select a subject' },
-    'contact.subject_general': { es: 'Consulta general', en: 'General inquiry' },
-    'contact.subject_orders': { es: 'Pedidos', en: 'Orders' },
-    'contact.subject_support': { es: 'Soporte técnico', en: 'Technical support' },
-    'contact.subject_other': { es: 'Otro', en: 'Other' },
+    'contact.title': { es: 'Contact Us', en: 'Contact Us' },
+    'contact.description': { es: 'We are here to help you build your dreams. Get in touch with our team of experts.', en: 'We are here to help you build your dreams. Get in touch with our team of experts.' },
+    'contact.phone': { es: 'Phone', en: 'Phone' },
+    'contact.phone_placeholder': { es: 'Ex. +1 801 123 4567', en: 'Ex. +1 801 123 4567' },
+    'contact.email': { es: 'Email', en: 'Email' },
+    'contact.form_title': { es: 'Send us a message', en: 'Send us a message' },
+    'contact.form_desc': { es: 'Our team will respond within 24 business hours.', en: 'Our team will respond within 24 business hours.' },
+    'contact.name': { es: 'Full Name', en: 'Full Name' },
+    'contact.name_placeholder': { es: 'Ex. John Doe', en: 'Ex. John Doe' },
+    'contact.subject': { es: 'Subject', en: 'Subject' },
+    'contact.message': { es: 'Message', en: 'Message' },
+    'contact.message_placeholder': { es: 'Tell us how we can help you...', en: 'Tell us how we can help you...' },
+    'contact.send': { es: 'Send Message', en: 'Send Message' },
+    'contact.sending': { es: 'Sending...', en: 'Sending...' },
+    'contact.success': { es: 'Message sent successfully! We will contact you soon.', en: 'Message sent successfully! We will contact you soon.' },
+    'contact.error': { es: 'There was an error sending the message.', en: 'There was an error sending the message.' },
+    'contact.select_subject': { es: 'Select a subject', en: 'Select a subject' },
+    'contact.subject_general': { es: 'General inquiry', en: 'General inquiry' },
+    'contact.subject_orders': { es: 'Orders', en: 'Orders' },
+    'contact.subject_support': { es: 'Technical support', en: 'Technical support' },
+    'contact.subject_other': { es: 'Other', en: 'Other' },
 
     // Login
-    'login.title': { es: 'Acceso Admin', en: 'Admin Access' },
-    'login.subtitle': { es: 'JJ construccion', en: 'JJ construction' },
-    'login.username': { es: 'Usuario', en: 'Username' },
-    'login.password': { es: 'Contraseña', en: 'Password' },
-    'login.login_button': { es: 'Iniciar sesión', en: 'Login' },
-    'login.logging_in': { es: 'Entrando...', en: 'Logging in...' },
-    'login.default_cred': { es: 'Por defecto: usuario', en: 'Default: user' },
-    'login.password_lbl': { es: 'contraseña', en: 'password' },
-    'login.error': { es: 'Error al iniciar sesión', en: 'Error logging in' },
+    'login.title': { es: 'Admin Access', en: 'Admin Access' },
+    'login.subtitle': { es: 'JJ construction', en: 'JJ construction' },
+    'login.username': { es: 'Username', en: 'Username' },
+    'login.password': { es: 'Password', en: 'Password' },
+    'login.login_button': { es: 'Login', en: 'Login' },
+    'login.logging_in': { es: 'Logging in...', en: 'Logging in...' },
+    'login.default_cred': { es: 'Default: user', en: 'Default: user' },
+    'login.password_lbl': { es: 'password', en: 'password' },
+    'login.error': { es: 'Error logging in', en: 'Error logging in' },
 
     // Cart
-    'cart.title': { es: 'TU CARRITO', en: 'YOUR CART' },
-    'cart.empty': { es: 'Tu carrito está vacío', en: 'Your cart is empty' },
-    'cart.add_items': { es: 'Agrega productos para comenzar tu compra', en: 'Add items to start shopping' },
-    'cart.view_products': { es: 'Ver Productos', en: 'View Products' },
-    'cart.offer': { es: 'Oferta', en: 'Offer' },
+    'cart.title': { es: 'YOUR CART', en: 'YOUR CART' },
+    'cart.empty': { es: 'Your cart is empty', en: 'Your cart is empty' },
+    'cart.add_items': { es: 'Add items to start shopping', en: 'Add items to start shopping' },
+    'cart.view_products': { es: 'View Products', en: 'View Products' },
+    'cart.offer': { es: 'Offer', en: 'Offer' },
     'cart.subtotal': { es: 'Subtotal:', en: 'Subtotal:' },
-    'cart.checkout': { es: 'Continuar Compra', en: 'Checkout' },
-    'cart.continue_shopping': { es: 'Seguir Comprando', en: 'Continue Shopping' },
+    'cart.checkout': { es: 'Checkout', en: 'Checkout' },
+    'cart.continue_shopping': { es: 'Continue Shopping', en: 'Continue Shopping' },
 
     // Product Detail
-    'product.back_to_catalog': { es: 'Volver al catálogo', en: 'Back to catalog' },
-    'product.offer_ended': { es: 'Oferta terminada', en: 'Offer ended' },
-    'product.ends_in': { es: 'Termina en', en: 'Ends in' },
+    'product.back_to_catalog': { es: 'Back to catalog', en: 'Back to catalog' },
+    'product.offer_ended': { es: 'Offer ended', en: 'Offer ended' },
+    'product.ends_in': { es: 'Ends in', en: 'Ends in' },
     'product.days_short': { es: 'd', en: 'd' },
     'product.hours_short': { es: 'h', en: 'h' },
     'product.minutes_short': { es: 'min', en: 'min' },
-    'product.invalid_id': { es: 'ID no válido', en: 'Invalid ID' },
-    'product.server_error': { es: 'Error del servidor', en: 'Server error' },
-    'product.connection_error_title': { es: 'No se pudo conectar', en: 'Connection failed' },
-    'product.connection_error_desc': { es: 'El servidor no responde. Asegúrate de tener el backend en marcha.', en: 'Server not responding. Ensure backend is running.' },
-    'product.not_found_title': { es: 'Producto no encontrado', en: 'Product not found' },
-    'product.not_found_desc': { es: 'El producto no existe o fue eliminado.', en: 'Product does not exist or was deleted.' },
-    'product.unknown_error': { es: 'Algo salió mal.', en: 'Something went wrong.' },
-    'product.no_description': { es: 'Sin descripción.', en: 'No description.' },
-    'product.valid_until': { es: 'válida hasta', en: 'valid until' },
-    'product.offer_active': { es: 'Oferta activa', en: 'Offer active' },
-    'product.out_of_stock_msg': { es: 'Agotado - Próximamente', en: 'Out of Stock - Coming Soon' },
-    'product.stock_available': { es: 'Stock disponible:', en: 'Stock available:' },
-    'product.units': { es: 'unidades', en: 'units' },
-    'product.quantity': { es: 'Cantidad:', en: 'Quantity:' },
-    'product.added_to_cart': { es: 'Añadido al carrito', en: 'Added to cart' },
+    'product.invalid_id': { es: 'Invalid ID', en: 'Invalid ID' },
+    'product.server_error': { es: 'Server error', en: 'Server error' },
+    'product.connection_error_title': { es: 'Connection failed', en: 'Connection failed' },
+    'product.connection_error_desc': { es: 'Server not responding. Ensure backend is running.', en: 'Server not responding. Ensure backend is running.' },
+    'product.not_found_title': { es: 'Product not found', en: 'Product not found' },
+    'product.not_found_desc': { es: 'Product does not exist or was deleted.', en: 'Product does not exist or was deleted.' },
+    'product.unknown_error': { es: 'Something went wrong.', en: 'Something went wrong.' },
+    'product.no_description': { es: 'No description.', en: 'No description.' },
+    'product.valid_until': { es: 'valid until', en: 'valid until' },
+    'product.offer_active': { es: 'Offer active', en: 'Offer active' },
+    'product.out_of_stock_msg': { es: 'Out of Stock - Coming Soon', en: 'Out of Stock - Coming Soon' },
+    'product.stock_available': { es: 'Stock available:', en: 'Stock available:' },
+    'product.units': { es: 'units', en: 'units' },
+    'product.quantity': { es: 'Quantity:', en: 'Quantity:' },
+    'product.added_to_cart': { es: 'Added to cart', en: 'Added to cart' },
 
-    'product.add_to_cart_btn': { es: 'Añadir al carrito', en: 'Add to Cart' },
-    'product.buy_now': { es: 'Comprar ahora', en: 'Buy Now' },
-    'product.tag_in_stock': { es: 'EN STOCK', en: 'IN STOCK' },
-    'product.tag_sale': { es: 'OFERTA', en: 'SALE' },
-    'product.tag_tools': { es: 'HERRAMIENTAS', en: 'TOOLS' },
-    'product.tag_bulk': { es: 'PRECIO POR MAYOR', en: 'BULK PRICING' },
+    'product.add_to_cart_btn': { es: 'Add to Cart', en: 'Add to Cart' },
+    'product.buy_now': { es: 'Buy Now', en: 'Buy Now' },
+    'product.tag_in_stock': { es: 'IN STOCK', en: 'IN STOCK' },
+    'product.tag_sale': { es: 'SALE', en: 'SALE' },
+    'product.tag_tools': { es: 'TOOLS', en: 'TOOLS' },
+    'product.tag_bulk': { es: 'BULK PRICING', en: 'BULK PRICING' },
 
 };
 
@@ -261,42 +261,23 @@ type LanguageContextType = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [language, setLanguage] = useState<Language>(() => {
-        const saved = localStorage.getItem('language');
-        return (saved === 'en' || saved === 'es') ? saved : 'es';
-    });
+    const language: Language = 'en';
+    const setLanguage = () => {};
+    
+    const { siteTexts, fetchSiteTexts } = useSettingsStore();
 
     useEffect(() => {
-        let cancelled = false;
-        const loadLanguage = async () => {
-            try {
-                const res = await fetch(`${API}/settings/language`);
-                if (!res.ok) return;
-                const data = await res.json();
-                if (!cancelled && (data.language === 'en' || data.language === 'es')) {
-                    setLanguage(data.language);
-                }
-            } catch {
-                // Ignore network errors and keep local language
-            }
-        };
-
-        loadLanguage();
-        const interval = setInterval(loadLanguage, 30000);
-        return () => {
-            cancelled = true;
-            clearInterval(interval);
-        };
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('language', language);
-    }, [language]);
+        fetchSiteTexts();
+    }, [fetchSiteTexts]);
 
     const t = (key: string) => {
+        if (siteTexts && siteTexts[key]) {
+            return siteTexts[key];
+        }
+
         const translation = translations[key];
         if (!translation) return key;
-        return translation[language];
+        return translation['en'];
     };
 
     return (

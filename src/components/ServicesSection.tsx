@@ -13,7 +13,7 @@ interface Service {
     image: string;
     video?: string;
     icon: React.ElementType;
-    // compatibility with modal
+    // compatible con modal
     created_at?: string;
     content?: string;
 }
@@ -66,7 +66,7 @@ export function ServicesSection() {
             .catch(err => console.error('Error fetching services:', err));
     }, []);
 
-    //  unique categories
+    //  categorias unicas
     const uniqueCategories = Array.from(new Set(services.map(s => s.category)));
     const filters = ['all', ...uniqueCategories];
 

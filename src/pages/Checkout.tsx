@@ -22,7 +22,7 @@ import { API } from '@/lib/api';
 
 
 
-const stripePromise = loadStripe('pk_test_51T0bG9B7JC0XRRBAnsPhW00XkgbpMyTzAUrAgClrrM0MPZFL3bz6AbLfSQy0ka9AYT0SUcuhArw4Yb80RzsfzKUT00tkCxWbK9');
+const stripePromise = loadStripe('pk_live_51T0bFxPhC3slcfhEW8Fl2RHKk2C6jcvx6WC7HqTJZvEXmZ1VFB1foIIs9Z2BdejdygyW3ZaCI0kVh2KUbUpv9UHI00bmztLJpk');
 
 function PaymentForm({
   formData,
@@ -222,7 +222,7 @@ export function Checkout() {
   };
 
   if (items.length === 0 && !showSuccess) {
-    navigate('/catalogo');
+    navigate('/catalog');
     return null;
   }
 
@@ -537,7 +537,7 @@ export function Checkout() {
               </div>
 
               {clientSecret ? (
-                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' }, locale: 'en' }}>
                   <div className="p-4 border border-gray-200 rounded-lg bg-white shadow-sm space-y-3">
                     <PaymentForm
                       formData={formData}
@@ -561,7 +561,7 @@ export function Checkout() {
                         <AlertCircle className="w-5 h-5 text-amber-600" />
                       </div>
                       <p className="text-sm font-medium text-amber-800">
-                        Rellena el formulario para habilitar el método de pago.
+                        Fill out the form to enable the payment method.
                       </p>
                     </div>
                   ) : (

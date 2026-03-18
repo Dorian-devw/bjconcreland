@@ -30,7 +30,6 @@ import {
   Settings,
   Loader,
 
-  Languages,
   BookOpen,
   Download,
 } from 'lucide-react';
@@ -64,6 +63,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import type { Order, Product, ProductTag } from '@/types';
+import { translations } from '@/context/LanguageContext';
 
 type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'settings';
 
@@ -81,11 +81,11 @@ function formatOrderDate(dateStr: string | Date): string {
   const diffMs = now.getTime() - d.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffHours < 1) return 'Hace menos de 1 hora';
-  if (diffHours < 24) return `Hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
-  if (diffDays === 1) return `Ayer, ${d.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}`;
-  if (diffDays < 7) return `Hace ${diffDays} días`;
-  return d.toLocaleDateString('es-PE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  if (diffHours < 1) return 'Less than 1 hour ago';
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  if (diffDays === 1) return `Yesterday, ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 export interface CarouselSlide {
@@ -150,7 +150,7 @@ export function Admin() {
   const navigate = useNavigate();
   const logout = useAuthStore((s) => s.logout);
   const { fetchProducts } = useProductsStore();
-  const { t, language, setLanguage } = useLanguage();
+  const { t } = useLanguage();
 
   const [section, setSection] = useState<AdminSection>('dashboard');
   const [products, setProducts] = useState<Product[]>([]);
@@ -225,14 +225,19 @@ export function Admin() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadLogoError, setUploadLogoError] = useState<string | null>(null);
   const { 
-    logo, setLogo, 
+    logo, logoWidth, setLogo, 
     footer, setFooter, fetchFooter,
     terms, setTerms, fetchTerms,
     privacyPolicy, setPrivacyPolicy, fetchPrivacyPolicy,
     servicesHeader, setServicesHeader, fetchServicesHeader,
     contactInfo, setContactInfo, fetchContactInfo,
-    heavyEquipment, setHeavyEquipment, fetchHeavyEquipment
+    heavyEquipment, setHeavyEquipment, fetchHeavyEquipment,
+    siteTexts, setSiteTexts, fetchSiteTexts
   } = useSettingsStore();
+
+  const [siteTextsForm, setSiteTextsForm] = useState<Record<string, string>>(siteTexts || {});
+  const [siteTextsSaving, setSiteTextsSaving] = useState(false);
+  const [siteTextsError, setSiteTextsError] = useState<string | null>(null);
 
   const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
@@ -241,6 +246,23 @@ export function Admin() {
   const [privacyForm, setPrivacyForm] = useState(privacyPolicy || '');
   const [privacySaving, setPrivacySaving] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
+
+  const [logoScale, setLogoScale] = useState<number>(logoWidth || 100);
+  const [savingLogoScale, setSavingLogoScale] = useState(false);
+
+  useEffect(() => {
+    if (siteTexts === null) {
+      fetchSiteTexts();
+    } else {
+      setSiteTextsForm(siteTexts);
+    }
+  }, [siteTexts, fetchSiteTexts]);
+
+  useEffect(() => {
+    if (logoWidth) {
+      setLogoScale(logoWidth);
+    }
+  }, [logoWidth]);
 
   useEffect(() => {
     if (terms === null) {
@@ -309,7 +331,8 @@ export function Admin() {
     mapUrl: '',
     facebookUrl: '',
     instagramUrl: '',
-    twitterUrl: ''
+    twitterUrl: '',
+    popularCategories: ''
   });
   const [footerSaving, setFooterSaving] = useState(false);
   const [footerError, setFooterError] = useState<string | null>(null);
@@ -327,7 +350,8 @@ export function Admin() {
         mapUrl: footer.mapUrl || '',
         facebookUrl: footer.facebookUrl || '',
         instagramUrl: footer.instagramUrl || '',
-        twitterUrl: footer.twitterUrl || ''
+        twitterUrl: footer.twitterUrl || '',
+        popularCategories: footer.popularCategories || ''
       });
     }
   }, [footer, fetchFooter]);
@@ -346,11 +370,11 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al guardar pie de página');
+      if (!res.ok) throw new Error('Error saving footer');
       setFooter(footerForm);
-      toast.success('Pie de página actualizado correctamente');
+      toast.success('Footer updated correctly');
     } catch (e) {
-      setFooterError(e instanceof Error ? e.message : 'Error al guardar');
+      setFooterError(e instanceof Error ? e.message : 'Error changing footer');
     } finally {
       setFooterSaving(false);
     }
@@ -370,11 +394,11 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al guardar términos y condiciones');
+      if (!res.ok) throw new Error('Error saving terms and conditions');
       setTerms(termsForm);
-      toast.success('Términos y condiciones actualizados');
+      toast.success('Terms and conditions updated');
     } catch (e) {
-      setTermsError(e instanceof Error ? e.message : 'Error al guardar términos');
+      setTermsError(e instanceof Error ? e.message : 'Error saving terms');
     } finally {
       setTermsSaving(false);
     }
@@ -394,11 +418,11 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al guardar política de privacidad');
+      if (!res.ok) throw new Error('Error saving privacy policy');
       setPrivacyPolicy(privacyForm);
-      toast.success('Política de privacidad actualizada');
+      toast.success('Privacy policy updated');
     } catch (e) {
-      setPrivacyError(e instanceof Error ? e.message : 'Error al guardar política');
+      setPrivacyError(e instanceof Error ? e.message : 'Error saving privacy policy');
     } finally {
       setPrivacySaving(false);
     }
@@ -414,11 +438,11 @@ export function Admin() {
         body: JSON.stringify({ servicesHeader: servicesHeaderForm })
       });
       if (res.status === 401) return logoutAndRedirect();
-      if (!res.ok) throw new Error('Error al guardar encabezado de servicios');
+      if (!res.ok) throw new Error('Error saving services header');
       setServicesHeader(servicesHeaderForm);
-      toast.success('Encabezado de servicios actualizado');
+      toast.success('Services header updated');
     } catch (e) {
-      setServicesHeaderError(e instanceof Error ? e.message : 'Error al guardar');
+      setServicesHeaderError(e instanceof Error ? e.message : 'Error saving');
     } finally {
       setServicesHeaderSaving(false);
     }
@@ -434,11 +458,11 @@ export function Admin() {
         body: JSON.stringify({ contactInfo: contactInfoForm })
       });
       if (res.status === 401) return logoutAndRedirect();
-      if (!res.ok) throw new Error('Error al guardar info de contacto');
+      if (!res.ok) throw new Error('Error saving contact info');
       setContactInfo(contactInfoForm);
-      toast.success('Información de contacto actualizada');
+      toast.success('Contact info updated');
     } catch (e) {
-      setContactInfoError(e instanceof Error ? e.message : 'Error al guardar');
+      setContactInfoError(e instanceof Error ? e.message : 'Error saving');
     } finally {
       setContactInfoSaving(false);
     }
@@ -454,11 +478,11 @@ export function Admin() {
         body: JSON.stringify({ heavyEquipment: heavyEqForm })
       });
       if (res.status === 401) return logoutAndRedirect();
-      if (!res.ok) throw new Error('Error al guardar info de equipo pesado');
+      if (!res.ok) throw new Error('Error saving heavy equipment info');
       setHeavyEquipment(heavyEqForm);
-      toast.success('Información de equipo pesado actualizada');
+      toast.success('Heavy equipment info updated');
     } catch (e) {
-      setHeavyEqError(e instanceof Error ? e.message : 'Error al guardar');
+      setHeavyEqError(e instanceof Error ? e.message : 'Error saving');
     } finally {
       setHeavyEqSaving(false);
     }
@@ -469,45 +493,65 @@ export function Admin() {
     navigate('/login');
   };
 
+  const handleSaveSiteTexts = async () => {
+    setSiteTextsSaving(true);
+    setSiteTextsError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/texts`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texts: siteTextsForm })
+      });
+      if (res.status === 401) return logoutAndRedirect();
+      if (!res.ok) throw new Error('Error saving site texts');
+      setSiteTexts(siteTextsForm);
+      toast.success('Global texts updated');
+    } catch (e) {
+      setSiteTextsError(e instanceof Error ? e.message : 'Error saving texts');
+    } finally {
+      setSiteTextsSaving(false);
+    }
+  };
+
   const handleSaveLogo = async (newLogoUrl: string) => {
     try {
       setUploadLogoError(null);
       const res = await fetchWithAuth(`${API}/settings/logo`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ logo: newLogoUrl })
+        body: JSON.stringify({ logo: newLogoUrl, width: logoScale })
       });
       if (res.status === 401) {
         logout();
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al guardar logo');
-      setLogo(newLogoUrl);
-      toast.success('Logo actualizado correctamente');
+      if (!res.ok) throw new Error('Error saving logo');
+      setLogo(newLogoUrl, logoScale);
+      toast.success('Logo updated correctly');
     } catch (e) {
-      setUploadLogoError(e instanceof Error ? e.message : 'Error al guardar logo');
+      setUploadLogoError(e instanceof Error ? e.message : 'Error saving logo');
     }
   };
 
-  const handleLanguageToggle = async () => {
-    const next = language === 'es' ? 'en' : 'es';
+
+  const handleUpdateLogoScale = async () => {
+    if (!logo) return;
     try {
-      const res = await fetchWithAuth(`${API}/settings/language`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ language: next }),
-      });
-      if (!res.ok) throw new Error('Error guardando idioma');
-      const data = await res.json();
-      if (data?.language === 'en' || data?.language === 'es') {
-        setLanguage(data.language);
-      } else {
-        setLanguage(next);
-      }
-    } catch (error) {
-      console.error('Error updating language:', error);
-      setLanguage(next);
+       setSavingLogoScale(true);
+       const res = await fetchWithAuth(`${API}/settings/logo`, {
+         method: 'PUT',
+         headers: { 'Content-Type': 'application/json' },
+         body: JSON.stringify({ logo: logo, width: logoScale })
+       });
+       if (res.status === 401) return logoutAndRedirect();
+       if (!res.ok) throw new Error('Error saving logo scale');
+       setLogo(logo, logoScale);
+       toast.success('Logo scale updated correctly');
+    } catch(e) {
+       toast.error('Error saving scale');
+    } finally {
+       setSavingLogoScale(false);
     }
   };
 
@@ -530,13 +574,13 @@ export function Admin() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error((data as { error?: string }).error || `Error al subir imagen (${res.status})`);
+        throw new Error((data as { error?: string }).error || `Error uploading image (${res.status})`);
       }
       const data = await res.json();
-      if (!data.url) throw new Error('El servidor no devolvió la URL de la imagen');
+      if (!data.url) throw new Error('The server did not return image URL');
       onSuccess(data.url as string);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al subir imagen');
+      setError(e instanceof Error ? e.message : 'Error uploading image');
     } finally {
       setUploading(false);
     }
@@ -561,7 +605,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al cargar pedidos');
+      if (!res.ok) throw new Error('Error loading orders');
       const data = await res.json();
       setOrders(data);
     } catch {
@@ -579,7 +623,7 @@ export function Admin() {
         if (!ok) return;
       }
       if (status === 'cancelled') {
-        const ok = window.confirm('¿Cancelar este pedido?');
+        const ok = window.confirm('Cancel this order?');
         if (!ok) return;
       }
       try {
@@ -595,7 +639,7 @@ export function Admin() {
           navigate('/login');
           return;
         }
-        if (!res.ok) throw new Error('Error al actualizar estado');
+        if (!res.ok) throw new Error('Error updating status');
         await loadOrders();
         toast.success('Estado actualizado');
       } catch {
@@ -613,7 +657,7 @@ export function Admin() {
     setProductsLoading(true);
     try {
       const res = await fetch(`${API}/products`);
-      if (!res.ok) throw new Error('Error al cargar productos');
+      if (!res.ok) throw new Error('Error loading products');
       const data = await res.json();
       setProducts(data);
     } catch {
@@ -639,7 +683,7 @@ export function Admin() {
     setCarouselLoading(true);
     try {
       const res = await fetch(`${API}/carousel`);
-      if (!res.ok) throw new Error('Error al cargar carrusel');
+      if (!res.ok) throw new Error('Error loading carousel');
       const data = await res.json();
       setCarouselSlides(data);
     } catch {
@@ -653,7 +697,7 @@ export function Admin() {
     setServicesLoading(true);
     try {
       const res = await fetch(`${API}/services`);
-      if (!res.ok) throw new Error('Error al cargar servicios');
+      if (!res.ok) throw new Error('Error loading services');
       const data = await res.json();
       setServices(data);
     } catch {
@@ -707,7 +751,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Error al actualizar');
+          throw new Error(err.error || 'Error updating');
         }
       } else {
         const res = await fetchWithAuth(`${API}/services`, {
@@ -722,7 +766,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Error al crear');
+          throw new Error(err.error || 'Error creating');
         }
       }
       setServiceDialogOpen(false);
@@ -730,7 +774,7 @@ export function Admin() {
       setEditingServiceId(null);
       await loadServices();
     } catch (e) {
-      setServiceError(e instanceof Error ? e.message : 'Error al guardar');
+      setServiceError(e instanceof Error ? e.message : 'Error saving');
     } finally {
       setServiceSaving(false);
     }
@@ -745,7 +789,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
       setServiceToDelete(null);
       await loadServices();
     } catch (e) {
@@ -762,7 +806,7 @@ export function Admin() {
     setPromoBannersLoading(true);
     try {
       const res = await fetch(`${API}/promo-banners`);
-      if (!res.ok) throw new Error('Error al cargar banners');
+      if (!res.ok) throw new Error('Error loading banners');
       const data = await res.json();
       setPromoBanners(data);
     } catch {
@@ -780,7 +824,7 @@ export function Admin() {
     setCategoriesLoading(true);
     try {
       const res = await fetch(`${API}/categories`);
-      if (!res.ok) throw new Error('Error al cargar categorías');
+      if (!res.ok) throw new Error('Error loading categories');
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
     } catch {
@@ -794,7 +838,7 @@ export function Admin() {
     setFilterGroupsLoading(true);
     try {
       const res = await fetch(`${API}/filter-groups`);
-      if (!res.ok) throw new Error('Error al cargar grupos');
+      if (!res.ok) throw new Error('Error loading groups');
       const data = await res.json();
       setFilterGroups(Array.isArray(data) ? data : []);
     } catch {
@@ -823,7 +867,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al cargar ofertas');
+      if (!res.ok) throw new Error('Error loading offers');
       const data = await res.json();
       setOffers(data);
     } catch {
@@ -1006,7 +1050,7 @@ export function Admin() {
           } catch {
             throw new Error(text || `Error ${res.status}`);
           }
-          throw new Error((data as { error?: string }).error || 'Error al actualizar');
+          throw new Error((data as { error?: string }).error || 'Error updating');
         }
       } else {
         const res = await fetchWithAuth(`${API}/products`, {
@@ -1033,7 +1077,7 @@ export function Admin() {
           }
           const msg = (data as { error?: string }).error;
           if (res.status === 400 && !msg) throw new Error('Faltan campos requeridos: nombre, precio, categoría y stock.');
-          throw new Error(msg || 'Error al crear el producto');
+          throw new Error(msg || 'Error creating product');
         }
       }
       setProductDialogOpen(false);
@@ -1042,7 +1086,7 @@ export function Admin() {
       await loadProducts();
       fetchProducts();
     } catch (e) {
-      setProductError(e instanceof Error ? e.message : 'Error al guardar');
+      setProductError(e instanceof Error ? e.message : 'Error saving');
     } finally {
       setProductSaving(false);
     }
@@ -1067,7 +1111,7 @@ export function Admin() {
       }
       if (!res.ok) {
         const text = await res.text();
-        let msg = 'Error al eliminar';
+        let msg = 'Error deleting';
         try {
           const json = JSON.parse(text);
           if (json?.error) msg = json.error;
@@ -1081,7 +1125,7 @@ export function Admin() {
       fetchProducts();
     } catch (err) {
       console.error(err);
-      setProductDeleteError(err instanceof Error ? err.message : 'Error al eliminar');
+      setProductDeleteError(err instanceof Error ? err.message : 'Error deleting');
     } finally {
       setProductDeleteInProgress(false);
     }
@@ -1120,7 +1164,7 @@ export function Admin() {
           navigate('/login');
           return;
         }
-        if (!res.ok) throw new Error('Error al actualizar');
+        if (!res.ok) throw new Error('Error updating');
       } else {
         const res = await fetchWithAuth(`${API}/carousel`, {
           method: 'POST',
@@ -1131,7 +1175,7 @@ export function Admin() {
           navigate('/login');
           return;
         }
-        if (!res.ok) throw new Error('Error al crear');
+        if (!res.ok) throw new Error('Error creating');
       }
       setSlideDialogOpen(false);
       setSlideForm({ image: '', alt: '', title: '', highlight: '', description: '' });
@@ -1160,7 +1204,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al reordenar');
+      if (!res.ok) throw new Error('Error reordering');
       const data = await res.json();
       setCarouselSlides(data);
     } catch (e) {
@@ -1177,7 +1221,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
       setSlideToDelete(null);
       await loadCarousel();
     } catch (e) {
@@ -1222,7 +1266,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const text = await res.text();
-          let msg = `Error al actualizar (${res.status})`;
+          let msg = `Error updating (${res.status})`;
           try {
             const err = JSON.parse(text);
             if (err && typeof err.error === 'string') msg = err.error;
@@ -1251,7 +1295,7 @@ export function Admin() {
           if (text.trimStart().startsWith('<!') || text.includes('Cannot POST') || text.includes('Cannot GET')) {
             throw new Error('El servidor no tiene la ruta de banners. Para el servidor (Ctrl+C) y vuelve a ejecutar en la carpeta server: npm start o node index.js');
           }
-          let msg = `Error al crear (${res.status})`;
+          let msg = `Error creating (${res.status})`;
           try {
             const err = JSON.parse(text);
             if (err && typeof err.error === 'string') msg = err.error;
@@ -1270,7 +1314,7 @@ export function Admin() {
       await loadPromoBanners();
     } catch (err) {
       console.error(err);
-      setPromoBannerError(err instanceof Error ? err.message : 'Error al guardar');
+      setPromoBannerError(err instanceof Error ? err.message : 'Error saving');
     } finally {
       setPromoBannerSaving(false);
     }
@@ -1293,7 +1337,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al reordenar');
+      if (!res.ok) throw new Error('Error reordering');
       const data = await res.json();
       setPromoBanners(data);
     } catch (e) {
@@ -1310,7 +1354,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
       setPromoBannerToDelete(null);
       await loadPromoBanners();
     } catch (e) {
@@ -1351,7 +1395,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err?.error || 'Error al actualizar');
+          throw new Error(err?.error || 'Error updating');
         }
       } else {
         const res = await fetchWithAuth(`${API}/categories`, {
@@ -1370,7 +1414,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err?.error || 'Error al crear');
+          throw new Error(err?.error || 'Error creating');
         }
       }
       setCategoryDialogOpen(false);
@@ -1393,7 +1437,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
       setCategoryToDelete(null);
       await loadCategories();
     } catch (e) {
@@ -1433,7 +1477,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err?.error || 'Error al actualizar');
+          throw new Error(err?.error || 'Error updating');
         }
       } else {
         const res = await fetchWithAuth(`${API}/filter-groups`, {
@@ -1448,7 +1492,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err?.error || 'Error al crear');
+          throw new Error(err?.error || 'Error creating');
         }
       }
       setFilterGroupDialogOpen(false);
@@ -1471,7 +1515,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
       setFilterGroupToDelete(null);
       await loadFilterGroups();
       await loadCategories();
@@ -1517,7 +1561,7 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Error al actualizar');
+          throw new Error(err.error || 'Error updating');
         }
       } else {
         const res = await fetchWithAuth(`${API}/offers`, {
@@ -1555,7 +1599,7 @@ export function Admin() {
       setOfferError(null);
       await loadOffers();
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Error al guardar';
+      const message = e instanceof Error ? e.message : 'Error saving';
       setOfferError(message);
     } finally {
       setOfferSaving(false);
@@ -1571,7 +1615,7 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al eliminar');
+      if (!res.ok) throw new Error('Error deleting');
       setOfferToDelete(null);
       await loadOffers();
     } catch (e) {
@@ -1675,18 +1719,11 @@ export function Admin() {
               >
                 <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
                 <Settings className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">Configuración</span>
+                <span className="min-w-0 flex-1">Settings</span>
               </button>
             </nav>
             <div className="shrink-0 mt-4 pt-4 border-t border-white/20">
-              <button
-                onClick={handleLanguageToggle}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-white/90 text-left mb-2"
-              >
-                <span className="w-2 h-2 shrink-0 bg-transparent" aria-hidden />
-                <Languages className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{language === 'es' ? 'English' : 'Español'}</span>
-              </button>
+
               <button
                 onClick={() => { logout(); navigate('/login'); }}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-white/90 text-left"
@@ -1711,7 +1748,7 @@ export function Admin() {
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" className="border-gray-200 text-gray-600">
                     <Calendar className="w-4 h-4 mr-2" />
-                    Últimos 30 días
+                    Last 30 days
                   </Button>
                   <Button
                     onClick={openAddProduct}
@@ -1794,12 +1831,12 @@ export function Admin() {
                   <table className="w-full">
                     <thead className="bg-[#f8f8f8]">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Producto</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Monto</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Acciones</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.client')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.product')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.date')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.amount')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.status')}</th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -1816,7 +1853,7 @@ export function Admin() {
                               ? `${order.items[0].product.name} (${order.items[0].quantity} und)`
                               : `${order.items[0].product.name} +${order.items.length - 1} más`
                             : '—';
-                          const statusLabel = order.status === 'pending' ? 'PENDIENTE' : order.status === 'paid' ? 'EN PROCESO' : order.status === 'shipped' ? 'ENVIADO' : order.status === 'delivered' ? 'ENTREGADO' : order.status === 'cancelled' ? 'CANCELADO' : order.status;
+                          const statusLabel = order.status === 'pending' ? 'PENDING' : order.status === 'paid' ? 'IN PROCESS' : order.status === 'shipped' ? 'SHIPPED' : order.status === 'delivered' ? 'DELIVERED' : order.status === 'cancelled' ? 'CANCELLED' : order.status;
                           const statusClass = order.status === 'pending' ? 'bg-amber-100 text-amber-800' : order.status === 'paid' ? 'bg-blue-100 text-blue-800' : order.status === 'shipped' || order.status === 'delivered' ? 'bg-green-100 text-green-800' : order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
                           return (
                             <tr key={order.id} className="hover:bg-gray-50/50">
@@ -1862,9 +1899,9 @@ export function Admin() {
                 </div>
                 <div className="text-sm leading-relaxed">
                   <p>
-                    Selecciona <strong>Compras / Pedidos</strong> para ver quién compró y gestionar pedidos.
-                    <strong> Productos</strong> para añadir, editar o eliminar stock.
-                    <strong> Carrusel</strong> para gestionar las imágenes del banner de la portada principal.
+                    Select <strong>Orders</strong> to see who bought and manage orders.
+                    <strong> Products</strong> to add, edit or delete stock.
+                    <strong> Carousel</strong> to manage the images for the main banner.
                   </p>
                 </div>
               </div>
@@ -1925,7 +1962,7 @@ export function Admin() {
                           Total
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
-                          Pago
+                          Payment
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
                           {t('admin.status')}
@@ -2223,7 +2260,7 @@ export function Admin() {
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-2 items-center">
                                 <Link
-                                  to={`/producto/${product.id}`}
+                                  to={`/product/${product.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-sm text-[#1e5631] hover:underline"
@@ -2635,7 +2672,9 @@ export function Admin() {
                 <div className="flex flex-col sm:flex-row gap-6 items-start">
                   <div className="w-32 h-32 rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
                     {logo ? (
-                      <img src={logo} alt="Logo actual" className="w-full h-full object-contain p-2" />
+                      <div className="w-full h-full flex items-center justify-center overflow-auto p-2">
+                         <img src={logo} alt="Logo preview" style={{ width: `${logoScale}px` }} className="object-contain transition-all duration-200" />
+                      </div>
                     ) : (
                       <div className="text-center p-4">
                         <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -2688,6 +2727,32 @@ export function Admin() {
                         </p>
                       )}
                     </div>
+                    {logo && (
+                      <div className="mt-8 border-t border-gray-100 pt-4">
+                        <Label className="block text-sm font-medium text-gray-700 mb-2">
+                          Tamaño del Logo (Zoom)
+                        </Label>
+                        <div className="flex items-center gap-4">
+                          <input 
+                            type="range" 
+                            min="50" 
+                            max="300" 
+                            value={logoScale} 
+                            onChange={(e) => setLogoScale(Number(e.target.value))}
+                            className="flex-1 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#1e5631]"
+                          />
+                          <span className="text-sm text-gray-500 font-medium w-12">{logoScale}px</span>
+                        </div>
+                        <Button 
+                          onClick={handleUpdateLogoScale} 
+                          disabled={savingLogoScale || logoScale === logoWidth}
+                          className="mt-4 bg-[#1e5631] hover:bg-[#164a28] text-white"
+                          size="sm"
+                        >
+                          {savingLogoScale ? 'Guardando...' : 'Guardar Tamaño'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2780,6 +2845,16 @@ export function Admin() {
                       placeholder="https://twitter.com/..." 
                     />
                   </div>
+                  <div className="md:col-span-2">
+                    <Label>Popular Categories (comma separated)</Label>
+                    <textarea 
+                      className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
+                      value={footerForm.popularCategories}
+                      onChange={(e) => setFooterForm({ ...footerForm, popularCategories: e.target.value })}
+                      placeholder="Power Tools, Hand Tools, Plumbing, Electricity"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">E.g: Concrete Mixers, Hand Saws, Electrical Cables.</p>
+                  </div>
                 </div>
 
                 {footerError && (
@@ -2795,7 +2870,7 @@ export function Admin() {
                     className="bg-[#1e5631] hover:bg-[#164a28]"
                   >
                     {footerSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Guardar Pie de Página
+                    Save Footer
                   </Button>
                 </div>
               </div>
@@ -2830,7 +2905,7 @@ export function Admin() {
                     className="bg-[#1e5631] hover:bg-[#164a28]"
                   >
                     {termsSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Guardar Términos
+                    Save Terms
                   </Button>
                 </div>
               </div>
@@ -2865,12 +2940,69 @@ export function Admin() {
                     className="bg-[#1e5631] hover:bg-[#164a28]"
                   >
                     {privacySaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Guardar Política
+                    Save Policy
                   </Button>
                 </div>
               </div>
 
-              {/* ========== SERVICES HEADER SETTINGS ========== */}
+              {/* ========== GLOBAL TEXT SETTINGS ========== */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Textos Globales y Navegación</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Modifica los textos de los botones, menús de navegación y pequeños subtítulos de toda la página pública.
+                </p>
+
+                <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                  {Object.keys(translations).filter(key => !key.startsWith('admin.')).map((key) => {
+                    // Grouping trick for labels
+                    const defaultText = translations[key]['en'];
+                    return (
+                      <div key={key} className="flex flex-col md:flex-row md:items-center gap-2 border-b border-gray-50 pb-3">
+                        <Label className="md:w-1/3 text-sm text-gray-600 truncate" title={key}>
+                          <span className="font-mono text-xs text-gray-400 mr-2">{key.split('.')[0]}</span>
+                          {defaultText}
+                        </Label>
+                        <Input
+                          value={siteTextsForm[key] !== undefined ? siteTextsForm[key] : ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSiteTextsForm(prev => {
+                              const next = { ...prev };
+                              if (val.trim() === '') {
+                                delete next[key];
+                              } else {
+                                next[key] = val;
+                              }
+                              return next;
+                            });
+                          }}
+                          placeholder={defaultText}
+                          className="md:w-2/3"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {siteTextsError && (
+                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {siteTextsError}
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <Button 
+                    onClick={handleSaveSiteTexts} 
+                    disabled={siteTextsSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28]"
+                  >
+                    {siteTextsSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Save Texts
+                  </Button>
+                </div>
+              </div>
+
+              {/* header settings*/}
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Encabezado de Servicios (Home)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2910,12 +3042,12 @@ export function Admin() {
                 <div className="mt-6 flex justify-end">
                   <Button onClick={handleSaveServicesHeader} disabled={servicesHeaderSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
                     {servicesHeaderSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Guardar Servicios
+                    Save Services
                   </Button>
                 </div>
               </div>
 
-              {/* ========== CONTACT INFO SETTINGS ========== */}
+              {/* contact settings*/}
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Página de Contacto</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2965,12 +3097,12 @@ export function Admin() {
                 <div className="mt-6 flex justify-end">
                   <Button onClick={handleSaveContactInfo} disabled={contactInfoSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
                     {contactInfoSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Guardar Contacto
+                    Save Contact
                   </Button>
                 </div>
               </div>
 
-              {/* ========== HEAVY EQUIPMENT SETTINGS ========== */}
+              {/* heavy equipment settings */}
               <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Página Equipo Pesado (Banner)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3028,7 +3160,7 @@ export function Admin() {
                 <div className="mt-6 flex justify-end">
                   <Button onClick={handleSaveHeavyEq} disabled={heavyEqSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
                     {heavyEqSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Guardar Equipo Pesado
+                    Save Heavy Equipment
                   </Button>
                 </div>
               </div>
@@ -3197,7 +3329,7 @@ export function Admin() {
                 {uploadingProductImage && (
                   <span className="text-xs text-gray-500 flex items-center gap-1">
                     <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
-                    Subiendo...
+                    Uploading...
                   </span>
                 )}
                 {uploadProductImageError && (
@@ -3207,7 +3339,7 @@ export function Admin() {
                   <div className="w-16 h-16 rounded border border-gray-200 overflow-hidden bg-[#f8f8f8] flex-shrink-0">
                     <img
                       src={productForm.image}
-                      alt="Vista previa"
+                      alt="Preview"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -3220,14 +3352,14 @@ export function Admin() {
                 id="description"
                 value={productForm.description}
                 onChange={(e) => setProductForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Descripción del producto"
+                placeholder="Product description"
                 rows={3}
                 className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="rating">Valoración (0-5)</Label>
+                <Label htmlFor="rating">Rating (0-5)</Label>
                 <Input
                   id="rating"
                   type="number"
@@ -3244,7 +3376,7 @@ export function Admin() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="originalPrice">Precio original ($) - opcional</Label>
+                <Label htmlFor="originalPrice">Original Price ($) - optional</Label>
                 <Input
                   id="originalPrice"
                   type="number"
@@ -3275,7 +3407,7 @@ export function Admin() {
                 }
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
-                <option value="">Ninguna</option>
+                <option value="">None</option>
                 {PRODUCT_TAGS.map((tag) => (
                   <option key={tag} value={tag}>
                     {tag}
@@ -3287,13 +3419,13 @@ export function Admin() {
           <DialogFooter className="flex-wrap gap-2 sm:gap-0">
             {editingProductId && (
               <Link
-                to={`/producto/${editingProductId}`}
+                to={`/product/${editingProductId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-sm text-[#1e5631] hover:underline order-first w-full sm:w-auto"
               >
                 <ExternalLink className="w-4 h-4" />
-                Ver en tienda (cómo lo ve el cliente)
+                View in store (how the client sees it)
               </Link>
             )}
             <Button variant="outline" onClick={() => setProductDialogOpen(false)}>
@@ -3489,7 +3621,7 @@ export function Admin() {
       <AlertDialog open={!!categoryToDelete} onOpenChange={() => setCategoryToDelete(null)}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar esta categoría?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this category?</AlertDialogTitle>
             <AlertDialogDescription>
               Los productos que usen esta categoría seguirán mostrándola como texto. Solo se quita de la lista de categorías para nuevos productos.
             </AlertDialogDescription>
@@ -3546,7 +3678,7 @@ export function Admin() {
       <AlertDialog open={!!filterGroupToDelete} onOpenChange={() => setFilterGroupToDelete(null)}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar este grupo de filtro?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this filter group?</AlertDialogTitle>
             <AlertDialogDescription>
               Las categorías que usen este grupo quedarán sin grupo asignado. El grupo dejará de aparecer en el filtro de la tienda.
             </AlertDialogDescription>
@@ -3664,7 +3796,7 @@ export function Admin() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Quitar este banner del carrusel promocional?</AlertDialogTitle>
             <AlertDialogDescription>
-              El banner se eliminará de la sección promocional de la portada.
+              The banner will be removed from the promotional section on the homepage.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3682,7 +3814,7 @@ export function Admin() {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Quitar esta imagen del carrusel?</AlertDialogTitle>
             <AlertDialogDescription>
-              La imagen se eliminará del carrusel de la portada. Esta acción no se puede deshacer.
+              The image will be removed from the homepage carousel. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3756,7 +3888,7 @@ export function Admin() {
       <AlertDialog open={!!offerToDelete} onOpenChange={() => setOfferToDelete(null)}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar esta oferta?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this offer?</AlertDialogTitle>
             <AlertDialogDescription>
               La oferta de &quot;{offerToDelete?.product.name}&quot; dejará de mostrarse en la tienda.
             </AlertDialogDescription>
@@ -3774,9 +3906,9 @@ export function Admin() {
       <AlertDialog open={!!productToDelete} onOpenChange={(open) => { if (!open) { setProductToDelete(null); setProductDeleteError(null); } }}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar producto?</AlertDialogTitle>
+            <AlertDialogTitle>Delete product?</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará &quot;{productToDelete?.name}&quot;. Esta acción no se puede deshacer.
+              Will be deleted &quot;{productToDelete?.name}&quot;. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {productDeleteError && (
@@ -3796,7 +3928,7 @@ export function Admin() {
                   Eliminando...
                 </span>
               ) : (
-                'Eliminar'
+                'Delete'
               )}
             </Button>
           </AlertDialogFooter>
@@ -3952,7 +4084,7 @@ export function Admin() {
       <AlertDialog open={!!serviceToDelete} onOpenChange={() => setServiceToDelete(null)}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar servicio?</AlertDialogTitle>
+            <AlertDialogTitle>Delete service?</AlertDialogTitle>
             <AlertDialogDescription>
               {t('admin.delete_service_confirm')}
             </AlertDialogDescription>

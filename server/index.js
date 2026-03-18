@@ -140,7 +140,7 @@ app.post('/api/contact/email', async (req, res) => {
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
-    to: 'tears.lambda@gmail.com',
+    to: 'jose.zevallos@bjconcreland.com',
     subject: `Nueva Consulta Web: ${subject || 'Contacto General'}`,
     html: `
       <h2>Nuevo mensaje de contacto desde la web</h2>
@@ -188,18 +188,55 @@ app.put('/api/settings/language', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/settings/texts', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'texts'");
+    let texts = {};
+    if (rows.length > 0 && rows[0].value) {
+      try {
+        texts = JSON.parse(rows[0].value);
+      } catch (e) {
+        console.error('Error parsing texts JSON:', e);
+      }
+    }
+    res.json({ texts });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo textos' });
+  }
+});
+
+app.put('/api/settings/texts', authMiddleware, async (req, res) => {
+  const { texts } = req.body || {};
+  try {
+    const jsonString = JSON.stringify(texts || {});
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('texts', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [jsonString],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando textos' });
+  }
+});
+
 app.get('/api/settings/logo', async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'logo'");
-    const logo = rows[0]?.value || null;
-    res.json({ logo });
+    const [rows] = await db.query("SELECT `key`, `value` FROM app_settings WHERE `key` IN ('logo', 'logo_width')");
+    let logo = null;
+    let width = null;
+    rows.forEach((row) => {
+      if (row.key === 'logo') logo = row.value;
+      if (row.key === 'logo_width') width = Number(row.value);
+    });
+    res.json({ logo, width });
   } catch (error) {
+    console.error('Error obteniendo logo:', error);
     res.status(500).json({ error: 'Error obteniendo logo' });
   }
 });
 
 app.put('/api/settings/logo', authMiddleware, async (req, res) => {
-  const { logo } = req.body || {};
+  const { logo, width } = req.body || {};
   if (!logo) {
     return res.status(400).json({ error: 'Logo inválido' });
   }
@@ -208,8 +245,15 @@ app.put('/api/settings/logo', authMiddleware, async (req, res) => {
       "INSERT INTO app_settings (`key`, `value`) VALUES ('logo', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
       [logo],
     );
-    res.json({ logo });
+    if (width) {
+      await db.query(
+        "INSERT INTO app_settings (`key`, `value`) VALUES ('logo_width', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+        [width.toString()],
+      );
+    }
+    res.json({ logo, width });
   } catch (error) {
+    console.error('Error guardando logo:', error);
     res.status(500).json({ error: 'Error guardando logo' });
   }
 });
@@ -626,6 +670,76 @@ app.post('/api/orders', async (req, res) => {
     }
     await connection.commit();
     res.status(201).json({ success: true, id });
+
+    // Enviar correo de confirmación al cliente de forma asíncrona
+    try {
+      let customerEmail = '';
+      if (customer.notes && customer.notes.includes('Email: ')) {
+        const parts = customer.notes.split('Email: ');
+        if (parts.length > 1) {
+          customerEmail = parts[1].trim();
+        }
+      }
+
+      if (customerEmail && transporter) {
+        const itemsListHTML = items.map((i) => `
+          <tr>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd;">${i.product.name}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.quantity}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">$${Number(i.product.price).toFixed(2)}</td>
+            <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: right;">$${(Number(i.product.price) * i.quantity).toFixed(2)}</td>
+          </tr>
+        `).join('');
+
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: customerEmail,
+          subject: `JJ Construction - Receipt for Order #${id}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+              <h2 style="color: #1e5631;">Thank you for your purchase!</h2>
+              <p>Hello ${customer.name},</p>
+              <p>We have successfully received your order <strong>#${id}</strong>. Below are the details of your purchase:</p>
+              
+              <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <thead>
+                  <tr style="background-color: #f8f8f8;">
+                    <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: left;">Item</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: center;">Qty</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: right;">Price</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #ddd; text-align: right;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsListHTML}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold;">Grand Total:</td>
+                    <td style="padding: 8px; text-align: right; font-weight: bold;">$${Number(total).toFixed(2)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+
+              <p><strong>Shipping Address:</strong><br>${customer.address}</p>
+              <p><strong>Phone:</strong> ${customer.phone}</p>
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
+                <p>This is an automated receipt. Please do not reply directly to this email.</p>
+                <p>JJ Construction &copy; ${new Date().getFullYear()}</p>
+              </div>
+            </div>
+          `
+        };
+
+        transporter.sendMail(mailOptions).catch(err => {
+          console.error('Error enviando correo de recibo:', err);
+        });
+      }
+    } catch (mailError) {
+      console.error('Error procesando el envío del recibo:', mailError);
+    }
+
   } catch (error) {
     await connection.rollback();
     console.error(error);
@@ -830,7 +944,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
     const tax = Math.round(total * 0.08 * 100) / 100;
     const finalAmount = Math.round((total + shipping + tax) * 100);
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: finalAmount, currency: 'pen', automatic_payment_methods: { enabled: true },
+      amount: finalAmount, currency: 'usd', automatic_payment_methods: { enabled: true },
       metadata: { customer_name: customer?.name || '', customer_email: customer?.email || '' }
     });
     res.send({ clientSecret: paymentIntent.client_secret });

@@ -68,7 +68,7 @@ export function TermsConditions() {
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Privacy</h2>
                             <p className="mb-2">Your information will be handled in accordance with our Privacy Policy:</p>
                             <p>
-                                <Link to="/politica" className="text-[#e85d04] hover:underline font-medium break-all">
+                                <Link to="/privacy-policy" className="text-[#e85d04] hover:underline font-medium break-all">
                                     https://www.bjconcreland.com/politica
                                 </Link>
                             </p>

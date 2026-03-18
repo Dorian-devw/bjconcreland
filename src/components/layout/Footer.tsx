@@ -6,7 +6,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 
 export function Footer() {
   const { t } = useLanguage();
-  const { logo, footer, fetchFooter } = useSettingsStore();
+  const { logo, logoWidth, footer, fetchFooter } = useSettingsStore();
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -21,9 +21,14 @@ export function Footer() {
           <div>
             <Link to="/" className="flex items-center gap-2 mb-4">
               {logo ? (
-                <img src={logo} alt="JJ Construcción" className="h-16 w-auto object-contain" />
+                <img 
+                  src={logo} 
+                  alt="JJ Construction" 
+                  style={logoWidth ? { width: `${logoWidth}px` } : undefined}
+                  className={`object-contain ${!logoWidth ? 'h-16 w-auto' : ''}`} 
+                />
               ) : (
-                <span className="text-xl font-bold text-[#1e5631]">JJ construccion</span>
+                <span className="text-xl font-bold text-[#1e5631]">JJ Construction</span>
               )}
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
@@ -35,17 +40,20 @@ export function Footer() {
           <div>
             <h4 className="text-lg font-medium mb-4 text-[#c8a48c]">{t('footer.popular_categories')}</h4>
             <ul className="space-y-2">
-              {[
-                t('footer.power_tools'),
-                t('footer.manual_tools'),
-                t('footer.construction_materials'),
-                t('footer.paints_finishes'),
-                t('footer.plumbing'),
-                t('footer.electricity'),
-              ].map((category) => (
-                <li key={category}>
+              {(footer?.popularCategories 
+                  ? footer.popularCategories.split(',').map(c => c.trim()).filter(Boolean)
+                  : [
+                    t('footer.power_tools'),
+                    t('footer.manual_tools'),
+                    t('footer.construction_materials'),
+                    t('footer.paints_finishes'),
+                    t('footer.plumbing'),
+                    t('footer.electricity'),
+                  ]
+              ).map((category, index) => (
+                <li key={index}>
                   <Link
-                    to="/catalogo"
+                    to="/catalog"
                     className="text-gray-400 text-sm hover:text-[#1e5631] transition-colors"
                   >
                     {category}

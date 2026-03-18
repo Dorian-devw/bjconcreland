@@ -155,7 +155,7 @@ export function Catalog() {
               asChild
               className="bg-[#333] hover:bg-[#444] text-white font-bold uppercase text-sm tracking-widest px-6 py-3 rounded-lg"
             >
-              <Link to="/equipo-pesado">{t('catalog.view_equipment')}</Link>
+              <Link to="/heavy-equipment">{t('catalog.view_equipment')}</Link>
             </Button>
           </div>
         </div>

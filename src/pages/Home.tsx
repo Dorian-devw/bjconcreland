@@ -16,10 +16,10 @@ interface HeroSlide {
 }
 
 const HERO_SLIDES_FALLBACK: HeroSlide[] = [
-  { src: '/hero-banner.jpg', alt: 'Obra en construcción' },
-  { src: '/promo-tools.jpg', alt: 'Herramientas' },
-  { src: '/promo-materials.jpg', alt: 'Materiales' },
-  { src: '/promo-shipping.jpg', alt: 'Envíos' },
+  { src: '/hero-banner.jpg', alt: 'Construction Site' },
+  { src: '/promo-tools.jpg', alt: 'Tools' },
+  { src: '/promo-materials.jpg', alt: 'Materials' },
+  { src: '/promo-shipping.jpg', alt: 'Shipping' },
 ];
 const HERO_INTERVAL_MS = 5000;
 const PROMO_CAROUSEL_INTERVAL_MS = 6000;
@@ -241,7 +241,7 @@ export function Home() {
           <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto text-gray-200">
             {slides[heroIndex].description || t('home.hero_desc')}
           </p>
-          <Link to="/catalogo">
+          <Link to="/catalog">
             <Button className="btn-primary text-lg px-8 py-4">
               {t('home.view_products')}
               <ArrowRight className="w-5 h-5 ml-2" />
@@ -324,7 +324,7 @@ export function Home() {
               {categories.map((category, index) => (
                 <Link
                   key={category.id}
-                  to="/catalogo"
+                  to="/catalog"
                   className="animate-on-scroll bg-white rounded-lg p-6 text-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
@@ -347,7 +347,7 @@ export function Home() {
         <div className="max-w-[80rem] mx-auto">
           <div className="flex items-center justify-between mb-12">
             <h2 className="text-3xl md:text-4xl text-[#333]">{t('home.featured_products')}</h2>
-            <Link to="/catalogo">
+            <Link to="/catalog">
               <Button variant="outline" className="btn-secondary">
                 {t('home.view_all')}
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -370,7 +370,7 @@ export function Home() {
           ) : featuredProducts.length === 0 ? (
             <div className="text-center py-16 bg-[#f8f0ed] rounded-lg text-[#333]">
               <p>{t('home.no_featured')}</p>
-              <Link to="/catalogo" className="inline-block mt-4">
+              <Link to="/catalog" className="inline-block mt-4">
                 <Button variant="outline" className="btn-secondary">{t('home.view_catalog')}</Button>
               </Link>
             </div>

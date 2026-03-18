@@ -11,6 +11,7 @@ export interface FooterSettings {
   facebookUrl: string;
   instagramUrl: string;
   twitterUrl: string;
+  popularCategories?: string;
 }
 
 export interface ServicesHeaderSettings {
@@ -36,12 +37,13 @@ export interface HeavyEquipmentSettings {
 
 interface SettingsState {
   logo: string | null;
+  logoWidth: number | null;
   footer: FooterSettings | null;
   terms: string | null;
   privacyPolicy: string | null;
   loading: boolean;
   fetchLogo: () => Promise<void>;
-  setLogo: (logo: string) => void;
+  setLogo: (logo: string, width?: number) => void;
   fetchFooter: () => Promise<void>;
   setFooter: (footer: FooterSettings) => void;
   fetchTerms: () => Promise<void>;
@@ -57,16 +59,21 @@ interface SettingsState {
   heavyEquipment: HeavyEquipmentSettings | null;
   fetchHeavyEquipment: () => Promise<void>;
   setHeavyEquipment: (eq: HeavyEquipmentSettings) => void;
+  siteTexts: Record<string, string> | null;
+  fetchSiteTexts: () => Promise<void>;
+  setSiteTexts: (texts: Record<string, string>) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   logo: null,
+  logoWidth: null,
   footer: null,
   terms: null,
   privacyPolicy: null,
   servicesHeader: null,
   contactInfo: null,
   heavyEquipment: null,
+  siteTexts: null,
   loading: false,
   fetchLogo: async () => {
     set({ loading: true });
@@ -75,7 +82,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       if (res.ok) {
         const data = await res.json();
         if (data.logo) {
-          set({ logo: data.logo });
+          set({ logo: data.logo, logoWidth: data.width || null });
         }
       }
     } catch (error) {
@@ -84,7 +91,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set({ loading: false });
     }
   },
-  setLogo: (logo) => set({ logo }),
+  setLogo: (logo, width) => set({ logo, logoWidth: width || null }),
 
   fetchFooter: async () => {
     set({ loading: true });
@@ -187,4 +194,22 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
   setHeavyEquipment: (heavyEquipment) => set({ heavyEquipment }),
+
+  fetchSiteTexts: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/texts`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.texts) {
+          set({ siteTexts: data.texts });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching site texts:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setSiteTexts: (siteTexts) => set({ siteTexts }),
 }));

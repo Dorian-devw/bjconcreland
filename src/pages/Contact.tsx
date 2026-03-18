@@ -114,7 +114,7 @@ export function Contact() {
                     <Phone className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-white/80">Teléfono</p>
+                    <p className="text-xs font-bold uppercase tracking-wider text-white/80">Phone</p>
                     <p className="text-lg font-semibold">{contactInfo?.phone || '+1 (801) 347-2165'}</p>
                   </div>
                 </a>
@@ -206,7 +206,7 @@ export function Contact() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="juan@ejemplo.com"
+                  placeholder="john@example.com"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="mt-1.5 border-gray-200"

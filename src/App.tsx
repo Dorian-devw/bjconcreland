@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { useSettingsStore } from '@/store/settingsStore';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CartSidebar } from '@/components/cart/CartSidebar';
@@ -23,9 +24,23 @@ function AppContent() {
   const location = useLocation();
   const hideFooter = location.pathname === '/jozarzc';
 
+  const { logo } = useSettingsStore();
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (logo) {
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = logo;
+    }
+  }, [logo]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -34,17 +49,17 @@ function AppContent() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/servicios" element={<Services />} />
-          <Route path="/catalogo" element={<Catalog />} />
-          <Route path="/ofertas" element={<Ofertas />} />
-          <Route path="/equipo-pesado" element={<EquipoPesado />} />
-          <Route path="/producto/:id" element={<ProductDetail />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/catalog" element={<Catalog />} />
+          <Route path="/offers" element={<Ofertas />} />
+          <Route path="/heavy-equipment" element={<EquipoPesado />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/login" element={<Login />} />
           <Route path="/jozarzc" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-          <Route path="/politica" element={<PrivacyPolicy />} />
-          <Route path="/terminos" element={<TermsConditions />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-conditions" element={<TermsConditions />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}

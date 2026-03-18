@@ -98,7 +98,7 @@ export function ProductCard({ product, offer }: ProductCardProps) {
   return (
     <div className="card-product group h-full flex flex-col min-h-[380px]">
       {/* Product Image - enlace al detalle; si no hay stock se muestra imagen "Próximamente" */}
-      <Link to={`/producto/${product.id}`} className="block flex-shrink-0">
+      <Link to={`/product/${product.id}`} className="block flex-shrink-0">
         <div className="relative aspect-square w-full bg-[#f8f8f8] rounded-md overflow-hidden">
           {outOfStock ? (
             <img
@@ -128,7 +128,7 @@ export function ProductCard({ product, offer }: ProductCardProps) {
 
       {/* Product Info - título enlaza al detalle */}
       <div className="flex-1 flex flex-col pt-4 min-h-0">
-        <Link to={`/producto/${product.id}`} className="hover:underline focus:outline-none">
+        <Link to={`/product/${product.id}`} className="hover:underline focus:outline-none">
           <h3 className="text-[#333] font-bold line-clamp-2 min-h-[2.75rem]">
             {product.name}
           </h3>

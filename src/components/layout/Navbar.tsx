@@ -23,7 +23,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const { toggleCart, getTotalItems } = useCartStore();
   const { products, fetchProducts } = useProductsStore();
-  const { logo, fetchLogo } = useSettingsStore();
+  const { logo, logoWidth, fetchLogo } = useSettingsStore();
   const { t } = useLanguage();
 
   const debouncedQuery = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -62,8 +62,8 @@ export function Navbar() {
 
   const navLinks = [
     { path: '/', label: t('nav.home') },
-    { path: '/servicios', label: t('nav.services') },
-    { path: '/catalogo', label: t('nav.catalog') },
+    { path: '/services', label: t('nav.services') },
+    { path: '/catalog', label: t('nav.catalog') },
     { path: '/contact', label: t('nav.contact') },
   ];
 
@@ -76,12 +76,12 @@ export function Navbar() {
     e.preventDefault();
     const query = searchInput.trim();
     if (query) {
-      navigate(`/catalogo?q=${encodeURIComponent(query)}`);
+      navigate(`/catalog?q=${encodeURIComponent(query)}`);
       setSearchInput('');
       setDropdownVisible(false);
       setIsMenuOpen(false);
     } else {
-      navigate('/catalogo');
+      navigate('/catalog');
     }
   };
 
@@ -89,7 +89,7 @@ export function Navbar() {
     setSearchInput('');
     setDropdownVisible(false);
     setIsMenuOpen(false);
-    navigate(`/producto/${productId}`);
+    navigate(`/product/${productId}`);
   };
 
   return (
@@ -109,7 +109,8 @@ export function Navbar() {
             <img
               src={logo || "/logo.png"}
               alt="JJ Construcción"
-              className="h-[6rem] w-auto max-h-[6.25rem] object-contain object-left"
+              style={logoWidth ? { width: `${logoWidth}px` } : undefined}
+              className={`h-[6rem] object-contain object-left ${!logoWidth ? 'w-auto max-h-[6.25rem]' : ''}`}
             />
           </button>
 
@@ -173,7 +174,7 @@ export function Navbar() {
             </div>
             <button
               type="button"
-              onClick={() => navigate('/catalogo')}
+              onClick={() => navigate('/catalog')}
               className="md:hidden p-2 text-[#333] hover:text-[#1e5631] transition-colors rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e5631] inline-flex items-center justify-center min-w-[2.5rem] min-h-[2.5rem] bg-transparent border-0 cursor-pointer"
               aria-label="Ir a Tienda para buscar productos"
             >

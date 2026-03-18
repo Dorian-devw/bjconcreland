@@ -184,7 +184,7 @@ export function ProductDetail() {
         <div className="text-center px-4 max-w-md">
           <h1 className="text-xl font-bold text-[#333] mb-2">{title}</h1>
           <p className="text-gray-500 mb-6">{description}</p>
-          <Link to="/catalogo">
+          <Link to="/catalog">
             <Button className="bg-[#1e5631] hover:bg-[#164a28] text-white">
               <ArrowLeft className="w-4 h-4 mr-2" />
               {t('product.back_to_catalog')}
@@ -199,7 +199,7 @@ export function ProductDetail() {
     <div className="min-h-screen bg-[#f8f8f8] pt-[8.75rem] pb-12">
       <div className="max-w-[80rem] mx-auto px-[5%] py-8">
         <Link
-          to="/catalogo"
+          to="/catalog"
           className="inline-flex items-center text-sm text-[#1e5631] hover:underline mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
