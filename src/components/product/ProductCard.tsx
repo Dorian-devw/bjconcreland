@@ -14,19 +14,19 @@ export interface ProductOffer {
 function formatCountdown(validUntil: string): string {
   const end = new Date(validUntil);
   const now = new Date();
-  if (end.getTime() <= now.getTime()) return 'Oferta terminada';
+  if (end.getTime() <= now.getTime()) return 'Offer ended';
   const ms = end.getTime() - now.getTime();
   const days = Math.floor(ms / (24 * 60 * 60 * 1000));
   const hours = Math.floor((ms % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
-  if (days > 0) return `Termina en ${days} d ${hours} h`;
-  if (hours > 0) return `Termina en ${hours} h`;
+  if (days > 0) return `Ends in ${days} d ${hours} h`;
+  if (hours > 0) return `Ends in ${hours} h`;
   const mins = Math.floor((ms % (60 * 60 * 1000)) / (60 * 1000));
-  return `Termina en ${mins} min`;
+  return `Ends in ${mins} min`;
 }
 
 function formatEndDate(validUntil: string): string {
   const d = new Date(validUntil);
-  return d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 const TAG_STYLES: Record<ProductTag, string> = {
@@ -36,11 +36,11 @@ const TAG_STYLES: Record<ProductTag, string> = {
   'BULK PRICING': 'bg-[#2d9d5f] text-white',
 };
 
-const TAG_LABELS_ES: Record<ProductTag, string> = {
-  'IN STOCK': 'EN STOCK',
-  SALE: 'OFERTA',
-  TOOLS: 'HERRAMIENTAS',
-  'BULK PRICING': 'PRECIO POR MAYOR',
+const TAG_LABELS_EN: Record<ProductTag, string> = {
+  'IN STOCK': 'IN STOCK',
+  SALE: 'SALE',
+  TOOLS: 'TOOLS',
+  'BULK PRICING': 'BULK PRICING',
 };
 
 interface ProductCardProps {
@@ -115,7 +115,7 @@ export function ProductCard({ product, offer }: ProductCardProps) {
           )}
           {!outOfStock && showSaleBadge && (
             <span className="absolute top-2 left-2 bg-[#e85d04] text-white text-xs font-bold uppercase px-2 py-1 rounded">
-              OFERTA
+              SALE
             </span>
           )}
           {outOfStock && (
@@ -159,10 +159,10 @@ export function ProductCard({ product, offer }: ProductCardProps) {
             {offer.validUntil ? (
               <>
                 <span className="font-medium text-[#333]">{countdown ?? formatCountdown(offer.validUntil)}</span>
-                <span className="ml-1">(válida hasta {formatEndDate(offer.validUntil)})</span>
+                <span className="ml-1">(valid until {formatEndDate(offer.validUntil)})</span>
               </>
             ) : (
-              <span className="font-medium text-[#333]">Oferta activa</span>
+              <span className="font-medium text-[#333]">Active offer</span>
             )}
           </div>
         )}
@@ -172,7 +172,7 @@ export function ProductCard({ product, offer }: ProductCardProps) {
             <span
               className={`text-xs font-bold uppercase px-2 py-1 rounded ${TAG_STYLES[product.tag]}`}
             >
-              {TAG_LABELS_ES[product.tag]}
+              {TAG_LABELS_EN[product.tag]}
             </span>
           )}
         </div>

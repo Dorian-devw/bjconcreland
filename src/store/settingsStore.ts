@@ -62,6 +62,9 @@ interface SettingsState {
   siteTexts: Record<string, string> | null;
   fetchSiteTexts: () => Promise<void>;
   setSiteTexts: (texts: Record<string, string>) => void;
+  tabTitle: string | null;
+  fetchTabTitle: () => Promise<void>;
+  setTabTitle: (title: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -74,6 +77,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   contactInfo: null,
   heavyEquipment: null,
   siteTexts: null,
+  tabTitle: null,
   loading: false,
   fetchLogo: async () => {
     set({ loading: true });
@@ -212,4 +216,22 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
   setSiteTexts: (siteTexts) => set({ siteTexts }),
+
+  fetchTabTitle: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/tab_title`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.tabTitle) {
+          set({ tabTitle: data.tabTitle });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tab title:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setTabTitle: (tabTitle) => set({ tabTitle }),
 }));

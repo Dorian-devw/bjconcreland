@@ -153,6 +153,7 @@ export function Admin() {
   const { t } = useLanguage();
 
   const [section, setSection] = useState<AdminSection>('dashboard');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
@@ -232,12 +233,17 @@ export function Admin() {
     servicesHeader, setServicesHeader, fetchServicesHeader,
     contactInfo, setContactInfo, fetchContactInfo,
     heavyEquipment, setHeavyEquipment, fetchHeavyEquipment,
-    siteTexts, setSiteTexts, fetchSiteTexts
+    siteTexts, setSiteTexts, fetchSiteTexts,
+    tabTitle, setTabTitle, fetchTabTitle
   } = useSettingsStore();
 
   const [siteTextsForm, setSiteTextsForm] = useState<Record<string, string>>(siteTexts || {});
   const [siteTextsSaving, setSiteTextsSaving] = useState(false);
   const [siteTextsError, setSiteTextsError] = useState<string | null>(null);
+
+  const [tabTitleForm, setTabTitleForm] = useState(tabTitle || '');
+  const [tabTitleSaving, setTabTitleSaving] = useState(false);
+  const [tabTitleError, setTabTitleError] = useState<string | null>(null);
 
   const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
@@ -257,6 +263,14 @@ export function Admin() {
       setSiteTextsForm(siteTexts);
     }
   }, [siteTexts, fetchSiteTexts]);
+
+  useEffect(() => {
+    if (tabTitle === null) {
+      fetchTabTitle();
+    } else {
+      setTabTitleForm(tabTitle);
+    }
+  }, [tabTitle, fetchTabTitle]);
 
   useEffect(() => {
     if (logoWidth) {
@@ -355,6 +369,30 @@ export function Admin() {
       });
     }
   }, [footer, fetchFooter]);
+
+  const handleSaveTabTitle = async () => {
+    setTabTitleSaving(true);
+    setTabTitleError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/tab_title`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tabTitle: tabTitleForm })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error al guardar título de pestaña');
+      setTabTitle(tabTitleForm);
+      toast.success('Título de pestaña actualizado');
+    } catch (e) {
+      setTabTitleError(e instanceof Error ? e.message : 'Error al guardar título de pestaña');
+    } finally {
+      setTabTitleSaving(false);
+    }
+  };
 
   const handleSaveFooter = async () => {
     setFooterSaving(true);
@@ -903,11 +941,11 @@ export function Admin() {
       cancelled: 'bg-red-100 text-red-800 border-red-300',
     };
     const labels = {
-      pending: 'Pendiente',
-      paid: 'Pagado',
-      shipped: 'Enviado',
-      delivered: 'Entregado',
-      cancelled: 'Cancelado',
+      pending: 'Pending',
+      paid: 'Paid',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
     };
     const icons = {
       pending: Clock,
@@ -926,7 +964,7 @@ export function Admin() {
   };
 
   const getPaymentMethodLabel = (method: Order['paymentMethod']) => {
-    const labels = { yape: 'Yape', plin: 'Plin', card: 'Tarjeta', transfer: 'Transferencia' };
+    const labels = { yape: 'Yape', plin: 'Plin', card: 'Card', transfer: 'Transfer' };
     const colors = {
       yape: 'bg-purple-100 text-purple-800 border-purple-200',
       plin: 'bg-blue-100 text-blue-800 border-blue-200',
@@ -1625,12 +1663,43 @@ export function Admin() {
 
   return (
     <div className="min-h-screen bg-[#f8f8f8] pt-[8.75rem]">
+      {/* Mobile top bar */}
+      <div className="lg:hidden fixed top-[8.75rem] left-0 right-0 z-50 bg-[#1e5631] text-white flex items-center px-4 py-3 shadow-md">
+        <button
+          type="button"
+          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors mr-3"
+          aria-label="Toggle menu"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {mobileSidebarOpen
+              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
+          </svg>
+        </button>
+        <span className="font-semibold text-sm">Admin Panel</span>
+      </div>
+
       <div className="flex">
-        {/* Sidebar - Menú principal */}
-        <aside className="w-64 bg-[#1e5631] text-white fixed left-0 top-[8.75rem] bottom-0 hidden lg:flex lg:flex-col z-40">
-          <div className="flex flex-col flex-1 min-h-0 p-5">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4 px-3 shrink-0">{t('admin.menu')}</p>
-            <nav className="space-y-1 flex-1 overflow-y-auto min-h-0">
+        {/* Mobile overlay */}
+        {mobileSidebarOpen && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black/50 z-40"
+            style={{ top: 'calc(8.75rem + 2.75rem)' }}
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+        )}
+        {/* Sidebar - Main menu */}
+        <aside
+          className={`w-64 bg-[#1e5631] text-white fixed left-0 bottom-0 flex flex-col z-40 transition-transform duration-300
+            ${ mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full' }
+            lg:translate-x-0
+          `}
+          style={{ top: 'calc(8.75rem)' }}
+        >
+          <div className="flex flex-col flex-1 min-h-0 p-5 overflow-y-auto">
+            <p className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4 px-3 shrink-0">MENU</p>
+            <nav className="space-y-1 flex-1 min-h-0">
               <button
                 onClick={() => setSection('dashboard')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'dashboard' ? 'bg-white/20' : 'hover:bg-white/10'
@@ -1736,7 +1805,7 @@ export function Admin() {
           </div>
         </aside>
 
-        <main className="flex-1 lg:ml-64 p-6">
+        <main className="flex-1 lg:ml-64 p-4 pt-16 lg:pt-6">
           {/* ========== PANEL DE CONTROL ========== */}
           {section === 'dashboard' && (
             <>
@@ -1916,7 +1985,7 @@ export function Admin() {
               <div className="bg-white rounded-lg shadow-sm">
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h2 className="text-xl font-semibold text-[#333]">Pedidos</h2>
+                    <h2 className="text-xl font-semibold text-[#333]">Orders</h2>
                     <div className="flex gap-3">
                       <div className="relative">
                         <Input
@@ -2009,7 +2078,7 @@ export function Admin() {
                               </div>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-600">
-                              {order.items.length} producto(s)
+                              {order.items.length} item(s)
                             </td>
                             <td className="px-6 py-4 text-sm font-medium text-[#1e5631]">
                               ${order.total.toFixed(2)}
@@ -2033,7 +2102,7 @@ export function Admin() {
                                   size="sm"
                                   onClick={() => setSelectedOrder(order)}
                                   className="border-[#1e5631] text-[#1e5631] hover:bg-[#1e5631] hover:text-white"
-                                  title="Ver detalle del pedido"
+                                  title="View order detail"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
@@ -2042,20 +2111,20 @@ export function Admin() {
                                   value={order.status}
                                   onChange={(e) => updateOrderStatusInApi(order.id, e.target.value as Order['status'])}
                                   disabled={statusUpdatingId === order.id}
-                                  title="Actualizar estado"
+                                  title="Update status"
                                 >
-                                  <option value="pending">Pendiente</option>
-                                  <option value="paid">Pagado</option>
-                                  <option value="shipped">Enviado</option>
-                                  <option value="delivered">Entregado</option>
-                                  <option value="cancelled">Cancelado</option>
+                                  <option value="pending">Pending</option>
+                                  <option value="paid">Paid</option>
+                                  <option value="shipped">Shipped</option>
+                                  <option value="delivered">Delivered</option>
+                                  <option value="cancelled">Cancelled</option>
                                 </select>
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => generateReceipt(order)}
                                   className="text-gray-500 hover:text-[#e85d04]"
-                                  title="Descargar recibo"
+                                  title="Download receipt"
                                 >
                                   <Download className="w-4 h-4" />
                                 </Button>
@@ -2078,7 +2147,7 @@ export function Admin() {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
                   <h1 className="text-2xl font-bold text-[#333]">{t('admin.services')}</h1>
-                  <p className="text-gray-500 text-sm mt-1">Gestión de artículos y servicios</p>
+                  <p className="text-gray-500 text-sm mt-1">Manage articles and services</p>
                 </div>
                 <Button
                   onClick={openAddService}
@@ -2297,28 +2366,31 @@ export function Admin() {
             </>
           )}
 
-          {/* ========== CATEGORÍAS ========== */}
+          {/* ========== HOME CATEGORIES ========== */}
           {section === 'categories' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Categorías</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#333]">Home Categories</h1>
+                  <p className="text-gray-500 text-sm mt-1">Icon categories shown on the homepage grid</p>
+                </div>
                 <Button
                   onClick={openAddCategory}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Nueva categoría
+                  New category
                 </Button>
               </div>
-              <p className="text-gray-600 mb-6">
-                Las categorías se muestran en la portada y en la tienda. Al crear una, podrás asignarla a productos y usarla en los filtros de la tienda (elige &quot;Grupo en tienda&quot; para que aparezca en el filtro lateral).
-              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
+                <strong>ℹ️ Home Categories vs Store Filters:</strong> These are the icon-based category tiles displayed on the homepage (e.g. "Concrete tools", "Hand tools"). They are assigned to products and can optionally link to a <em>Store Filter</em> group (see &ldquo;Filter Groups&rdquo; in the sidebar) which controls the left sidebar checkboxes on the Store page.
+              </div>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {categoriesLoading ? (
-                  <div className="p-12 text-center text-gray-500">Cargando categorías...</div>
+                  <div className="p-12 text-center text-gray-500">Loading categories...</div>
                 ) : categories.length === 0 ? (
                   <div className="p-12 text-center text-gray-500">
-                    No hay categorías. Añade la primera con el botón superior.
+                    No categories yet. Add one with the button above.
                   </div>
                 ) : (
                   <ul className="divide-y divide-gray-100">
@@ -2327,7 +2399,7 @@ export function Admin() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#333]">{cat.name}</p>
                           <p className="text-xs text-gray-500">
-                            Icono: {cat.icon} {cat.filterKey ? ` • Filtro: ${cat.filterKey}` : ''}
+                            Icon: {cat.icon} {cat.filterKey ? ` • Store filter: ${cat.filterKey}` : ''}
                           </p>
                         </div>
                         <div className="flex gap-2 shrink-0">
@@ -2356,28 +2428,31 @@ export function Admin() {
             </>
           )}
 
-          {/* ========== GRUPOS DE FILTRO (sidebar tienda) ========== */}
+          {/* ========== STORE FILTERS (sidebar tienda) ========== */}
           {section === 'filterGroups' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Grupos de filtro</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#333]">Store Filters</h1>
+                  <p className="text-gray-500 text-sm mt-1">Sidebar checkbox filters on the Store page</p>
+                </div>
                 <Button
                   onClick={openAddFilterGroup}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Nuevo grupo
+                  New filter group
                 </Button>
               </div>
-              <p className="text-gray-600 mb-6">
-                Son las opciones del filtro lateral en la tienda (Herramientas, Materias primas, Jardinería, Seguridad, etc.). Puedes añadir más. Luego, en Categorías, asigna cada categoría de producto a uno de estos grupos.
-              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-800">
+                <strong>ℹ️ Store Filters:</strong> These are the checkbox options shown in the left sidebar of the Store page (e.g. "Tools", "Concrete Rakes", etc.). After creating a filter group here, go to <strong>Home Categories</strong> and assign each category to one of these groups so it appears in the Store sidebar.
+              </div>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {filterGroupsLoading ? (
-                  <div className="p-12 text-center text-gray-500">Cargando grupos...</div>
+                  <div className="p-12 text-center text-gray-500">Loading filter groups...</div>
                 ) : filterGroups.length === 0 ? (
                   <div className="p-12 text-center text-gray-500">
-                    No hay grupos. Añade el primero con el botón superior.
+                    No filter groups yet. Add one with the button above.
                   </div>
                 ) : (
                   <ul className="divide-y divide-gray-100">
@@ -2385,7 +2460,7 @@ export function Admin() {
                       <li key={fg.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#333]">{fg.name}</p>
-                          <p className="text-xs text-gray-500">Clave: {fg.key}</p>
+                          <p className="text-xs text-gray-500">Key: {fg.key}</p>
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <Button
@@ -2413,28 +2488,28 @@ export function Admin() {
             </>
           )}
 
-          {/* ========== CARRUSEL (Hero inicio) ========== */}
+          {/* ========== CAROUSEL (Homepage hero) ========== */}
           {section === 'carousel' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Carrusel del inicio</h1>
+                <h1 className="text-2xl font-bold text-[#333]">Homepage Carousel</h1>
                 <Button
                   onClick={openAddSlide}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Añadir imagen
+                  Add image
                 </Button>
               </div>
               <p className="text-gray-600 mb-6">
-                Las imágenes del carrusel se muestran en la portada y rotan cada 5 segundos. Orden: de arriba a abajo.
+                Carousel images are displayed on the homepage and rotate every 5 seconds. Order: top to bottom.
               </p>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {carouselLoading ? (
-                  <div className="p-12 text-center text-gray-500">Cargando carrusel...</div>
+                  <div className="p-12 text-center text-gray-500">Loading carousel...</div>
                 ) : carouselSlides.length === 0 ? (
                   <div className="p-12 text-center text-gray-500">
-                    No hay imágenes. Añade la primera con el botón superior.
+                    No images yet. Add one with the button above.
                   </div>
                 ) : (
                   <ul className="divide-y divide-gray-100">
@@ -2446,7 +2521,7 @@ export function Admin() {
                             onClick={() => moveSlide(index, 'up')}
                             disabled={index === 0}
                             className="p-1 text-gray-400 hover:text-[#333] disabled:opacity-30"
-                            aria-label="Subir"
+                            aria-label="Move up"
                           >
                             <ChevronUp className="w-5 h-5" />
                           </button>
@@ -2455,7 +2530,7 @@ export function Admin() {
                             onClick={() => moveSlide(index, 'down')}
                             disabled={index === carouselSlides.length - 1}
                             className="p-1 text-gray-400 hover:text-[#333] disabled:opacity-30"
-                            aria-label="Bajar"
+                            aria-label="Move down"
                           >
                             <ChevronDown className="w-5 h-5" />
                           </button>
@@ -2464,11 +2539,11 @@ export function Admin() {
                           src={slide.src}
                           alt={slide.alt}
                           className="w-24 h-16 object-cover rounded border border-gray-200 bg-gray-100"
-                          onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64"><rect fill="%23eee" width="96" height="64"/><text x="50%" y="50%" fill="%23999" text-anchor="middle" dy=".3em" font-size="10">Sin imagen</text></svg>'; }}
+                          onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64"><rect fill="%23eee" width="96" height="64"/><text x="50%" y="50%" fill="%23999" text-anchor="middle" dy=".3em" font-size="10">No image</text></svg>'; }}
                         />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#333] truncate" title={slide.src.startsWith('data:') ? undefined : slide.src}>
-                            {slide.src.startsWith('data:') ? 'Imagen subida (base64)' : slide.src.length > 50 ? `${slide.src.slice(0, 50)}…` : slide.src}
+                            {slide.src.startsWith('data:') ? 'Uploaded image (base64)' : slide.src.length > 50 ? `${slide.src.slice(0, 50)}…` : slide.src}
                           </p>
                           {slide.alt && <p className="text-xs text-gray-500 truncate">{slide.alt}</p>}
                         </div>
@@ -2498,28 +2573,28 @@ export function Admin() {
             </>
           )}
 
-          {/* ========== BANNERS PROMOCIONALES (carrusel debajo del hero) ========== */}
+          {/* ========== PROMO BANNERS (carousel below hero) ========== */}
           {section === 'promoBanners' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Banners promocionales</h1>
+                <h1 className="text-2xl font-bold text-[#333]">Promo Banners</h1>
                 <Button
                   onClick={openAddPromoBanner}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Añadir banner
+                  Add banner
                 </Button>
               </div>
               <p className="text-gray-600 mb-6">
-                Estos banners se muestran en la portada debajo del carrusel principal y rotan cada 6 segundos. Cada uno tiene título y descripción (ej. &quot;Envío Gratis&quot; / &quot;En compras mayores a $500&quot;).
+                These banners appear on the homepage below the main carousel and rotate every 6 seconds. Each has a title and description (e.g. &quot;Free Shipping&quot; / &quot;On orders over $500&quot;).
               </p>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {promoBannersLoading ? (
-                  <div className="p-12 text-center text-gray-500">Cargando banners...</div>
+                  <div className="p-12 text-center text-gray-500">Loading banners...</div>
                 ) : promoBanners.length === 0 ? (
                   <div className="p-12 text-center text-gray-500">
-                    No hay banners. Añade el primero con el botón superior.
+                    No banners yet. Add one with the button above.
                   </div>
                 ) : (
                   <ul className="divide-y divide-gray-100">
@@ -2531,7 +2606,7 @@ export function Admin() {
                             onClick={() => movePromoBanner(index, 'up')}
                             disabled={index === 0}
                             className="p-1 text-gray-400 hover:text-[#333] disabled:opacity-30"
-                            aria-label="Subir"
+                            aria-label="Move up"
                           >
                             <ChevronUp className="w-5 h-5" />
                           </button>
@@ -2540,7 +2615,7 @@ export function Admin() {
                             onClick={() => movePromoBanner(index, 'down')}
                             disabled={index === promoBanners.length - 1}
                             className="p-1 text-gray-400 hover:text-[#333] disabled:opacity-30"
-                            aria-label="Bajar"
+                            aria-label="Move down"
                           >
                             <ChevronDown className="w-5 h-5" />
                           </button>
@@ -2549,11 +2624,11 @@ export function Admin() {
                           src={banner.image}
                           alt={banner.title}
                           className="w-24 h-16 object-cover rounded border border-gray-200 bg-gray-100"
-                          onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64"><rect fill="%23eee" width="96" height="64"/><text x="50%" y="50%" fill="%23999" text-anchor="middle" dy=".3em" font-size="10">Sin imagen</text></svg>'; }}
+                          onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="96" height="64" viewBox="0 0 96 64"><rect fill="%23eee" width="96" height="64"/><text x="50%" y="50%" fill="%23999" text-anchor="middle" dy=".3em" font-size="10">No image</text></svg>'; }}
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#333] truncate">{banner.title || 'Sin título'}</p>
-                          <p className="text-xs text-gray-500 truncate">{banner.description || 'Sin descripción'}</p>
+                          <p className="text-sm font-medium text-[#333] truncate">{banner.title || 'No title'}</p>
+                          <p className="text-xs text-gray-500 truncate">{banner.description || 'No description'}</p>
                         </div>
                         <div className="flex gap-2 shrink-0">
                           <Button
@@ -2581,39 +2656,39 @@ export function Admin() {
             </>
           )}
 
-          {/* ========== OFERTAS ========== */}
+          {/* ========== OFFERS ========== */}
           {section === 'offers' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Ofertas</h1>
+                <h1 className="text-2xl font-bold text-[#333]">Offers</h1>
                 <Button
                   onClick={openAddOffer}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Nueva oferta
+                  New offer
                 </Button>
               </div>
               <p className="text-gray-600 mb-6">
-                Las ofertas se muestran en la tienda en la sección Ofertas. Cada producto solo puede tener una oferta activa.
+                Offers are displayed in the store under the Offers section. Each product can only have one active offer.
               </p>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {offersLoading ? (
-                  <div className="p-12 text-center text-gray-500">Cargando ofertas...</div>
+                  <div className="p-12 text-center text-gray-500">Loading offers...</div>
                 ) : offers.length === 0 ? (
                   <div className="p-12 text-center text-gray-500">
-                    No hay ofertas. Añade una con el botón superior.
+                    No offers yet. Add one with the button above.
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-[#f8f8f8]">
                         <tr>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Producto</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Descuento</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Precio oferta</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Válida hasta</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Acciones</th>
+                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Product</th>
+                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Discount</th>
+                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Offer price</th>
+                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Valid until</th>
+                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
@@ -2635,7 +2710,7 @@ export function Admin() {
                                 <span className="ml-2 font-semibold text-[#1e5631]">${offerPrice.toFixed(2)}</span>
                               </td>
                               <td className="px-6 py-4 text-sm text-gray-500">
-                                {offer.validUntil ? new Date(offer.validUntil).toLocaleDateString('es-PE') : 'Sin fecha'}
+                                {offer.validUntil ? new Date(offer.validUntil).toLocaleDateString('en-US') : 'No date'}
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex gap-2">
@@ -2658,17 +2733,40 @@ export function Admin() {
             </>
           )}
 
-          {/* ========== CONFIGURACION ========== */}
+          {/* ========== SETTINGS ========== */}
           {section === 'settings' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#333]">Configuración</h1>
-                  <p className="text-gray-500 text-sm mt-1">Ajustes generales del sitio</p>
+                  <h1 className="text-2xl font-bold text-[#333]">Settings</h1>
+                  <p className="text-gray-500 text-sm mt-1">General site configuration</p>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-2xl">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Logo del Sitio</h3>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Browser Tab Title</h3>
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <Label>Text shown in the browser tab</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={tabTitleForm} 
+                      onChange={(e) => setTabTitleForm(e.target.value)} 
+                      placeholder="E.g. JJ Construction" 
+                    />
+                    {tabTitleError && <p className="text-sm text-red-500 mt-2">{tabTitleError}</p>}
+                  </div>
+                  <Button
+                    onClick={handleSaveTabTitle}
+                    disabled={tabTitleSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white self-start"
+                  >
+                    {tabTitleSaving ? 'Saving...' : 'Save title'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Site Logo</h3>
                 <div className="flex flex-col sm:flex-row gap-6 items-start">
                   <div className="w-32 h-32 rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
                     {logo ? (
@@ -2690,7 +2788,7 @@ export function Admin() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-gray-600 mb-4">
-                      Sube una imagen para actualizar el logo que aparece en la barra de navegación y el pie de página. Se recomienda un formato PNG o SVG con fondo transparente.
+                      Upload an image to update the logo shown in the navigation bar and footer. PNG or SVG with transparent background recommended.
                     </p>
                     <div className="flex flex-col gap-2">
                       <Label
@@ -2698,7 +2796,7 @@ export function Admin() {
                         className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md font-medium text-sm transition-colors text-white ${uploadingLogo ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#1e5631] hover:bg-[#164a28] cursor-pointer shadow-sm'}`}
                       >
                         <Upload className="w-4 h-4" />
-                        Añadir nuevo logo
+                        Upload new logo
                       </Label>
                       <input
                         id="logo-upload"
@@ -2730,7 +2828,7 @@ export function Admin() {
                     {logo && (
                       <div className="mt-8 border-t border-gray-100 pt-4">
                         <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Tamaño del Logo (Zoom)
+                          Logo Size (Zoom)
                         </Label>
                         <div className="flex items-center gap-4">
                           <input 
@@ -2749,7 +2847,7 @@ export function Admin() {
                           className="mt-4 bg-[#1e5631] hover:bg-[#164a28] text-white"
                           size="sm"
                         >
-                          {savingLogoScale ? 'Guardando...' : 'Guardar Tamaño'}
+                          {savingLogoScale ? 'Saving...' : 'Save Size'}
                         </Button>
                       </div>
                     )}
@@ -3739,33 +3837,33 @@ export function Admin() {
                   className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#1e5631] bg-[#1e5631]/5 px-4 py-2 text-sm font-medium text-[#1e5631] hover:bg-[#1e5631]/10"
                 >
                   <Upload className="w-4 h-4" />
-                  Elegir archivo
+                  Choose file
                 </Label>
                 {uploadingBannerImage && (
                   <span className="text-xs text-gray-500 flex items-center gap-1">
                     <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
-                    Subiendo...
+                    Uploading...
                   </span>
                 )}
                 {uploadBannerImageError && (
                   <span className="text-xs text-red-500">{uploadBannerImageError}</span>
                 )}
                 {promoBannerForm.image && !promoBannerForm.image.startsWith('data:') && !uploadingBannerImage && (
-                  <span className="text-xs text-green-600">✓ Imagen subida</span>
+                  <span className="text-xs text-green-600">✓ Image uploaded</span>
                 )}
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="promo-title">Título *</Label>
+              <Label htmlFor="promo-title">Title *</Label>
               <Input
                 id="promo-title"
                 value={promoBannerForm.title}
                 onChange={(e) => setPromoBannerForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Ej. Envío Gratis"
+                placeholder="E.g. Free Shipping"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="promo-desc">Descripción</Label>
+              <Label htmlFor="promo-desc">Description</Label>
               <Input
                 id="promo-desc"
                 value={promoBannerForm.description}
@@ -3794,7 +3892,7 @@ export function Admin() {
       <AlertDialog open={!!promoBannerToDelete} onOpenChange={() => setPromoBannerToDelete(null)}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Quitar este banner del carrusel promocional?</AlertDialogTitle>
+            <AlertDialogTitle>Remove this promo banner?</AlertDialogTitle>
             <AlertDialogDescription>
               The banner will be removed from the promotional section on the homepage.
             </AlertDialogDescription>
@@ -3812,7 +3910,7 @@ export function Admin() {
       <AlertDialog open={!!slideToDelete} onOpenChange={() => setSlideToDelete(null)}>
         <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Quitar esta imagen del carrusel?</AlertDialogTitle>
+            <AlertDialogTitle>Remove this image from the carousel?</AlertDialogTitle>
             <AlertDialogDescription>
               The image will be removed from the homepage carousel. This action cannot be undone.
             </AlertDialogDescription>
@@ -3830,29 +3928,29 @@ export function Admin() {
       <Dialog open={offerDialogOpen} onOpenChange={(open) => { setOfferDialogOpen(open); if (!open) setOfferError(null); }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingOfferId ? 'Editar oferta' : 'Nueva oferta'}</DialogTitle>
+            <DialogTitle>{editingOfferId ? 'Edit offer' : 'New offer'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {offerError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{offerError}</p>
             )}
             <div className="grid gap-2">
-              <Label>Producto</Label>
+              <Label>Product</Label>
               <select
                 value={offerForm.productId}
                 onChange={(e) => setOfferForm((f) => ({ ...f, productId: e.target.value }))}
                 disabled={!!editingOfferId}
                 className="h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
               >
-                <option value="">Seleccionar producto...</option>
+                <option value="">Select a product...</option>
                 {(editingOfferId ? products : products.filter((p) => !offers.some((o) => o.productId === p.id))).map((p) => (
                   <option key={p.id} value={p.id}>{p.name} — ${p.price.toFixed(2)}</option>
                 ))}
               </select>
-              {editingOfferId && <p className="text-xs text-gray-500">No se puede cambiar el producto al editar.</p>}
+              {editingOfferId && <p className="text-xs text-gray-500">Product cannot be changed when editing.</p>}
             </div>
             <div className="grid gap-2">
-              <Label>Descuento (%)</Label>
+              <Label>Discount (%)</Label>
               <Input
                 type="number"
                 min={0}
@@ -3863,7 +3961,7 @@ export function Admin() {
               />
             </div>
             <div className="grid gap-2">
-              <Label>Válida hasta (opcional)</Label>
+              <Label>Valid until (optional)</Label>
               <Input
                 type="date"
                 value={offerForm.validUntil}
@@ -3878,7 +3976,7 @@ export function Admin() {
               disabled={offerSaving || !offerForm.productId.trim() || offerForm.discountPercent < 0 || offerForm.discountPercent > 100}
               className="bg-[#1e5631] hover:bg-[#164a28]"
             >
-              {offerSaving ? t('loading') : editingOfferId ? t('save') : 'Crear oferta'}
+              {offerSaving ? t('loading') : editingOfferId ? t('save') : 'Create offer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3890,7 +3988,7 @@ export function Admin() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this offer?</AlertDialogTitle>
             <AlertDialogDescription>
-              La oferta de &quot;{offerToDelete?.product.name}&quot; dejará de mostrarse en la tienda.
+              The offer for &quot;{offerToDelete?.product.name}&quot; will no longer be shown in the store.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -3925,7 +4023,7 @@ export function Admin() {
               {productDeleteInProgress ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden />
-                  Eliminando...
+                  Deleting...
                 </span>
               ) : (
                 'Delete'
@@ -3965,7 +4063,7 @@ export function Admin() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="service-image">{t('admin.image')} (URL o Subir)</Label>
+              <Label htmlFor="service-image">{t('admin.image')} (URL or Upload)</Label>
               <Input
                 id="service-image"
                 value={serviceForm.image}
@@ -3995,12 +4093,12 @@ export function Admin() {
                   htmlFor="service-file"
                   className="cursor-pointer text-xs text-[#1e5631] hover:underline"
                 >
-                  Subir imagen
+                  Upload image
                 </Label>
                 {uploadingServiceImage && (
                   <span className="text-xs text-gray-500 flex items-center gap-1">
                     <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
-                    Subiendo...
+                    Uploading...
                   </span>
                 )}
                 {uploadServiceImageError && (
@@ -4009,7 +4107,7 @@ export function Admin() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="service-video">{t('admin.video_url')} (Opcional)</Label>
+              <Label htmlFor="service-video">{t('admin.video_url')} (Optional)</Label>
               <Input
                 id="service-video"
                 value={serviceForm.video}
@@ -4026,7 +4124,7 @@ export function Admin() {
                     const file = e.target.files?.[0];
                     if (!file) return;
                     if (file.size > 10 * 1024 * 1024) {
-                      alert("El video es demasiado grande (máx 10MB). Por favor usa una URL de YouTube.");
+                      alert("The video is too large (max 10MB). Please use a YouTube URL instead.");
                       return;
                     }
                     const reader = new FileReader();
@@ -4042,7 +4140,7 @@ export function Admin() {
                   htmlFor="service-video-file"
                   className="cursor-pointer text-xs text-[#1e5631] hover:underline"
                 >
-                  Subir video (máx 10MB)
+                  Upload video (max 10MB)
                 </Label>
               </div>
             </div>
@@ -4053,17 +4151,17 @@ export function Admin() {
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={serviceForm.description}
                 onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Breve descripción del servicio..."
+                placeholder="Brief service description..."
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="service-content">{t('admin.content')} (Detallado)</Label>
+              <Label htmlFor="service-content">{t('admin.content')} (Detailed)</Label>
               <textarea
                 id="service-content"
                 className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={serviceForm.content}
                 onChange={(e) => setServiceForm((f) => ({ ...f, content: e.target.value }))}
-                placeholder="Contenido completo del artículo o servicio..."
+                placeholder="Full article or service content..."
               />
             </div>
           </div>

@@ -236,7 +236,7 @@ export function ProductDetail() {
             <div className="flex flex-wrap items-center gap-2 mb-2">
               {hasOffer && (
                 <span className="text-xs font-bold uppercase px-2 py-1 rounded bg-[#e85d04] text-white">
-                  OFERTA -{offer!.discountPercent}%
+                  SALE -{offer!.discountPercent}%
                 </span>
               )}
               {product.tag && (

@@ -410,6 +410,32 @@ app.put('/api/settings/heavy_equipment', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/settings/tab_title', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'tab_title'");
+    const tabTitle = rows[0]?.value || 'JJ construccion';
+    res.json({ tabTitle });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo título de pestaña' });
+  }
+});
+
+app.put('/api/settings/tab_title', authMiddleware, async (req, res) => {
+  const { tabTitle } = req.body || {};
+  if (typeof tabTitle !== 'string') {
+    return res.status(400).json({ error: 'Título inválido' });
+  }
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('tab_title', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [tabTitle],
+    );
+    res.json({ tabTitle });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando título de pestaña' });
+  }
+});
+
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;

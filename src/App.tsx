@@ -24,11 +24,23 @@ function AppContent() {
   const location = useLocation();
   const hideFooter = location.pathname === '/jozarzc';
 
-  const { logo } = useSettingsStore();
+  const { logo, tabTitle, fetchTabTitle } = useSettingsStore();
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (tabTitle === null) {
+      fetchTabTitle();
+    }
+  }, [tabTitle, fetchTabTitle]);
+
+  useEffect(() => {
+    if (tabTitle) {
+      document.title = tabTitle;
+    }
+  }, [tabTitle]);
 
   useEffect(() => {
     if (logo) {
