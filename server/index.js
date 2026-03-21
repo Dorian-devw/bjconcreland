@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureServicesTable } = require('./db.js');
+const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable } = require('./db.js');
 const { seed } = require('./seed.js');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-cambiar-en-produccion';
@@ -499,43 +499,43 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 app.get('/api/products', async (req, res) => {
-  const [rows] = await db.query('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
+  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
   res.json(rows.map(r => ({ ...r, price: Number(r.price), originalPrice: r.originalPrice ? Number(r.originalPrice) : undefined, stock: Number(r.stock) })));
 });
 
 app.get('/api/products/:id', async (req, res) => {
-  const [rows] = await db.query('SELECT id, name, price, image, category, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [req.params.id]);
+  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [req.params.id]);
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
   res.json({ ...row, price: Number(row.price), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined, stock: Number(row.stock) });
 });
 
 app.post('/api/products', authMiddleware, async (req, res) => {
-  const { name, price, image, category, description, stock, rating, originalPrice, tag } = req.body;
+  const { name, price, image, category, subcategory, description, stock, rating, originalPrice, tag } = req.body;
   if (!name || price == null || !category || stock == null) return res.status(400).json({ error: 'Faltan campos requeridos' });
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
   await db.query(
-    'INSERT INTO products (id, name, price, image, category, description, stock, rating, original_price, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, name, Number(price), image || '/product-drill.jpg', category, description || '', Number(stock), rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag || null]
+    'INSERT INTO products (id, name, price, image, category, subcategory, description, stock, rating, original_price, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, name, Number(price), image || '/product-drill.jpg', category, subcategory || null, description || '', Number(stock), rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag || null]
   );
-  const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [id]);
   const row = rows[0];
-  res.status(201).json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.original_price ? Number(row.original_price) : undefined });
+  res.status(201).json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined });
 });
 
 app.put('/api/products/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { name, price, image, category, description, stock, rating, originalPrice, tag } = req.body;
+  const { name, price, image, category, subcategory, description, stock, rating, originalPrice, tag } = req.body;
   const [existingRows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
   const existing = existingRows[0];
   if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
   await db.query(
-    'UPDATE products SET name=?, price=?, image=?, category=?, description=?, stock=?, rating=?, original_price=?, tag=? WHERE id=?',
-    [name ?? existing.name, price != null ? Number(price) : existing.price, image ?? existing.image, category ?? existing.category, description ?? existing.description, stock != null ? Number(stock) : existing.stock, rating != null ? Number(rating) : existing.rating, originalPrice !== undefined ? (originalPrice != null ? Number(originalPrice) : null) : existing.original_price, tag !== undefined ? (tag || null) : existing.tag, id]
+    'UPDATE products SET name=?, price=?, image=?, category=?, subcategory=?, description=?, stock=?, rating=?, original_price=?, tag=? WHERE id=?',
+    [name ?? existing.name, price != null ? Number(price) : existing.price, image ?? existing.image, category ?? existing.category, subcategory !== undefined ? (subcategory || null) : existing.subcategory, description ?? existing.description, stock != null ? Number(stock) : existing.stock, rating != null ? Number(rating) : existing.rating, originalPrice !== undefined ? (originalPrice != null ? Number(originalPrice) : null) : existing.original_price, tag !== undefined ? (tag || null) : existing.tag, id]
   );
-  const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
+  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [id]);
   const row = rows[0];
-  res.json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.original_price ? Number(row.original_price) : undefined });
+  res.json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined });
 });
 
 app.delete('/api/products/:id', authMiddleware, async (req, res) => {
@@ -606,6 +606,57 @@ app.get('/api/filter-groups', async (req, res) => {
   await ensureFilterGroupsTable();
   const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC');
   res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+});
+
+// ========== FILTER ITEMS ==========
+app.get('/api/filter-items', async (req, res) => {
+  await ensureFilterItemsTable();
+  const { groupKey } = req.query;
+  if (groupKey) {
+    const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE filter_group_key = ? ORDER BY sort_order ASC, name ASC', [groupKey]);
+    return res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  }
+  const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items ORDER BY filter_group_key ASC, sort_order ASC, name ASC');
+  res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+});
+
+app.post('/api/filter-items', authMiddleware, async (req, res) => {
+  await ensureFilterItemsTable();
+  const { filterGroupKey, name } = req.body || {};
+  if (!filterGroupKey || !name || !name.trim()) return res.status(400).json({ error: 'filterGroupKey and name are required' });
+  const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_items WHERE filter_group_key = ?', [filterGroupKey]);
+  try {
+    const [result] = await db.query('INSERT INTO filter_items (filter_group_key, name, sort_order) VALUES (?, ?, ?)', [filterGroupKey, name.trim(), countRows[0].n]);
+    const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE id = ?', [result.insertId]);
+    res.status(201).json({ ...rows[0], id: String(rows[0].id) });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Item already exists in this group' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/filter-items/:id', authMiddleware, async (req, res) => {
+  const { id } = req.params;
+  const { name } = req.body || {};
+  const [existingRows] = await db.query('SELECT * FROM filter_items WHERE id = ?', [id]);
+  const existing = existingRows[0];
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const newName = name !== undefined ? String(name).trim() : existing.name;
+  if (!newName) return res.status(400).json({ error: 'Name cannot be empty' });
+  try {
+    await db.query('UPDATE filter_items SET name = ? WHERE id = ?', [newName, id]);
+    const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE id = ?', [id]);
+    res.json({ ...rows[0], id: String(rows[0].id) });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Item already exists' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/filter-items/:id', authMiddleware, async (req, res) => {
+  const [result] = await db.query('DELETE FROM filter_items WHERE id = ?', [req.params.id]);
+  if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });
+  res.status(204).send();
 });
 
 app.post('/api/filter-groups', authMiddleware, async (req, res) => {

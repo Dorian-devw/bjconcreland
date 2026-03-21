@@ -7,6 +7,7 @@ export interface ProductFormData {
   price: number;
   image: string;
   category: string;
+  subcategory?: string;
   description: string;
   stock: number;
   rating?: number;

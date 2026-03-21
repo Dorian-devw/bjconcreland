@@ -121,6 +121,13 @@ export interface FilterGroup {
   sortOrder: number;
 }
 
+export interface FilterItem {
+  id: string;
+  filterGroupKey: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface ServiceItem {
   id: number;
   title: string;
@@ -139,6 +146,7 @@ const emptyProductForm: ProductFormData = {
   price: 0,
   image: '',
   category: '',
+  subcategory: undefined,
   description: '',
   stock: 0,
   rating: undefined,
@@ -212,6 +220,18 @@ export function Admin() {
   const [filterGroupForm, setFilterGroupForm] = useState({ name: '', key: '' });
   const [filterGroupSaving, setFilterGroupSaving] = useState(false);
   const [filterGroupToDelete, setFilterGroupToDelete] = useState<FilterGroup | null>(null);
+
+  // Filter items state
+  const [filterItemsByGroup, setFilterItemsByGroup] = useState<Record<string, FilterItem[]>>({});
+  const [filterItemsLoading, setFilterItemsLoading] = useState<Record<string, boolean>>({});
+  const [addingItemToGroup, setAddingItemToGroup] = useState<string | null>(null);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemSaving, setNewItemSaving] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemName, setEditingItemName] = useState('');
+  const [editingItemSaving, setEditingItemSaving] = useState(false);
+  const [productFormFilterItems, setProductFormFilterItems] = useState<FilterItem[]>([]);
+  const [productFormFilterItemsLoading, setProductFormFilterItemsLoading] = useState(false);
 
   // Upload state per entity
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
@@ -878,13 +898,18 @@ export function Admin() {
       const res = await fetch(`${API}/filter-groups`);
       if (!res.ok) throw new Error('Error loading groups');
       const data = await res.json();
-      setFilterGroups(Array.isArray(data) ? data : []);
+      const groups = Array.isArray(data) ? data : [];
+      setFilterGroups(groups);
+      if (section === 'filterGroups') {
+        await loadFilterItemsForAllGroups(groups);
+      }
     } catch {
       setFilterGroups([]);
     } finally {
       setFilterGroupsLoading(false);
     }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section]);
 
 
 
@@ -895,6 +920,42 @@ export function Admin() {
   useEffect(() => {
     if (section === 'filterGroups' || section === 'categories') loadFilterGroups();
   }, [section, loadFilterGroups]);
+
+  // Load filter items for a specific group key (used in product form)
+  const loadFilterItemsForGroup = async (groupKey: string) => {
+    if (!groupKey) {
+      setProductFormFilterItems([]);
+      return;
+    }
+    setProductFormFilterItemsLoading(true);
+    try {
+      const res = await fetch(`${API}/filter-items?groupKey=${encodeURIComponent(groupKey)}`);
+      if (!res.ok) throw new Error('Error');
+      const data = await res.json();
+      setProductFormFilterItems(Array.isArray(data) ? data : []);
+    } catch {
+      setProductFormFilterItems([]);
+    } finally {
+      setProductFormFilterItemsLoading(false);
+    }
+  };
+
+  // Load filter items for all groups in Store Filters section
+  const loadFilterItemsForAllGroups = async (groups: FilterGroup[]) => {
+    for (const fg of groups) {
+      setFilterItemsLoading((prev) => ({ ...prev, [fg.key]: true }));
+      try {
+        const res = await fetch(`${API}/filter-items?groupKey=${encodeURIComponent(fg.key)}`);
+        if (!res.ok) throw new Error('Error');
+        const data = await res.json();
+        setFilterItemsByGroup((prev) => ({ ...prev, [fg.key]: Array.isArray(data) ? data : [] }));
+      } catch {
+        setFilterItemsByGroup((prev) => ({ ...prev, [fg.key]: [] }));
+      } finally {
+        setFilterItemsLoading((prev) => ({ ...prev, [fg.key]: false }));
+      }
+    }
+  };
 
   const loadOffers = useCallback(async () => {
     setOffersLoading(true);
@@ -1032,6 +1093,7 @@ export function Admin() {
   const openAddProduct = () => {
     setEditingProductId(null);
     setProductForm(emptyProductForm);
+    setProductFormFilterItems([]);
     setProductError(null);
     setProductDialogOpen(true);
   };
@@ -1044,12 +1106,19 @@ export function Admin() {
       price: product.price,
       image: product.image,
       category: product.category,
+      subcategory: product.subcategory,
       description: product.description,
       stock: product.stock,
       rating: product.rating,
       originalPrice: product.originalPrice,
       tag: product.tag,
     });
+    const cat = categories.find(c => c.name === product.category);
+    if (cat?.filterKey) {
+      loadFilterItemsForGroup(cat.filterKey);
+    } else {
+      setProductFormFilterItems([]);
+    }
     setProductDialogOpen(true);
   };
 
@@ -2445,7 +2514,7 @@ export function Admin() {
                 </Button>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-800">
-                <strong>ℹ️ Store Filters:</strong> These are the checkbox options shown in the left sidebar of the Store page (e.g. "Tools", "Concrete Rakes", etc.). After creating a filter group here, go to <strong>Home Categories</strong> and assign each category to one of these groups so it appears in the Store sidebar.
+                <strong>ℹ️ Store Filters:</strong> These are the checkbox options shown in the left sidebar of the Store page. Each filter group can have multiple subcategory items (e.g., group "Concrete" → items: "Concrete brooms", "Concrete sprayers"). After creating a filter group here, go to <strong>Home Categories</strong> and assign each category to one of these groups so it appears in the Store sidebar. Products can then be assigned a subcategory from the product form.
               </div>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {filterGroupsLoading ? (
@@ -2457,28 +2526,223 @@ export function Admin() {
                 ) : (
                   <ul className="divide-y divide-gray-100">
                     {filterGroups.map((fg) => (
-                      <li key={fg.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#333]">{fg.name}</p>
-                          <p className="text-xs text-gray-500">Key: {fg.key}</p>
+                      <li key={fg.id} className="p-4 hover:bg-gray-50">
+                        {/* Filter group header */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-[#333]">{fg.name}</p>
+                            <p className="text-xs text-gray-500">Key: {fg.key}</p>
+                          </div>
+                          <div className="flex gap-2 shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditFilterGroup(fg)}
+                              className="border-[#1e5631] text-[#1e5631] hover:bg-[#1e5631] hover:text-white"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setFilterGroupToDelete(fg)}
+                              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-2 shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditFilterGroup(fg)}
-                            className="border-[#1e5631] text-[#1e5631] hover:bg-[#1e5631] hover:text-white"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setFilterGroupToDelete(fg)}
-                            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+
+                        {/* Filter items for this group */}
+                        <div className="mt-3 ml-4 pl-4 border-l-2 border-gray-100">
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Subcategory items:</p>
+                          {filterItemsLoading[fg.key] ? (
+                            <p className="text-xs text-gray-400">Loading items...</p>
+                          ) : (
+                            <>
+                              {(filterItemsByGroup[fg.key] || []).length === 0 && (
+                                <p className="text-xs text-gray-400 italic mb-2">No items yet. Add one below.</p>
+                              )}
+                              <ul className="space-y-1 mb-2">
+                                {(filterItemsByGroup[fg.key] || []).map((item) => (
+                                  <li key={item.id} className="flex items-center gap-2">
+                                    {editingItemId === item.id ? (
+                                      <>
+                                        <input
+                                          type="text"
+                                          value={editingItemName}
+                                          onChange={(e) => setEditingItemName(e.target.value)}
+                                          className="flex-1 h-7 px-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#1e5631]"
+                                          onKeyDown={async (e) => {
+                                            if (e.key === 'Enter') {
+                                              if (!editingItemName.trim()) return;
+                                              setEditingItemSaving(true);
+                                              try {
+                                                const res = await fetchWithAuth(`${API}/filter-items/${item.id}`, {
+                                                  method: 'PUT',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  body: JSON.stringify({ name: editingItemName.trim() }),
+                                                });
+                                                if (res.status === 401) { logout(); navigate('/login'); return; }
+                                                if (!res.ok) throw new Error('Error');
+                                                const updated = await res.json() as FilterItem;
+                                                setFilterItemsByGroup((prev) => ({
+                                                  ...prev,
+                                                  [fg.key]: (prev[fg.key] || []).map(it => it.id === item.id ? updated : it)
+                                                }));
+                                                setEditingItemId(null);
+                                              } catch { toast.error('Error saving item'); }
+                                              finally { setEditingItemSaving(false); }
+                                            } else if (e.key === 'Escape') {
+                                              setEditingItemId(null);
+                                            }
+                                          }}
+                                          autoFocus
+                                        />
+                                        <Button size="sm" variant="ghost" disabled={editingItemSaving}
+                                          onClick={async () => {
+                                            if (!editingItemName.trim()) return;
+                                            setEditingItemSaving(true);
+                                            try {
+                                              const res = await fetchWithAuth(`${API}/filter-items/${item.id}`, {
+                                                method: 'PUT',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ name: editingItemName.trim() }),
+                                              });
+                                              if (res.status === 401) { logout(); navigate('/login'); return; }
+                                              if (!res.ok) throw new Error('Error');
+                                              const updated = await res.json() as FilterItem;
+                                              setFilterItemsByGroup((prev) => ({
+                                                ...prev,
+                                                [fg.key]: (prev[fg.key] || []).map(it => it.id === item.id ? updated : it)
+                                              }));
+                                              setEditingItemId(null);
+                                            } catch { toast.error('Error saving item'); }
+                                            finally { setEditingItemSaving(false); }
+                                          }}
+                                          className="text-[#1e5631] px-2"
+                                        >
+                                          {editingItemSaving ? '...' : '✓'}
+                                        </Button>
+                                        <Button size="sm" variant="ghost" onClick={() => setEditingItemId(null)} className="text-gray-400 px-2">✕</Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="flex-1 text-sm text-[#333] flex items-center gap-1">
+                                          <span className="text-gray-400">•</span> {item.name}
+                                        </span>
+                                        <Button
+                                          size="sm" variant="ghost"
+                                          onClick={() => { setEditingItemId(item.id); setEditingItemName(item.name); }}
+                                          className="text-gray-400 hover:text-[#1e5631] p-1 h-auto"
+                                        >
+                                          <Pencil className="w-3 h-3" />
+                                        </Button>
+                                        <Button
+                                          size="sm" variant="ghost"
+                                          onClick={async () => {
+                                            if (!window.confirm(`Delete "${item.name}"?`)) return;
+                                            try {
+                                              const res = await fetchWithAuth(`${API}/filter-items/${item.id}`, { method: 'DELETE' });
+                                              if (res.status === 401) { logout(); navigate('/login'); return; }
+                                              if (!res.ok) throw new Error('Error');
+                                              setFilterItemsByGroup((prev) => ({
+                                                ...prev,
+                                                [fg.key]: (prev[fg.key] || []).filter(it => it.id !== item.id)
+                                              }));
+                                            } catch { toast.error('Error deleting item'); }
+                                          }}
+                                          className="text-gray-400 hover:text-red-500 p-1 h-auto"
+                                        >
+                                          <Trash2 className="w-3 h-3" />
+                                        </Button>
+                                      </>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+
+                              {/* Add new item inline */}
+                              {addingItemToGroup === fg.key ? (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <input
+                                    type="text"
+                                    value={newItemName}
+                                    onChange={(e) => setNewItemName(e.target.value)}
+                                    placeholder="e.g. Concrete brooms"
+                                    className="flex-1 h-7 px-2 text-sm border border-[#1e5631] rounded-md focus:outline-none"
+                                    onKeyDown={async (e) => {
+                                      if (e.key === 'Enter') {
+                                        if (!newItemName.trim()) return;
+                                        setNewItemSaving(true);
+                                        try {
+                                          const res = await fetchWithAuth(`${API}/filter-items`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ filterGroupKey: fg.key, name: newItemName.trim() }),
+                                          });
+                                          if (res.status === 401) { logout(); navigate('/login'); return; }
+                                          if (!res.ok) {
+                                            const err = await res.json().catch(() => ({}));
+                                            throw new Error(err?.error || 'Error');
+                                          }
+                                          const created = await res.json() as FilterItem;
+                                          setFilterItemsByGroup((prev) => ({
+                                            ...prev,
+                                            [fg.key]: [...(prev[fg.key] || []), created]
+                                          }));
+                                          setNewItemName('');
+                                          setAddingItemToGroup(null);
+                                        } catch (err) { toast.error(err instanceof Error ? err.message : 'Error'); }
+                                        finally { setNewItemSaving(false); }
+                                      } else if (e.key === 'Escape') {
+                                        setAddingItemToGroup(null); setNewItemName('');
+                                      }
+                                    }}
+                                    autoFocus
+                                  />
+                                  <Button size="sm" variant="ghost" disabled={newItemSaving}
+                                    onClick={async () => {
+                                      if (!newItemName.trim()) return;
+                                      setNewItemSaving(true);
+                                      try {
+                                        const res = await fetchWithAuth(`${API}/filter-items`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ filterGroupKey: fg.key, name: newItemName.trim() }),
+                                        });
+                                        if (res.status === 401) { logout(); navigate('/login'); return; }
+                                        if (!res.ok) {
+                                          const err = await res.json().catch(() => ({}));
+                                          throw new Error(err?.error || 'Error');
+                                        }
+                                        const created = await res.json() as FilterItem;
+                                        setFilterItemsByGroup((prev) => ({
+                                          ...prev,
+                                          [fg.key]: [...(prev[fg.key] || []), created]
+                                        }));
+                                        setNewItemName('');
+                                        setAddingItemToGroup(null);
+                                      } catch (err) { toast.error(err instanceof Error ? err.message : 'Error'); }
+                                      finally { setNewItemSaving(false); }
+                                    }}
+                                    className="text-[#1e5631] px-2"
+                                  >
+                                    {newItemSaving ? '...' : '✓'}
+                                  </Button>
+                                  <Button size="sm" variant="ghost" onClick={() => { setAddingItemToGroup(null); setNewItemName(''); }} className="text-gray-400 px-2">✕</Button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => { setAddingItemToGroup(fg.key); setNewItemName(''); setEditingItemId(null); }}
+                                  className="flex items-center gap-1 text-xs text-[#1e5631] hover:underline mt-1"
+                                >
+                                  <Plus className="w-3 h-3" /> Add item
+                                </button>
+                              )}
+                            </>
+                          )}
                         </div>
                       </li>
                     ))}
@@ -3383,7 +3647,17 @@ export function Admin() {
               <select
                 id="category"
                 value={productForm.category}
-                onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value }))}
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  setProductForm((f) => ({ ...f, category: newCat, subcategory: undefined }));
+                  // Load filter items for the selected category's filter group
+                  const cat = categories.find(c => c.name === newCat);
+                  if (cat?.filterKey) {
+                    loadFilterItemsForGroup(cat.filterKey);
+                  } else {
+                    setProductFormFilterItems([]);
+                  }
+                }}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
                 <option value="">Seleccionar...</option>
@@ -3394,6 +3668,42 @@ export function Admin() {
                 ))}
               </select>
             </div>
+            {/* Subcategory - shown dynamically when selected category has filter items */}
+            {(() => {
+              const selectedCat = categories.find(c => c.name === productForm.category);
+              const filterKey = selectedCat?.filterKey;
+              if (!filterKey) return null;
+              return (
+                <div className="grid gap-2">
+                  <Label htmlFor="subcategory">
+                    Subcategory
+                    {productFormFilterItemsLoading && (
+                      <span className="ml-2 text-xs text-gray-400">Loading...</span>
+                    )}
+                  </Label>
+                  {productFormFilterItems.length === 0 && !productFormFilterItemsLoading ? (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                      No subcategories found for this category. Go to <strong>Store Filters</strong> to add items to the &ldquo;{filterKey}&rdquo; group.
+                    </p>
+                  ) : (
+                    <select
+                      id="subcategory"
+                      value={productForm.subcategory ?? ''}
+                      onChange={(e) => setProductForm((f) => ({ ...f, subcategory: e.target.value || undefined }))}
+                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+                      disabled={productFormFilterItemsLoading}
+                    >
+                      <option value="">-- None (optional) --</option>
+                      {productFormFilterItems.map((item) => (
+                        <option key={item.id} value={item.name}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })()}
             <div className="grid gap-2">
               <Label htmlFor="image">{t('admin.image')}</Label>
               <Input

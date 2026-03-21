@@ -32,6 +32,7 @@ async function initDb() {
       price DECIMAL(10,2) NOT NULL,
       image TEXT,
       category VARCHAR(255) NOT NULL,
+      subcategory VARCHAR(255),
       description TEXT,
       stock INT NOT NULL DEFAULT 0,
       rating FLOAT,
@@ -40,6 +41,13 @@ async function initDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Add subcategory column to existing tables that may not have it
+  try {
+    await db.query('ALTER TABLE products ADD COLUMN subcategory VARCHAR(255) DEFAULT NULL');
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS orders (
@@ -188,6 +196,19 @@ async function ensureFilterGroupsTable() {
   }
 }
 
+async function ensureFilterItemsTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS filter_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      filter_group_key VARCHAR(255) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_item (filter_group_key, name)
+    );
+  `);
+}
+
 async function ensurePromoBannersTable() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS promo_banners (
@@ -216,4 +237,4 @@ async function ensureServicesTable() {
   `);
 }
 
-module.exports = { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureServicesTable };
+module.exports = { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable };
