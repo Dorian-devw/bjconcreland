@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSettingsStore } from '@/store/settingsStore';
+import { formatRichText } from '@/lib/richText';
 
 export function PrivacyPolicy() {
     const { privacyPolicy, loading, fetchPrivacyPolicy } = useSettingsStore();
@@ -18,7 +19,7 @@ export function PrivacyPolicy() {
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy &ndash; JJ construcci&oacute;n</h1>
                     <p className="text-gray-500 mb-8">Effective Date: 04/03/2026</p>
 
-                    <div className="space-y-4 text-gray-700 whitespace-pre-wrap">
+                    <div className="space-y-4 text-gray-700">
                         {loading && !privacyPolicy ? (
                             <div className="animate-pulse space-y-4">
                                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -27,15 +28,10 @@ export function PrivacyPolicy() {
                                 <div className="h-4 bg-gray-200 rounded w-full"></div>
                             </div>
                         ) : privacyPolicy ? (
-                            privacyPolicy.split('\n').map((paragraph, index) => (
-                                paragraph.trim() ? (
-                                    <p key={index} className="text-lg leading-relaxed">
-                                        {paragraph}
-                                    </p>
-                                ) : (
-                                    <br key={index} />
-                                )
-                            ))
+                            <div
+                                className="text-lg leading-relaxed"
+                                dangerouslySetInnerHTML={{ __html: formatRichText(privacyPolicy) }}
+                            />
                         ) : (
                             <p className="text-lg">Las políticas de privacidad no están disponibles en este momento.</p>
                         )}

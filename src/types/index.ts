@@ -6,6 +6,7 @@ export interface Product {
   price: number;
   image: string;
   category: string;
+  storeFilterKey?: string;
   subcategory?: string;
   description: string;
   stock: number;

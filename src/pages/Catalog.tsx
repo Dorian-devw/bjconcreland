@@ -101,7 +101,7 @@ export function Catalog() {
         name.toLowerCase().includes(q) ||
         desc.toLowerCase().includes(q) ||
         cat.toLowerCase().includes(q);
-      const sidebarCat = categoryToSidebar[cat];
+      const sidebarCat = product.storeFilterKey || categoryToSidebar[cat];
       const matchesCategory =
         selectedSidebarCats.length === 0 || (sidebarCat && selectedSidebarCats.includes(sidebarCat));
       const maxPrice = priceRange[1] >= 1000 ? Infinity : priceRange[1];

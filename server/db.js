@@ -7,7 +7,7 @@ const db = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'ecommerce',
+  database: process.env.DB_NAME || 'sc5loig2007_ecommercedb',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -32,6 +32,7 @@ async function initDb() {
       price DECIMAL(10,2) NOT NULL,
       image TEXT,
       category VARCHAR(255) NOT NULL,
+      store_filter_key VARCHAR(255),
       subcategory VARCHAR(255),
       description TEXT,
       stock INT NOT NULL DEFAULT 0,
@@ -45,6 +46,12 @@ async function initDb() {
   // Add subcategory column to existing tables that may not have it
   try {
     await db.query('ALTER TABLE products ADD COLUMN subcategory VARCHAR(255) DEFAULT NULL');
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  // Add store_filter_key column to existing tables that may not have it
+  try {
+    await db.query('ALTER TABLE products ADD COLUMN store_filter_key VARCHAR(255) DEFAULT NULL');
   } catch (e) {
     // Column already exists, ignore
   }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSettingsStore } from '@/store/settingsStore';
+import { formatRichText } from '@/lib/richText';
 
 export function TermsConditions() {
     const { terms, fetchTerms } = useSettingsStore();
@@ -17,9 +18,10 @@ export function TermsConditions() {
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms &amp; Conditions &ndash; JJ construcci&oacute;n</h1>
                     {/* If we have dynamic terms, render them */}
                     {terms ? (
-                       <div className="space-y-4 text-gray-700 whitespace-pre-wrap">
-                           {terms}
-                       </div>
+                       <div
+                           className="space-y-4 text-gray-700"
+                           dangerouslySetInnerHTML={{ __html: formatRichText(terms) }}
+                       />
                     ) : (
                     <>
                     <p className="text-gray-500 mb-8">Effective Date: 04/03/2026</p>

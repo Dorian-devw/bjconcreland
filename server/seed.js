@@ -24,10 +24,10 @@ async function seed() {
   for (const p of initialProducts) {
     try {
       await db.query(`
-        INSERT INTO products (id, name, price, image, category, description, stock, rating, original_price, tag)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO products (id, name, price, image, category, store_filter_key, description, stock, rating, original_price, tag)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
-        p.id, p.name, p.price, p.image, p.category, p.description, p.stock, p.rating ?? null, p.originalPrice ?? null, p.tag ?? null
+        p.id, p.name, p.price, p.image, p.category, p.storeFilterKey ?? null, p.description, p.stock, p.rating ?? null, p.originalPrice ?? null, p.tag ?? null
       ]);
     } catch (e) {
       if (e.code === 'ER_DUP_ENTRY') {

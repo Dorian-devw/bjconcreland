@@ -499,41 +499,41 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 app.get('/api/products', async (req, res) => {
-  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
+  const [rows] = await db.query('SELECT id, name, price, image, category, store_filter_key AS storeFilterKey, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
   res.json(rows.map(r => ({ ...r, price: Number(r.price), originalPrice: r.originalPrice ? Number(r.originalPrice) : undefined, stock: Number(r.stock) })));
 });
 
 app.get('/api/products/:id', async (req, res) => {
-  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [req.params.id]);
+  const [rows] = await db.query('SELECT id, name, price, image, category, store_filter_key AS storeFilterKey, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [req.params.id]);
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
   res.json({ ...row, price: Number(row.price), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined, stock: Number(row.stock) });
 });
 
 app.post('/api/products', authMiddleware, async (req, res) => {
-  const { name, price, image, category, subcategory, description, stock, rating, originalPrice, tag } = req.body;
+  const { name, price, image, category, storeFilterKey, subcategory, description, stock, rating, originalPrice, tag } = req.body;
   if (!name || price == null || !category || stock == null) return res.status(400).json({ error: 'Faltan campos requeridos' });
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
   await db.query(
-    'INSERT INTO products (id, name, price, image, category, subcategory, description, stock, rating, original_price, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [id, name, Number(price), image || '/product-drill.jpg', category, subcategory || null, description || '', Number(stock), rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag || null]
+    'INSERT INTO products (id, name, price, image, category, store_filter_key, subcategory, description, stock, rating, original_price, tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [id, name, Number(price), image || '/product-drill.jpg', category, storeFilterKey || null, subcategory || null, description || '', Number(stock), rating != null ? Number(rating) : null, originalPrice != null ? Number(originalPrice) : null, tag || null]
   );
-  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [id]);
+  const [rows] = await db.query('SELECT id, name, price, image, category, store_filter_key AS storeFilterKey, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [id]);
   const row = rows[0];
   res.status(201).json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined });
 });
 
 app.put('/api/products/:id', authMiddleware, async (req, res) => {
   const { id } = req.params;
-  const { name, price, image, category, subcategory, description, stock, rating, originalPrice, tag } = req.body;
+  const { name, price, image, category, storeFilterKey, subcategory, description, stock, rating, originalPrice, tag } = req.body;
   const [existingRows] = await db.query('SELECT * FROM products WHERE id = ?', [id]);
   const existing = existingRows[0];
   if (!existing) return res.status(404).json({ error: 'Producto no encontrado' });
   await db.query(
-    'UPDATE products SET name=?, price=?, image=?, category=?, subcategory=?, description=?, stock=?, rating=?, original_price=?, tag=? WHERE id=?',
-    [name ?? existing.name, price != null ? Number(price) : existing.price, image ?? existing.image, category ?? existing.category, subcategory !== undefined ? (subcategory || null) : existing.subcategory, description ?? existing.description, stock != null ? Number(stock) : existing.stock, rating != null ? Number(rating) : existing.rating, originalPrice !== undefined ? (originalPrice != null ? Number(originalPrice) : null) : existing.original_price, tag !== undefined ? (tag || null) : existing.tag, id]
+    'UPDATE products SET name=?, price=?, image=?, category=?, store_filter_key=?, subcategory=?, description=?, stock=?, rating=?, original_price=?, tag=? WHERE id=?',
+    [name ?? existing.name, price != null ? Number(price) : existing.price, image ?? existing.image, category ?? existing.category, storeFilterKey !== undefined ? (storeFilterKey || null) : existing.store_filter_key, subcategory !== undefined ? (subcategory || null) : existing.subcategory, description ?? existing.description, stock != null ? Number(stock) : existing.stock, rating != null ? Number(rating) : existing.rating, originalPrice !== undefined ? (originalPrice != null ? Number(originalPrice) : null) : existing.original_price, tag !== undefined ? (tag || null) : existing.tag, id]
   );
-  const [rows] = await db.query('SELECT id, name, price, image, category, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [id]);
+  const [rows] = await db.query('SELECT id, name, price, image, category, store_filter_key AS storeFilterKey, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [id]);
   const row = rows[0];
   res.json({ ...row, price: Number(row.price), stock: Number(row.stock), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   LayoutDashboard,
   LayoutGrid,
@@ -146,6 +146,7 @@ const emptyProductForm: ProductFormData = {
   price: 0,
   image: '',
   category: '',
+  storeFilterKey: undefined,
   subcategory: undefined,
   description: '',
   stock: 0,
@@ -173,6 +174,7 @@ export function Admin() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productForm, setProductForm] = useState<ProductFormData>(emptyProductForm);
+  const [productFormFilterGroupKey, setProductFormFilterGroupKey] = useState('');
   const [productSaving, setProductSaving] = useState(false);
   const [productError, setProductError] = useState<string | null>(null);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
@@ -268,10 +270,12 @@ export function Admin() {
   const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
+  const termsTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [privacyForm, setPrivacyForm] = useState(privacyPolicy || '');
   const [privacySaving, setPrivacySaving] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
+  const privacyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [logoScale, setLogoScale] = useState<number>(logoWidth || 100);
   const [savingLogoScale, setSavingLogoScale] = useState(false);
@@ -462,6 +466,26 @@ export function Admin() {
     }
   };
 
+  const handleTermsBold = () => {
+    const textarea = termsTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const before = termsForm.slice(0, start);
+    const selected = termsForm.slice(start, end);
+    const after = termsForm.slice(end);
+    const nextValue = `${before}**${selected || 'texto'}**${after}`;
+    setTermsForm(nextValue);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      if (selected) {
+        textarea.setSelectionRange(start + 2, end + 2);
+      } else {
+        textarea.setSelectionRange(start + 2, start + 2 + 'texto'.length);
+      }
+    });
+  };
+
   const handleSavePrivacy = async () => {
     setPrivacySaving(true);
     setPrivacyError(null);
@@ -484,6 +508,26 @@ export function Admin() {
     } finally {
       setPrivacySaving(false);
     }
+  };
+
+  const handlePrivacyBold = () => {
+    const textarea = privacyTextareaRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const before = privacyForm.slice(0, start);
+    const selected = privacyForm.slice(start, end);
+    const after = privacyForm.slice(end);
+    const nextValue = `${before}**${selected || 'texto'}**${after}`;
+    setPrivacyForm(nextValue);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      if (selected) {
+        textarea.setSelectionRange(start + 2, end + 2);
+      } else {
+        textarea.setSelectionRange(start + 2, start + 2 + 'texto'.length);
+      }
+    });
   };
 
   const handleSaveServicesHeader = async () => {
@@ -918,7 +962,7 @@ export function Admin() {
   }, [section, loadCategories]);
 
   useEffect(() => {
-    if (section === 'filterGroups' || section === 'categories') loadFilterGroups();
+    if (section === 'filterGroups' || section === 'categories' || section === 'products') loadFilterGroups();
   }, [section, loadFilterGroups]);
 
   // Load filter items for a specific group key (used in product form)
@@ -1093,6 +1137,7 @@ export function Admin() {
   const openAddProduct = () => {
     setEditingProductId(null);
     setProductForm(emptyProductForm);
+    setProductFormFilterGroupKey('');
     setProductFormFilterItems([]);
     setProductError(null);
     setProductDialogOpen(true);
@@ -1101,11 +1146,14 @@ export function Admin() {
   const openEditProduct = (product: Product) => {
     setEditingProductId(product.id);
     setProductError(null);
+    const cat = categories.find(c => c.name === product.category);
+    const filterKey = product.storeFilterKey || cat?.filterKey || '';
     setProductForm({
       name: product.name,
       price: product.price,
       image: product.image,
       category: product.category,
+      storeFilterKey: filterKey || undefined,
       subcategory: product.subcategory,
       description: product.description,
       stock: product.stock,
@@ -1113,9 +1161,9 @@ export function Admin() {
       originalPrice: product.originalPrice,
       tag: product.tag,
     });
-    const cat = categories.find(c => c.name === product.category);
-    if (cat?.filterKey) {
-      loadFilterItemsForGroup(cat.filterKey);
+    setProductFormFilterGroupKey(filterKey);
+    if (filterKey) {
+      loadFilterItemsForGroup(filterKey);
     } else {
       setProductFormFilterItems([]);
     }
@@ -1135,11 +1183,15 @@ export function Admin() {
     setProductSaving(true);
     try {
       const headers = { 'Content-Type': 'application/json' };
+      const payload: ProductFormData = {
+        ...productForm,
+        storeFilterKey: productFormFilterGroupKey || undefined,
+      };
       if (editingProductId) {
         const res = await fetchWithAuth(`${API}/products/${editingProductId}`, {
           method: 'PUT',
           headers,
-          body: JSON.stringify(productForm),
+          body: JSON.stringify(payload),
         });
         if (res.status === 401) {
           logout();
@@ -1163,7 +1215,7 @@ export function Admin() {
         const res = await fetchWithAuth(`${API}/products`, {
           method: 'POST',
           headers,
-          body: JSON.stringify(productForm),
+          body: JSON.stringify(payload),
         });
         if (res.status === 401) {
           logout();
@@ -1189,6 +1241,7 @@ export function Admin() {
       }
       setProductDialogOpen(false);
       setProductForm(emptyProductForm);
+      setProductFormFilterGroupKey('');
       setEditingProductId(null);
       await loadProducts();
       fetchProducts();
@@ -1766,9 +1819,9 @@ export function Admin() {
           `}
           style={{ top: 'calc(8.75rem)' }}
         >
-          <div className="flex flex-col flex-1 min-h-0 p-5 overflow-y-auto">
+          <div className="flex flex-col flex-1 min-h-0 p-5 overflow-hidden">
             <p className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4 px-3 shrink-0">MENU</p>
-            <nav className="space-y-1 flex-1 min-h-0">
+            <nav className="space-y-1 flex-1 min-h-0 overflow-y-auto pr-1 pb-2">
               <button
                 onClick={() => setSection('dashboard')}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'dashboard' ? 'bg-white/20' : 'hover:bg-white/10'
@@ -3243,10 +3296,22 @@ export function Admin() {
                 <p className="text-sm text-gray-500 mb-4">
                   Edita el texto público que los usuarios ven en la página de Términos y Condiciones. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
                 </p>
+                <div className="flex items-center gap-2 mb-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                    onClick={handleTermsBold}
+                  >
+                    Negrita
+                  </Button>
+                  <span className="text-xs text-gray-400">Tip: selecciona texto y presiona Negrita, o usa **texto**.</span>
+                </div>
                 <div className="grid grid-cols-1">
                   <div className="md:col-span-1">
                     <textarea 
                       className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[300px]"
+                      ref={termsTextareaRef}
                       value={termsForm}
                       onChange={(e) => setTermsForm(e.target.value)}
                       placeholder="Escribe aquí las políticas, términos de servicio y condiciones..."
@@ -3278,10 +3343,22 @@ export function Admin() {
                 <p className="text-sm text-gray-500 mb-4">
                   Edita el texto público que los usuarios ven en la página de Política de Privacidad. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
                 </p>
+                <div className="flex items-center gap-2 mb-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-8 px-3 text-xs"
+                    onClick={handlePrivacyBold}
+                  >
+                    Negrita
+                  </Button>
+                  <span className="text-xs text-gray-400">Tip: selecciona texto y presiona Negrita, o usa **texto**.</span>
+                </div>
                 <div className="grid grid-cols-1">
                   <div className="md:col-span-1">
                     <textarea 
                       className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[300px]"
+                      ref={privacyTextareaRef}
                       value={privacyForm}
                       onChange={(e) => setPrivacyForm(e.target.value)}
                       placeholder="Escribe aquí la política de privacidad..."
@@ -3649,14 +3726,17 @@ export function Admin() {
                 value={productForm.category}
                 onChange={(e) => {
                   const newCat = e.target.value;
-                  setProductForm((f) => ({ ...f, category: newCat, subcategory: undefined }));
-                  // Load filter items for the selected category's filter group
                   const cat = categories.find(c => c.name === newCat);
-                  if (cat?.filterKey) {
-                    loadFilterItemsForGroup(cat.filterKey);
-                  } else {
-                    setProductFormFilterItems([]);
-                  }
+                  const filterKey = cat?.filterKey || '';
+                  setProductForm((f) => ({
+                    ...f,
+                    category: newCat,
+                    storeFilterKey: filterKey || undefined,
+                    subcategory: undefined
+                  }));
+                  setProductFormFilterGroupKey(filterKey);
+                  if (filterKey) loadFilterItemsForGroup(filterKey);
+                  else setProductFormFilterItems([]);
                 }}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
@@ -3668,11 +3748,36 @@ export function Admin() {
                 ))}
               </select>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="filterGroup">Store Filters (grupo)</Label>
+              <select
+                id="filterGroup"
+                value={productFormFilterGroupKey}
+                onChange={(e) => {
+                  const key = e.target.value;
+                  setProductFormFilterGroupKey(key);
+                  setProductForm((f) => ({ ...f, storeFilterKey: key || undefined, subcategory: undefined }));
+                  if (key) loadFilterItemsForGroup(key);
+                  else setProductFormFilterItems([]);
+                }}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              >
+                <option value="">Seleccionar...</option>
+                {filterGroups.map((fg) => (
+                  <option key={fg.id} value={fg.key}>
+                    {fg.name}
+                  </option>
+                ))}
+              </select>
+              {filterGroupsLoading && (
+                <p className="text-xs text-gray-400">Cargando grupos...</p>
+              )}
+            </div>
             {/* Subcategory - shown dynamically when selected category has filter items */}
             {(() => {
-              const selectedCat = categories.find(c => c.name === productForm.category);
-              const filterKey = selectedCat?.filterKey;
+              const filterKey = productFormFilterGroupKey;
               if (!filterKey) return null;
+              const groupName = filterGroups.find((fg) => fg.key === filterKey)?.name || filterKey;
               return (
                 <div className="grid gap-2">
                   <Label htmlFor="subcategory">
@@ -3683,7 +3788,7 @@ export function Admin() {
                   </Label>
                   {productFormFilterItems.length === 0 && !productFormFilterItemsLoading ? (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                      No subcategories found for this category. Go to <strong>Store Filters</strong> to add items to the &ldquo;{filterKey}&rdquo; group.
+                      No subcategories found for this group. Go to <strong>Store Filters</strong> to add items to &ldquo;{groupName}&rdquo;.
                     </p>
                   ) : (
                     <select

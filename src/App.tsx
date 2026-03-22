@@ -71,7 +71,9 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/jozarzc" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/politica" element={<PrivacyPolicy />} />
           <Route path="/terms-conditions" element={<TermsConditions />} />
+          <Route path="/terminos" element={<TermsConditions />} />
         </Routes>
       </main>
       {!hideFooter && <Footer />}
