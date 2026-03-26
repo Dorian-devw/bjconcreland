@@ -504,6 +504,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 app.get('/api/products', async (req, res) => {
   const [rows] = await db.query('SELECT id, name, price, image, category, store_filter_key AS storeFilterKey, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products ORDER BY id');
+  res.set('Cache-Control', 'no-store');
   res.json(rows.map(r => ({ ...r, price: Number(r.price), originalPrice: r.originalPrice ? Number(r.originalPrice) : undefined, stock: Number(r.stock) })));
 });
 
@@ -511,6 +512,7 @@ app.get('/api/products/:id', async (req, res) => {
   const [rows] = await db.query('SELECT id, name, price, image, category, store_filter_key AS storeFilterKey, subcategory, description, stock, rating, original_price AS originalPrice, tag FROM products WHERE id = ?', [req.params.id]);
   const row = rows[0];
   if (!row) return res.status(404).json({ error: 'Producto no encontrado' });
+  res.set('Cache-Control', 'no-store');
   res.json({ ...row, price: Number(row.price), originalPrice: row.originalPrice ? Number(row.originalPrice) : undefined, stock: Number(row.stock) });
 });
 

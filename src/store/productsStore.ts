@@ -33,7 +33,7 @@ export const useProductsStore = create<ProductsState>((set, get) => ({
     if (state.loading) return;
     set({ loading: true, error: null });
     try {
-      const res = await fetch(`${API}/products`);
+      const res = await fetch(`${API}/products`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Error al cargar productos');
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];

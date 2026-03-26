@@ -235,7 +235,6 @@ export function Admin() {
   const [newItemSaving, setNewItemSaving] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editingItemName, setEditingItemName] = useState('');
-  const [editingItemSaving, setEditingItemSaving] = useState(false);
   const [productFormFilterItems, setProductFormFilterItems] = useState<FilterItem[]>([]);
   const [productFormFilterItemsLoading, setProductFormFilterItemsLoading] = useState(false);
 
@@ -633,6 +632,7 @@ export function Admin() {
         return;
       }
       if (!res.ok) throw new Error('Error saving logo');
+      const data = await res.json().catch(() => ({}));
       setLogo(newLogoUrl, logoScale, data?.logoUpdatedAt || null);
       toast.success('Logo updated correctly');
     } catch (e) {
@@ -652,6 +652,7 @@ export function Admin() {
        });
        if (res.status === 401) return logoutAndRedirect();
        if (!res.ok) throw new Error('Error saving logo scale');
+       const data = await res.json().catch(() => ({}));
        setLogo(logo, logoScale, data?.logoUpdatedAt || null);
        toast.success('Logo scale updated correctly');
     } catch(e) {
@@ -764,7 +765,7 @@ export function Admin() {
   const loadProducts = useCallback(async () => {
     setProductsLoading(true);
     try {
-      const res = await fetch(`${API}/products`);
+      const res = await fetch(`${API}/products`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Error loading products');
       const data = await res.json();
       setProducts(data);
