@@ -241,6 +241,7 @@ async function ensureServicesTable() {
       content TEXT,
       brand_name VARCHAR(255),
       brand_tagline VARCHAR(255),
+      home_slot INT DEFAULT NULL,
       sort_order INT NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -260,6 +261,11 @@ async function ensureServicesTable() {
   }
   try {
     await db.query('ALTER TABLE services ADD COLUMN brand_tagline VARCHAR(255) DEFAULT NULL');
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL');
   } catch (e) {
     // Column already exists, ignore
   }

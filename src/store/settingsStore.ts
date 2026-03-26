@@ -38,12 +38,13 @@ export interface HeavyEquipmentSettings {
 interface SettingsState {
   logo: string | null;
   logoWidth: number | null;
+  logoUpdatedAt: string | null;
   footer: FooterSettings | null;
   terms: string | null;
   privacyPolicy: string | null;
   loading: boolean;
   fetchLogo: () => Promise<void>;
-  setLogo: (logo: string, width?: number) => void;
+  setLogo: (logo: string, width?: number, logoUpdatedAt?: string | null) => void;
   fetchFooter: () => Promise<void>;
   setFooter: (footer: FooterSettings) => void;
   fetchTerms: () => Promise<void>;
@@ -70,6 +71,7 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
   logo: null,
   logoWidth: null,
+  logoUpdatedAt: null,
   footer: null,
   terms: null,
   privacyPolicy: null,
@@ -86,7 +88,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       if (res.ok) {
         const data = await res.json();
         if (data.logo) {
-          set({ logo: data.logo, logoWidth: data.width || null });
+          set({ logo: data.logo, logoWidth: data.width || null, logoUpdatedAt: data.logoUpdatedAt || null });
         }
       }
     } catch (error) {
@@ -95,7 +97,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       set({ loading: false });
     }
   },
-  setLogo: (logo, width) => set({ logo, logoWidth: width || null }),
+  setLogo: (logo, width, logoUpdatedAt) => set({ logo, logoWidth: width || null, logoUpdatedAt: logoUpdatedAt || null }),
 
   fetchFooter: async () => {
     set({ loading: true });

@@ -140,6 +140,7 @@ export interface ServiceItem {
   sortOrder?: number;
   brandName?: string | null;
   brandTagline?: string | null;
+  homeSlot?: number | null;
 }
 
 const PRODUCT_TAGS: ProductTag[] = ['IN STOCK', 'SALE', 'TOOLS', 'BULK PRICING'];
@@ -632,7 +633,7 @@ export function Admin() {
         return;
       }
       if (!res.ok) throw new Error('Error saving logo');
-      setLogo(newLogoUrl, logoScale);
+      setLogo(newLogoUrl, logoScale, data?.logoUpdatedAt || null);
       toast.success('Logo updated correctly');
     } catch (e) {
       setUploadLogoError(e instanceof Error ? e.message : 'Error saving logo');
@@ -651,7 +652,7 @@ export function Admin() {
        });
        if (res.status === 401) return logoutAndRedirect();
        if (!res.ok) throw new Error('Error saving logo scale');
-       setLogo(logo, logoScale);
+       setLogo(logo, logoScale, data?.logoUpdatedAt || null);
        toast.success('Logo scale updated correctly');
     } catch(e) {
        toast.error('Error saving scale');
@@ -859,6 +860,39 @@ export function Admin() {
     } catch (e) {
       console.error(e);
       toast.error('Error reordering services');
+    }
+  };
+
+  const updateServiceHomeSlot = async (serviceId: number, slot: number | null) => {
+    const previous = services;
+    let next = services.map((s) => (s.id === serviceId ? { ...s, homeSlot: slot } : s));
+    if (slot != null) {
+      next = next.map((s) => (s.id !== serviceId && s.homeSlot === slot ? { ...s, homeSlot: null } : s));
+    }
+    setServices(next);
+    try {
+      const res = await fetchWithAuth(`${API}/services/${serviceId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ homeSlot: slot }),
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error updating position');
+      const cleared = services.filter((s) => s.id !== serviceId && s.homeSlot === slot);
+      for (const c of cleared) {
+        await fetchWithAuth(`${API}/services/${c.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ homeSlot: null }),
+        });
+      }
+      await loadServices();
+    } catch (e) {
+      console.error(e);
+      toast.error('Error updating position');
+      setServices(previous);
     }
   };
 
@@ -2332,11 +2366,37 @@ export function Admin() {
                   {t('admin.add_service')}
                 </Button>
               </div>
+              {services.length > 0 && services.length <= 3 && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-[#333]">Home Preview (Positions 1-3)</p>
+                    <span className="text-xs text-gray-400">Only shown when there are 3 or fewer services</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {[1, 2, 3].map((slot) => {
+                      const s = services.find((x) => x.homeSlot === slot);
+                      return (
+                        <div key={slot} className="border border-gray-200 rounded-lg p-3">
+                          <div className="text-xs text-gray-400 mb-1">Position {slot}</div>
+                          <div className="text-sm font-medium text-[#333]">
+                            {s ? s.title : 'Empty'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-[#f8f8f8]">
                       <tr>
+                        {services.length <= 3 && (
+                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                            Home Position
+                          </th>
+                        )}
                         <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
                           Order
                         </th>
@@ -2360,19 +2420,36 @@ export function Admin() {
                     <tbody className="divide-y divide-gray-100">
                       {servicesLoading ? (
                         <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                          <td colSpan={services.length <= 3 ? 7 : 6} className="px-6 py-12 text-center text-gray-500">
                             {t('admin.loading_services')}
                           </td>
                         </tr>
                       ) : services.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                          <td colSpan={services.length <= 3 ? 7 : 6} className="px-6 py-12 text-center text-gray-500">
                             {t('admin.no_services')}
                           </td>
                         </tr>
                       ) : (
                         services.map((service, index) => (
                           <tr key={service.id} className="hover:bg-gray-50 transition-colors">
+                            {services.length <= 3 && (
+                              <td className="px-6 py-4">
+                                <select
+                                  className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm"
+                                  value={service.homeSlot ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateServiceHomeSlot(service.id, val ? Number(val) : null);
+                                  }}
+                                >
+                                  <option value="">Auto</option>
+                                  <option value="1">1</option>
+                                  <option value="2">2</option>
+                                  <option value="3">3</option>
+                                </select>
+                              </td>
+                            )}
                             <td className="px-6 py-4">
                               <div className="flex flex-col gap-0.5">
                                 <button

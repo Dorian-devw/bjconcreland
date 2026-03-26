@@ -23,7 +23,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const { toggleCart, getTotalItems } = useCartStore();
   const { products, fetchProducts } = useProductsStore();
-  const { logo, logoWidth, fetchLogo } = useSettingsStore();
+  const { logo, logoWidth, logoUpdatedAt, fetchLogo } = useSettingsStore();
   const { t } = useLanguage();
 
   const debouncedQuery = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -107,7 +107,13 @@ export function Navbar() {
             aria-label="JJ Construcción - Ir a Inicio"
           >
             <img
-              src={logo || "/logo.png"}
+              src={(() => {
+                if (!logo) return "/logo.png";
+                if (logo.startsWith('data:')) return logo;
+                if (!logoUpdatedAt) return logo;
+                const joiner = logo.includes('?') ? '&' : '?';
+                return `${logo}${joiner}v=${encodeURIComponent(logoUpdatedAt)}`;
+              })()}
               alt="JJ Construcción"
               style={logoWidth ? { width: `${logoWidth}px` } : undefined}
               className={`h-[6rem] object-contain object-left ${!logoWidth ? 'w-auto max-h-[6.25rem]' : ''}`}
