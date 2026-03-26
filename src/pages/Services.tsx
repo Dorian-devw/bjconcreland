@@ -28,6 +28,15 @@ const getIconForCategory = (category: string) => {
     }
 };
 
+const stripBoldMarkers = (text: string) => text.replace(/\*\*([^*]+)\*\*/g, '$1');
+
+const formatServiceDate = (value?: string) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' }).toUpperCase();
+};
+
 export function Services() {
     const { t } = useLanguage();
     const [activeFilter, setActiveFilter] = useState<string>('all');
@@ -149,7 +158,9 @@ export function Services() {
                             </div>
                             <div className="p-8 lg:p-12 flex flex-col justify-center order-2 lg:order-2">
                                 <div className="flex items-center gap-4 text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
-                                    <span>15 Mayo, 2024</span>
+                                    {featuredService.created_at && (
+                                        <span>{formatServiceDate(featuredService.created_at)}</span>
+                                    )}
                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                     <span>5 Min Lectura</span>
                                 </div>
@@ -157,7 +168,7 @@ export function Services() {
                                     {featuredService.title}
                                 </h2>
                                 <p className="text-gray-500 text-base leading-relaxed mb-8">
-                                    {featuredService.description}
+                                    {stripBoldMarkers(featuredService.description)}
                                 </p>
                                 <button
                                     onClick={() => setSelectedService(featuredService)}
@@ -227,7 +238,7 @@ export function Services() {
                                     {service.title}
                                 </h3>
                                 <p className="text-gray-500 text-sm leading-relaxed mb-6 line-clamp-3 flex-1">
-                                    {service.description}
+                                    {stripBoldMarkers(service.description)}
                                 </p>
 
                                 <button

@@ -137,6 +137,9 @@ export interface ServiceItem {
   video: string;
   content: string;
   created_at: string;
+  sortOrder?: number;
+  brandName?: string | null;
+  brandTagline?: string | null;
 }
 
 const PRODUCT_TAGS: ProductTag[] = ['IN STOCK', 'SALE', 'TOOLS', 'BULK PRICING'];
@@ -692,10 +695,12 @@ export function Admin() {
   const [servicesLoading, setServicesLoading] = useState(false);
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
-  const [serviceForm, setServiceForm] = useState({ title: '', category: '', description: '', image: '', video: '', content: '' });
+  const [serviceForm, setServiceForm] = useState({ title: '', category: '', description: '', image: '', video: '', content: '', brandName: '', brandTagline: '' });
   const [serviceSaving, setServiceSaving] = useState(false);
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<ServiceItem | null>(null);
+  const serviceDescRef = useRef<HTMLTextAreaElement | null>(null);
+  const serviceContentRef = useRef<HTMLTextAreaElement | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
@@ -811,7 +816,7 @@ export function Admin() {
 
   const openAddService = () => {
     setEditingServiceId(null);
-    setServiceForm({ title: '', category: 'Residencial', description: '', image: '', video: '', content: '' });
+    setServiceForm({ title: '', category: 'Residencial', description: '', image: '', video: '', content: '', brandName: '', brandTagline: '' });
     setServiceError(null);
     setServiceDialogOpen(true);
   };
@@ -825,9 +830,36 @@ export function Admin() {
       image: service.image,
       video: service.video || '',
       content: service.content || '',
+      brandName: service.brandName || '',
+      brandTagline: service.brandTagline || '',
     });
     setServiceError(null);
     setServiceDialogOpen(true);
+  };
+
+  const moveService = async (index: number, direction: 'up' | 'down') => {
+    const newOrder = [...services];
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= newOrder.length) return;
+    [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+    const orderIds = newOrder.map((s) => s.id);
+    try {
+      const res = await fetchWithAuth(`${API}/services/reorder`, {
+        method: 'PATCH',
+        body: JSON.stringify({ order: orderIds }),
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error reordering services');
+      const data = await res.json();
+      setServices(data);
+    } catch (e) {
+      console.error(e);
+      toast.error('Error reordering services');
+    }
   };
 
   const handleSaveService = async () => {
@@ -872,7 +904,7 @@ export function Admin() {
         }
       }
       setServiceDialogOpen(false);
-      setServiceForm({ title: '', category: 'Residencial', description: '', image: '', video: '', content: '' });
+      setServiceForm({ title: '', category: 'Residencial', description: '', image: '', video: '', content: '', brandName: '', brandTagline: '' });
       setEditingServiceId(null);
       await loadServices();
     } catch (e) {
@@ -880,6 +912,27 @@ export function Admin() {
     } finally {
       setServiceSaving(false);
     }
+  };
+
+  const handleServiceBold = (target: 'description' | 'content') => {
+    const textarea = target === 'description' ? serviceDescRef.current : serviceContentRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const current = target === 'description' ? serviceForm.description : serviceForm.content;
+    const before = current.slice(0, start);
+    const selected = current.slice(start, end);
+    const after = current.slice(end);
+    const nextValue = `${before}**${selected || 'texto'}**${after}`;
+    setServiceForm((f) => ({ ...f, [target]: nextValue }));
+    requestAnimationFrame(() => {
+      textarea.focus();
+      if (selected) {
+        textarea.setSelectionRange(start + 2, end + 2);
+      } else {
+        textarea.setSelectionRange(start + 2, start + 2 + 'texto'.length);
+      }
+    });
   };
 
   const confirmDeleteService = async () => {
@@ -2285,6 +2338,9 @@ export function Admin() {
                     <thead className="bg-[#f8f8f8]">
                       <tr>
                         <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                          Order
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
                           {t('admin.image')}
                         </th>
                         <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
@@ -2304,19 +2360,41 @@ export function Admin() {
                     <tbody className="divide-y divide-gray-100">
                       {servicesLoading ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                             {t('admin.loading_services')}
                           </td>
                         </tr>
                       ) : services.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                          <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                             {t('admin.no_services')}
                           </td>
                         </tr>
                       ) : (
-                        services.map((service) => (
+                        services.map((service, index) => (
                           <tr key={service.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex flex-col gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => moveService(index, 'up')}
+                                  disabled={index === 0}
+                                  className="p-1 text-gray-400 hover:text-[#333] disabled:opacity-30"
+                                  aria-label="Move up"
+                                >
+                                  <ChevronUp className="w-5 h-5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveService(index, 'down')}
+                                  disabled={index === services.length - 1}
+                                  className="p-1 text-gray-400 hover:text-[#333] disabled:opacity-30"
+                                  aria-label="Move down"
+                                >
+                                  <ChevronDown className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </td>
                             <td className="px-6 py-4">
                               <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
                                 {service.image ? (
@@ -2567,7 +2645,7 @@ export function Admin() {
                 </Button>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-800">
-                <strong>ℹ️ Store Filters:</strong> These are the checkbox options shown in the left sidebar of the Store page. Each filter group can have multiple subcategory items (e.g., group "Concrete" → items: "Concrete brooms", "Concrete sprayers"). After creating a filter group here, go to <strong>Home Categories</strong> and assign each category to one of these groups so it appears in the Store sidebar. Products can then be assigned a subcategory from the product form.
+                <strong>ℹ️ Store Filters:</strong> These are the checkbox options shown in the left sidebar of the Store page. After creating a filter group here, go to <strong>Home Categories</strong> and assign each category to one of these groups so it appears in the Store sidebar.
               </div>
               <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                 {filterGroupsLoading ? (
@@ -2606,197 +2684,6 @@ export function Admin() {
                           </div>
                         </div>
 
-                        {/* Filter items for this group */}
-                        <div className="mt-3 ml-4 pl-4 border-l-2 border-gray-100">
-                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Subcategory items:</p>
-                          {filterItemsLoading[fg.key] ? (
-                            <p className="text-xs text-gray-400">Loading items...</p>
-                          ) : (
-                            <>
-                              {(filterItemsByGroup[fg.key] || []).length === 0 && (
-                                <p className="text-xs text-gray-400 italic mb-2">No items yet. Add one below.</p>
-                              )}
-                              <ul className="space-y-1 mb-2">
-                                {(filterItemsByGroup[fg.key] || []).map((item) => (
-                                  <li key={item.id} className="flex items-center gap-2">
-                                    {editingItemId === item.id ? (
-                                      <>
-                                        <input
-                                          type="text"
-                                          value={editingItemName}
-                                          onChange={(e) => setEditingItemName(e.target.value)}
-                                          className="flex-1 h-7 px-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:border-[#1e5631]"
-                                          onKeyDown={async (e) => {
-                                            if (e.key === 'Enter') {
-                                              if (!editingItemName.trim()) return;
-                                              setEditingItemSaving(true);
-                                              try {
-                                                const res = await fetchWithAuth(`${API}/filter-items/${item.id}`, {
-                                                  method: 'PUT',
-                                                  headers: { 'Content-Type': 'application/json' },
-                                                  body: JSON.stringify({ name: editingItemName.trim() }),
-                                                });
-                                                if (res.status === 401) { logout(); navigate('/login'); return; }
-                                                if (!res.ok) throw new Error('Error');
-                                                const updated = await res.json() as FilterItem;
-                                                setFilterItemsByGroup((prev) => ({
-                                                  ...prev,
-                                                  [fg.key]: (prev[fg.key] || []).map(it => it.id === item.id ? updated : it)
-                                                }));
-                                                setEditingItemId(null);
-                                              } catch { toast.error('Error saving item'); }
-                                              finally { setEditingItemSaving(false); }
-                                            } else if (e.key === 'Escape') {
-                                              setEditingItemId(null);
-                                            }
-                                          }}
-                                          autoFocus
-                                        />
-                                        <Button size="sm" variant="ghost" disabled={editingItemSaving}
-                                          onClick={async () => {
-                                            if (!editingItemName.trim()) return;
-                                            setEditingItemSaving(true);
-                                            try {
-                                              const res = await fetchWithAuth(`${API}/filter-items/${item.id}`, {
-                                                method: 'PUT',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ name: editingItemName.trim() }),
-                                              });
-                                              if (res.status === 401) { logout(); navigate('/login'); return; }
-                                              if (!res.ok) throw new Error('Error');
-                                              const updated = await res.json() as FilterItem;
-                                              setFilterItemsByGroup((prev) => ({
-                                                ...prev,
-                                                [fg.key]: (prev[fg.key] || []).map(it => it.id === item.id ? updated : it)
-                                              }));
-                                              setEditingItemId(null);
-                                            } catch { toast.error('Error saving item'); }
-                                            finally { setEditingItemSaving(false); }
-                                          }}
-                                          className="text-[#1e5631] px-2"
-                                        >
-                                          {editingItemSaving ? '...' : '✓'}
-                                        </Button>
-                                        <Button size="sm" variant="ghost" onClick={() => setEditingItemId(null)} className="text-gray-400 px-2">✕</Button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <span className="flex-1 text-sm text-[#333] flex items-center gap-1">
-                                          <span className="text-gray-400">•</span> {item.name}
-                                        </span>
-                                        <Button
-                                          size="sm" variant="ghost"
-                                          onClick={() => { setEditingItemId(item.id); setEditingItemName(item.name); }}
-                                          className="text-gray-400 hover:text-[#1e5631] p-1 h-auto"
-                                        >
-                                          <Pencil className="w-3 h-3" />
-                                        </Button>
-                                        <Button
-                                          size="sm" variant="ghost"
-                                          onClick={async () => {
-                                            if (!window.confirm(`Delete "${item.name}"?`)) return;
-                                            try {
-                                              const res = await fetchWithAuth(`${API}/filter-items/${item.id}`, { method: 'DELETE' });
-                                              if (res.status === 401) { logout(); navigate('/login'); return; }
-                                              if (!res.ok) throw new Error('Error');
-                                              setFilterItemsByGroup((prev) => ({
-                                                ...prev,
-                                                [fg.key]: (prev[fg.key] || []).filter(it => it.id !== item.id)
-                                              }));
-                                            } catch { toast.error('Error deleting item'); }
-                                          }}
-                                          className="text-gray-400 hover:text-red-500 p-1 h-auto"
-                                        >
-                                          <Trash2 className="w-3 h-3" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-
-                              {/* Add new item inline */}
-                              {addingItemToGroup === fg.key ? (
-                                <div className="flex items-center gap-2 mt-1">
-                                  <input
-                                    type="text"
-                                    value={newItemName}
-                                    onChange={(e) => setNewItemName(e.target.value)}
-                                    placeholder="e.g. Concrete brooms"
-                                    className="flex-1 h-7 px-2 text-sm border border-[#1e5631] rounded-md focus:outline-none"
-                                    onKeyDown={async (e) => {
-                                      if (e.key === 'Enter') {
-                                        if (!newItemName.trim()) return;
-                                        setNewItemSaving(true);
-                                        try {
-                                          const res = await fetchWithAuth(`${API}/filter-items`, {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ filterGroupKey: fg.key, name: newItemName.trim() }),
-                                          });
-                                          if (res.status === 401) { logout(); navigate('/login'); return; }
-                                          if (!res.ok) {
-                                            const err = await res.json().catch(() => ({}));
-                                            throw new Error(err?.error || 'Error');
-                                          }
-                                          const created = await res.json() as FilterItem;
-                                          setFilterItemsByGroup((prev) => ({
-                                            ...prev,
-                                            [fg.key]: [...(prev[fg.key] || []), created]
-                                          }));
-                                          setNewItemName('');
-                                          setAddingItemToGroup(null);
-                                        } catch (err) { toast.error(err instanceof Error ? err.message : 'Error'); }
-                                        finally { setNewItemSaving(false); }
-                                      } else if (e.key === 'Escape') {
-                                        setAddingItemToGroup(null); setNewItemName('');
-                                      }
-                                    }}
-                                    autoFocus
-                                  />
-                                  <Button size="sm" variant="ghost" disabled={newItemSaving}
-                                    onClick={async () => {
-                                      if (!newItemName.trim()) return;
-                                      setNewItemSaving(true);
-                                      try {
-                                        const res = await fetchWithAuth(`${API}/filter-items`, {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({ filterGroupKey: fg.key, name: newItemName.trim() }),
-                                        });
-                                        if (res.status === 401) { logout(); navigate('/login'); return; }
-                                        if (!res.ok) {
-                                          const err = await res.json().catch(() => ({}));
-                                          throw new Error(err?.error || 'Error');
-                                        }
-                                        const created = await res.json() as FilterItem;
-                                        setFilterItemsByGroup((prev) => ({
-                                          ...prev,
-                                          [fg.key]: [...(prev[fg.key] || []), created]
-                                        }));
-                                        setNewItemName('');
-                                        setAddingItemToGroup(null);
-                                      } catch (err) { toast.error(err instanceof Error ? err.message : 'Error'); }
-                                      finally { setNewItemSaving(false); }
-                                    }}
-                                    className="text-[#1e5631] px-2"
-                                  >
-                                    {newItemSaving ? '...' : '✓'}
-                                  </Button>
-                                  <Button size="sm" variant="ghost" onClick={() => { setAddingItemToGroup(null); setNewItemName(''); }} className="text-gray-400 px-2">✕</Button>
-                                </div>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => { setAddingItemToGroup(fg.key); setNewItemName(''); setEditingItemId(null); }}
-                                  className="flex items-center gap-1 text-xs text-[#1e5631] hover:underline mt-1"
-                                >
-                                  <Plus className="w-3 h-3" /> Add item
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </div>
                       </li>
                     ))}
                   </ul>
@@ -4521,6 +4408,26 @@ export function Admin() {
                 )}
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="service-brand-name">Brand name (modal)</Label>
+                <Input
+                  id="service-brand-name"
+                  value={serviceForm.brandName}
+                  onChange={(e) => setServiceForm((f) => ({ ...f, brandName: e.target.value }))}
+                  placeholder="JJ Construction"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="service-brand-tagline">Brand tagline (modal)</Label>
+                <Input
+                  id="service-brand-tagline"
+                  value={serviceForm.brandTagline}
+                  onChange={(e) => setServiceForm((f) => ({ ...f, brandTagline: e.target.value }))}
+                  placeholder="Best Concrete Services"
+                />
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="service-video">{t('admin.video_url')} (Optional)</Label>
               <Input
@@ -4560,9 +4467,21 @@ export function Admin() {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="service-desc">{t('admin.description')} *</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="service-desc">{t('admin.description')} *</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-gray-500 hover:text-[#1e5631]"
+                  onClick={() => handleServiceBold('description')}
+                >
+                  Bold
+                </Button>
+              </div>
               <textarea
                 id="service-desc"
+                ref={serviceDescRef}
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={serviceForm.description}
                 onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
@@ -4570,9 +4489,21 @@ export function Admin() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="service-content">{t('admin.content')} (Detailed)</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="service-content">{t('admin.content')} (Detailed)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-gray-500 hover:text-[#1e5631]"
+                  onClick={() => handleServiceBold('content')}
+                >
+                  Bold
+                </Button>
+              </div>
               <textarea
                 id="service-content"
+                ref={serviceContentRef}
                 className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={serviceForm.content}
                 onChange={(e) => setServiceForm((f) => ({ ...f, content: e.target.value }))}

@@ -12,6 +12,8 @@ interface Service {
     video?: string;
     content?: string;
     created_at?: string;
+    brandName?: string | null;
+    brandTagline?: string | null;
 }
 
 interface ServiceDetailModalProps {
@@ -100,6 +102,17 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
         }
     };
 
+    const renderWithBold = (text: string) => {
+        const parts = text.split(/(\*\*[^*]+\*\*)/g);
+        return parts.map((part, idx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+                const content = part.slice(2, -2);
+                return <strong key={idx} className="font-semibold text-[#333]">{content}</strong>;
+            }
+            return <span key={idx}>{part}</span>;
+        });
+    };
+
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
             {/* Backdrop */}
@@ -178,8 +191,12 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                                 JJ
                             </div>
                             <div className="flex flex-col">
-                                <span className="text-sm font-bold text-gray-900 leading-none">JJ Construcción</span>
-                                <span className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">{service.category}</span>
+                                <span className="text-sm font-bold text-gray-900 leading-none">
+                                    {service.brandName || t('brand.name')}
+                                </span>
+                                <span className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">
+                                    {service.brandTagline || t('brand.tagline')}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -192,14 +209,14 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
 
                         <div className="prose prose-sm prose-slate max-w-none text-gray-600 break-words break-all">
                             <p className="font-medium text-gray-700 leading-relaxed mb-6">
-                                {service.description}
+                                {renderWithBold(service.description)}
                             </p>
 
                             {/* Rich Content Render */}
                             {service.content ? (
                                 <div className="space-y-4 text-justify">
                                     {service.content.split('\n').filter(Boolean).map((paragraph, idx) => (
-                                        <p key={idx} className="leading-relaxed">{paragraph}</p>
+                                        <p key={idx} className="leading-relaxed">{renderWithBold(paragraph)}</p>
                                     ))}
                                 </div>
                             ) : (
@@ -228,7 +245,7 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                                 window.scrollTo(0, 0);
                             }}
                         >
-                            <span>Solicitar Presupuesto</span>
+                            <span>Request a Quote</span>
                             <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" />
                         </Link>
                     </div>

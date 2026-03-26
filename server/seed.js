@@ -20,22 +20,18 @@ async function seed() {
     }
   }
 
-  // products
-  for (const p of initialProducts) {
-    try {
+  // products: seed only if table is empty to avoid re-adding deleted items
+  const [productRows] = await db.query('SELECT COUNT(*) as n FROM products');
+  if (productRows[0].n === 0) {
+    for (const p of initialProducts) {
       await db.query(`
         INSERT INTO products (id, name, price, image, category, store_filter_key, description, stock, rating, original_price, tag)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         p.id, p.name, p.price, p.image, p.category, p.storeFilterKey ?? null, p.description, p.stock, p.rating ?? null, p.originalPrice ?? null, p.tag ?? null
       ]);
-    } catch (e) {
-      if (e.code === 'ER_DUP_ENTRY') {
-        // duplicate products
-      } else {
-        throw e;
-      }
     }
+    console.log('Productos iniciales insertados.');
   }
 
   const [rows] = await db.query('SELECT COUNT(*) as n FROM carousel_slides');

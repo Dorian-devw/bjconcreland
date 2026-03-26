@@ -16,6 +16,8 @@ interface Service {
     // compatible con modal
     created_at?: string;
     content?: string;
+    brandName?: string | null;
+    brandTagline?: string | null;
 }
 
 const getIconForCategory = (category: string) => {
@@ -29,6 +31,8 @@ const getIconForCategory = (category: string) => {
         default: return Building2;
     }
 };
+
+const stripBoldMarkers = (text: string) => text.replace(/\*\*([^*]+)\*\*/g, '$1');
 
 export function ServicesSection() {
     const { t } = useLanguage();
@@ -58,6 +62,8 @@ export function ServicesSection() {
                         video: s.video,
                         content: s.content,
                         created_at: s.created_at,
+                        brandName: s.brandName ?? null,
+                        brandTagline: s.brandTagline ?? null,
                         icon: getIconForCategory(s.category)
                     }));
                     setServices(mapped);
@@ -186,7 +192,7 @@ export function ServicesSection() {
                                     {service.title}
                                 </h3>
                                 <p className="text-gray-500 text-sm leading-relaxed mb-6 line-clamp-3">
-                                    {service.description}
+                                    {stripBoldMarkers(service.description)}
                                 </p>
 
                                 <button
