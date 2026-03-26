@@ -40,6 +40,10 @@ export const translations: Translations = {
     'nav.menu_open': { es: 'Open menu', en: 'Open menu' },
     'nav.menu_close': { es: 'Close menu', en: 'Close menu' },
 
+    // Brand
+    'brand.name': { es: 'JJ Construcción', en: 'JJ Construction' },
+    'brand.tagline': { es: 'Best Concrete Services', en: 'Best Concrete Services' },
+
     // Footer
     'footer.description': { es: 'Concrete and gardening supplies. Quality equipment and materials for your projects.', en: 'Concrete and gardening supplies. Quality equipment and materials for your projects.' },
     'footer.popular_categories': { es: 'Popular Categories', en: 'Popular Categories' },

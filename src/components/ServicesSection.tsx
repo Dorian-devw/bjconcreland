@@ -16,6 +16,9 @@ interface Service {
     // compatible con modal
     created_at?: string;
     content?: string;
+    brandName?: string | null;
+    brandTagline?: string | null;
+    homeSlot?: number | null;
 }
 
 const getIconForCategory = (category: string) => {
@@ -29,6 +32,8 @@ const getIconForCategory = (category: string) => {
         default: return Building2;
     }
 };
+
+const stripBoldMarkers = (text: string) => text.replace(/\*\*([^*]+)\*\*/g, '$1');
 
 export function ServicesSection() {
     const { t } = useLanguage();
@@ -58,6 +63,9 @@ export function ServicesSection() {
                         video: s.video,
                         content: s.content,
                         created_at: s.created_at,
+                        brandName: s.brandName ?? null,
+                        brandTagline: s.brandTagline ?? null,
+                        homeSlot: s.homeSlot ?? null,
                         icon: getIconForCategory(s.category)
                     }));
                     setServices(mapped);
@@ -70,9 +78,16 @@ export function ServicesSection() {
     const uniqueCategories = Array.from(new Set(services.map(s => s.category)));
     const filters = ['all', ...uniqueCategories];
 
+    const orderedServices = (() => {
+        if (services.length <= 3 && services.some(s => s.homeSlot != null)) {
+            return [...services].sort((a, b) => (a.homeSlot ?? 99) - (b.homeSlot ?? 99));
+        }
+        return services;
+    })();
+
     const filteredServices = activeFilter === 'all'
-        ? services
-        : services.filter(service => service.category === activeFilter);
+        ? orderedServices
+        : orderedServices.filter(service => service.category === activeFilter);
 
     return (
         <section id="servicios" className="py-20 px-[5%] bg-white">
@@ -186,7 +201,7 @@ export function ServicesSection() {
                                     {service.title}
                                 </h3>
                                 <p className="text-gray-500 text-sm leading-relaxed mb-6 line-clamp-3">
-                                    {service.description}
+                                    {stripBoldMarkers(service.description)}
                                 </p>
 
                                 <button

@@ -221,14 +221,16 @@ app.put('/api/settings/texts', authMiddleware, async (req, res) => {
 
 app.get('/api/settings/logo', async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT `key`, `value` FROM app_settings WHERE `key` IN ('logo', 'logo_width')");
+    const [rows] = await db.query("SELECT `key`, `value`, `updated_at` FROM app_settings WHERE `key` IN ('logo', 'logo_width')");
     let logo = null;
     let width = null;
+    let logoUpdatedAt = null;
     rows.forEach((row) => {
       if (row.key === 'logo') logo = row.value;
       if (row.key === 'logo_width') width = Number(row.value);
+      if (row.key === 'logo') logoUpdatedAt = row.updated_at;
     });
-    res.json({ logo, width });
+    res.json({ logo, width, logoUpdatedAt });
   } catch (error) {
     console.error('Error obteniendo logo:', error);
     res.status(500).json({ error: 'Error obteniendo logo' });
@@ -251,7 +253,9 @@ app.put('/api/settings/logo', authMiddleware, async (req, res) => {
         [width.toString()],
       );
     }
-    res.json({ logo, width });
+    const [rows] = await db.query("SELECT `updated_at` FROM app_settings WHERE `key` = 'logo'");
+    const logoUpdatedAt = rows[0]?.updated_at || null;
+    res.json({ logo, width, logoUpdatedAt });
   } catch (error) {
     console.error('Error guardando logo:', error);
     res.status(500).json({ error: 'Error guardando logo' });
@@ -1036,32 +1040,79 @@ app.get('/api/auth/verify-token', authMiddleware, (req, res) => {
 
 app.get('/api/services', async (req, res) => {
   await ensureServicesTable();
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, created_at FROM services ORDER BY created_at DESC');
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
 });
 
 app.post('/api/services', authMiddleware, async (req, res) => {
   await ensureServicesTable();
-  const { title, category, description, image, video, content } = req.body || {};
+  const { title, category, description, image, video, content, brandName, brandTagline, homeSlot } = req.body || {};
   if (!title || !category || !description) return res.status(400).json({ error: 'Faltan campos' });
-  const [result] = await db.query('INSERT INTO services (title, category, description, image, video, content) VALUES (?, ?, ?, ?, ?, ?)', [title.trim(), category.trim(), description.trim(), image || null, video || null, content || null]);
-  const [rows] = await db.query('SELECT * FROM services WHERE id=?', [result.insertId]);
+  const [countRows] = await db.query('SELECT COUNT(*) as n FROM services');
+  const [result] = await db.query(
+    'INSERT INTO services (title, category, description, image, video, content, brand_name, brand_tagline, home_slot, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      title.trim(),
+      category.trim(),
+      description.trim(),
+      image || null,
+      video || null,
+      content || null,
+      brandName?.trim() || null,
+      brandTagline?.trim() || null,
+      homeSlot ?? null,
+      countRows[0].n
+    ]
+  );
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services WHERE id=?', [result.insertId]);
   res.status(201).json(rows[0]);
 });
 
 app.put('/api/services/:id', authMiddleware, async (req, res) => {
-  const { title, category, description, image, video, content } = req.body || {};
+  await ensureServicesTable();
+  const { title, category, description, image, video, content, sortOrder, brandName, brandTagline, homeSlot } = req.body || {};
   const [existingRows] = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
   if (!existingRows.length) return res.status(404).json({ error: 'No encontrado' });
-  await db.query('UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=? WHERE id=?', [title ?? existingRows[0].title, category ?? existingRows[0].category, description ?? existingRows[0].description, image !== undefined ? image : existingRows[0].image, video !== undefined ? video : existingRows[0].video, content !== undefined ? content : existingRows[0].content, req.params.id]);
-  const [rows] = await db.query('SELECT * FROM services WHERE id=?', [req.params.id]);
+  await db.query(
+    'UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=?, brand_name=?, brand_tagline=?, home_slot=?, sort_order=? WHERE id=?',
+    [
+      title ?? existingRows[0].title,
+      category ?? existingRows[0].category,
+      description ?? existingRows[0].description,
+      image !== undefined ? image : existingRows[0].image,
+      video !== undefined ? video : existingRows[0].video,
+      content !== undefined ? content : existingRows[0].content,
+      brandName !== undefined ? (brandName?.trim() || null) : existingRows[0].brand_name,
+      brandTagline !== undefined ? (brandTagline?.trim() || null) : existingRows[0].brand_tagline,
+      homeSlot !== undefined ? (homeSlot === null ? null : Number(homeSlot)) : existingRows[0].home_slot,
+      sortOrder ?? existingRows[0].sort_order,
+      req.params.id
+    ]
+  );
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services WHERE id=?', [req.params.id]);
   res.json(rows[0]);
 });
 
 app.delete('/api/services/:id', authMiddleware, async (req, res) => {
+  await ensureServicesTable();
   const [result] = await db.query('DELETE FROM services WHERE id = ?', [req.params.id]);
   if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
+  const [rows] = await db.query('SELECT id, sort_order FROM services ORDER BY sort_order ASC');
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].sort_order !== i) await db.query('UPDATE services SET sort_order = ? WHERE id = ?', [i, rows[i].id]);
+  }
   res.status(204).send();
+});
+
+app.patch('/api/services/reorder', authMiddleware, async (req, res) => {
+  await ensureServicesTable();
+  const { order } = req.body || {};
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'order array requerido' });
+  for (let i = 0; i < order.length; i++) {
+    await db.query('UPDATE services SET sort_order = ? WHERE id = ?', [i, order[i]]);
+  }
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
+  res.json(rows);
 });
 
 app.listen(PORT, () => console.log('Servidor API en http://localhost:' + PORT));

@@ -239,9 +239,36 @@ async function ensureServicesTable() {
       image TEXT,
       video TEXT,
       content TEXT,
+      brand_name VARCHAR(255),
+      brand_tagline VARCHAR(255),
+      home_slot INT DEFAULT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Add sort_order column to existing tables that may not have it
+  try {
+    await db.query('ALTER TABLE services ADD COLUMN sort_order INT NOT NULL DEFAULT 0');
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  // Add brand fields to existing tables that may not have them
+  try {
+    await db.query('ALTER TABLE services ADD COLUMN brand_name VARCHAR(255) DEFAULT NULL');
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    await db.query('ALTER TABLE services ADD COLUMN brand_tagline VARCHAR(255) DEFAULT NULL');
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  try {
+    await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL');
+  } catch (e) {
+    // Column already exists, ignore
+  }
 }
 
 module.exports = { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable };
