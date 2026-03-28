@@ -33,7 +33,11 @@ const getIconForCategory = (category: string) => {
     }
 };
 
-const stripBoldMarkers = (text: string) => text.replace(/\*\*([^*]+)\*\*/g, '$1');
+const stripBoldMarkers = (text: string) =>
+    text
+        .replace(/\[size=\d{1,3}\]/g, '')
+        .replace(/\[\/size\]/g, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1');
 
 export function ServicesSection() {
     const { t } = useLanguage();

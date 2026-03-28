@@ -237,6 +237,10 @@ export function Admin() {
   const [editingItemName, setEditingItemName] = useState('');
   const [productFormFilterItems, setProductFormFilterItems] = useState<FilterItem[]>([]);
   const [productFormFilterItemsLoading, setProductFormFilterItemsLoading] = useState(false);
+  const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
+  const [sizeDialogTarget, setSizeDialogTarget] = useState<'description' | 'content' | null>(null);
+  const [sizeDialogValue, setSizeDialogValue] = useState('18');
+  const [sizeDialogRange, setSizeDialogRange] = useState<{ start: number; end: number } | null>(null);
 
   // Upload state per entity
   const [uploadingProductImage, setUploadingProductImage] = useState(false);
@@ -968,6 +972,45 @@ export function Admin() {
         textarea.setSelectionRange(start + 2, start + 2 + 'texto'.length);
       }
     });
+  };
+
+  const openSizeDialog = (target: 'description' | 'content') => {
+    const textarea = target === 'description' ? serviceDescRef.current : serviceContentRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    if (start === end) {
+      toast.error('Selecciona el texto para cambiar tamaño');
+      return;
+    }
+    setSizeDialogTarget(target);
+    setSizeDialogRange({ start, end });
+    setSizeDialogOpen(true);
+  };
+
+  const applyServiceSize = () => {
+    if (!sizeDialogTarget || !sizeDialogRange) return;
+    const size = Number.parseInt(sizeDialogValue, 10);
+    if (!Number.isFinite(size) || size < 10 || size > 48) {
+      toast.error('Tamaño inválido. Usa un número entre 10 y 48.');
+      return;
+    }
+    const current = sizeDialogTarget === 'description' ? serviceForm.description : serviceForm.content;
+    const { start, end } = sizeDialogRange;
+    const before = current.slice(0, start);
+    const selected = current.slice(start, end);
+    const after = current.slice(end);
+    const cleaned = selected.replace(/\[\/?size(?:=\d{1,3})?\]/g, '');
+    const nextValue = `${before}[size=${size}]${cleaned}[/size]${after}`;
+    setServiceForm((f) => ({ ...f, [sizeDialogTarget]: nextValue }));
+    requestAnimationFrame(() => {
+      const textarea = sizeDialogTarget === 'description' ? serviceDescRef.current : serviceContentRef.current;
+      if (!textarea) return;
+      textarea.focus();
+      const offset = `[size=${size}]`.length;
+      textarea.setSelectionRange(start + offset, start + offset + cleaned.length);
+    });
+    setSizeDialogOpen(false);
   };
 
   const confirmDeleteService = async () => {
@@ -4547,20 +4590,31 @@ export function Admin() {
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="service-desc">{t('admin.description')} *</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-gray-500 hover:text-[#1e5631]"
-                  onClick={() => handleServiceBold('description')}
-                >
-                  Bold
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-gray-500 hover:text-[#1e5631]"
+                    onClick={() => openSizeDialog('description')}
+                  >
+                    Size
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-gray-500 hover:text-[#1e5631]"
+                    onClick={() => handleServiceBold('description')}
+                  >
+                    Bold
+                  </Button>
+                </div>
               </div>
               <textarea
                 id="service-desc"
                 ref={serviceDescRef}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={serviceForm.description}
                 onChange={(e) => setServiceForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Brief service description..."
@@ -4569,20 +4623,31 @@ export function Admin() {
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="service-content">{t('admin.content')} (Detailed)</Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-gray-500 hover:text-[#1e5631]"
-                  onClick={() => handleServiceBold('content')}
-                >
-                  Bold
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-gray-500 hover:text-[#1e5631]"
+                    onClick={() => openSizeDialog('content')}
+                  >
+                    Size
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-gray-500 hover:text-[#1e5631]"
+                    onClick={() => handleServiceBold('content')}
+                  >
+                    Bold
+                  </Button>
+                </div>
               </div>
               <textarea
                 id="service-content"
                 ref={serviceContentRef}
-                className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex min-h-[150px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 value={serviceForm.content}
                 onChange={(e) => setServiceForm((f) => ({ ...f, content: e.target.value }))}
                 placeholder="Full article or service content..."
@@ -4598,6 +4663,29 @@ export function Admin() {
             >
               {serviceSaving ? t('loading') : t('save')}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={sizeDialogOpen} onOpenChange={setSizeDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Tamaño de letra</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <Label htmlFor="size-input">Tamaño (10 - 48)</Label>
+            <Input
+              id="size-input"
+              type="number"
+              min={10}
+              max={48}
+              value={sizeDialogValue}
+              onChange={(e) => setSizeDialogValue(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSizeDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={applyServiceSize} className="bg-[#1e5631] hover:bg-[#164a28]">Aplicar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

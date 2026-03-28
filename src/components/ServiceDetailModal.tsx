@@ -102,15 +102,64 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
         }
     };
 
-    const renderWithBold = (text: string) => {
-        const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    const stripSizeTokens = (text: string) =>
+        text.replace(/\[\/?size(?:=\d{1,3})?\]/g, '');
+
+    const renderBoldParts = (text: string, keyPrefix: string) => {
+        const safeText = stripSizeTokens(text);
+        const parts = safeText.split(/(\*\*[^*]+\*\*)/g);
         return parts.map((part, idx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
                 const content = part.slice(2, -2);
-                return <strong key={idx} className="font-semibold text-[#333]">{content}</strong>;
+                return (
+                    <strong key={`${keyPrefix}-b-${idx}`} className="font-semibold text-[#333]">
+                        {content}
+                    </strong>
+                );
             }
-            return <span key={idx}>{part}</span>;
+            return <span key={`${keyPrefix}-t-${idx}`}>{part}</span>;
         });
+    };
+
+    const renderWithFormatting = (text: string, keyPrefix: string): React.ReactNode[] => {
+        const sizeRegex = /\[size=(\d{1,3})\]([\s\S]*?)\[\/size\]/g;
+        sizeRegex.lastIndex = 0;
+        if (!sizeRegex.test(text)) {
+            return renderBoldParts(text, keyPrefix);
+        }
+        sizeRegex.lastIndex = 0;
+        const nodes: React.ReactNode[] = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        let seg = 0;
+        while ((match = sizeRegex.exec(text)) !== null) {
+            const [full, sizeStr, content] = match;
+            const start = match.index;
+            if (start > lastIndex) {
+                const before = text.slice(lastIndex, start);
+                nodes.push(
+                    <span key={`${keyPrefix}-n-${seg++}`}>
+                        {renderBoldParts(before, `${keyPrefix}-n-${seg}`)}
+                    </span>
+                );
+            }
+            const size = Math.min(Math.max(parseInt(sizeStr, 10) || 16, 10), 48);
+            nodes.push(
+                <span key={`${keyPrefix}-s-${seg++}`} style={{ fontSize: `${size}px` }}>
+                    {renderWithFormatting(content, `${keyPrefix}-s-${seg}`)}
+                </span>
+            );
+            lastIndex = start + full.length;
+        }
+        if (lastIndex < text.length) {
+            const rest = text.slice(lastIndex);
+            nodes.push(
+                <span key={`${keyPrefix}-r-${seg++}`}>
+                    {renderBoldParts(rest, `${keyPrefix}-r-${seg}`)}
+                </span>
+            );
+        }
+        return nodes;
     };
 
     return (
@@ -209,14 +258,16 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
 
                         <div className="prose prose-sm prose-slate max-w-none text-gray-600 break-words break-all">
                             <p className="font-medium text-gray-700 leading-relaxed mb-6">
-                                {renderWithBold(service.description)}
+                                {renderWithFormatting(service.description, 'desc')}
                             </p>
 
                             {/* Rich Content Render */}
                             {service.content ? (
                                 <div className="space-y-4 text-justify">
                                     {service.content.split('\n').filter(Boolean).map((paragraph, idx) => (
-                                        <p key={idx} className="leading-relaxed">{renderWithBold(paragraph)}</p>
+                                        <p key={idx} className="leading-relaxed">
+                                            {renderWithFormatting(paragraph, `p-${idx}`)}
+                                        </p>
                                     ))}
                                 </div>
                             ) : (
