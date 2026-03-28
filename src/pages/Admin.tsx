@@ -121,12 +121,6 @@ export interface FilterGroup {
   sortOrder: number;
 }
 
-export interface FilterItem {
-  id: string;
-  filterGroupKey: string;
-  name: string;
-  sortOrder: number;
-}
 
 export interface ServiceItem {
   id: number;
@@ -227,16 +221,7 @@ export function Admin() {
   const [filterGroupSaving, setFilterGroupSaving] = useState(false);
   const [filterGroupToDelete, setFilterGroupToDelete] = useState<FilterGroup | null>(null);
 
-  // Filter items state
-  const [filterItemsByGroup, setFilterItemsByGroup] = useState<Record<string, FilterItem[]>>({});
-  const [filterItemsLoading, setFilterItemsLoading] = useState<Record<string, boolean>>({});
-  const [addingItemToGroup, setAddingItemToGroup] = useState<string | null>(null);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemSaving, setNewItemSaving] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [editingItemName, setEditingItemName] = useState('');
-  const [productFormFilterItems, setProductFormFilterItems] = useState<FilterItem[]>([]);
-  const [productFormFilterItemsLoading, setProductFormFilterItemsLoading] = useState(false);
+  // Filter items state (removed subcategory items UI)
   const [sizeDialogOpen, setSizeDialogOpen] = useState(false);
   const [sizeDialogTarget, setSizeDialogTarget] = useState<'description' | 'content' | null>(null);
   const [sizeDialogValue, setSizeDialogValue] = useState('18');
@@ -1075,9 +1060,6 @@ export function Admin() {
       const data = await res.json();
       const groups = Array.isArray(data) ? data : [];
       setFilterGroups(groups);
-      if (section === 'filterGroups') {
-        await loadFilterItemsForAllGroups(groups);
-      }
     } catch {
       setFilterGroups([]);
     } finally {
@@ -1096,41 +1078,6 @@ export function Admin() {
     if (section === 'filterGroups' || section === 'categories' || section === 'products') loadFilterGroups();
   }, [section, loadFilterGroups]);
 
-  // Load filter items for a specific group key (used in product form)
-  const loadFilterItemsForGroup = async (groupKey: string) => {
-    if (!groupKey) {
-      setProductFormFilterItems([]);
-      return;
-    }
-    setProductFormFilterItemsLoading(true);
-    try {
-      const res = await fetch(`${API}/filter-items?groupKey=${encodeURIComponent(groupKey)}`);
-      if (!res.ok) throw new Error('Error');
-      const data = await res.json();
-      setProductFormFilterItems(Array.isArray(data) ? data : []);
-    } catch {
-      setProductFormFilterItems([]);
-    } finally {
-      setProductFormFilterItemsLoading(false);
-    }
-  };
-
-  // Load filter items for all groups in Store Filters section
-  const loadFilterItemsForAllGroups = async (groups: FilterGroup[]) => {
-    for (const fg of groups) {
-      setFilterItemsLoading((prev) => ({ ...prev, [fg.key]: true }));
-      try {
-        const res = await fetch(`${API}/filter-items?groupKey=${encodeURIComponent(fg.key)}`);
-        if (!res.ok) throw new Error('Error');
-        const data = await res.json();
-        setFilterItemsByGroup((prev) => ({ ...prev, [fg.key]: Array.isArray(data) ? data : [] }));
-      } catch {
-        setFilterItemsByGroup((prev) => ({ ...prev, [fg.key]: [] }));
-      } finally {
-        setFilterItemsLoading((prev) => ({ ...prev, [fg.key]: false }));
-      }
-    }
-  };
 
   const loadOffers = useCallback(async () => {
     setOffersLoading(true);
@@ -1269,7 +1216,6 @@ export function Admin() {
     setEditingProductId(null);
     setProductForm(emptyProductForm);
     setProductFormFilterGroupKey('');
-    setProductFormFilterItems([]);
     setProductError(null);
     setProductDialogOpen(true);
   };
@@ -1293,11 +1239,6 @@ export function Admin() {
       tag: product.tag,
     });
     setProductFormFilterGroupKey(filterKey);
-    if (filterKey) {
-      loadFilterItemsForGroup(filterKey);
-    } else {
-      setProductFormFilterItems([]);
-    }
     setProductDialogOpen(true);
   };
 
@@ -3743,8 +3684,6 @@ export function Admin() {
                     subcategory: undefined
                   }));
                   setProductFormFilterGroupKey(filterKey);
-                  if (filterKey) loadFilterItemsForGroup(filterKey);
-                  else setProductFormFilterItems([]);
                 }}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
@@ -3765,8 +3704,6 @@ export function Admin() {
                   const key = e.target.value;
                   setProductFormFilterGroupKey(key);
                   setProductForm((f) => ({ ...f, storeFilterKey: key || undefined, subcategory: undefined }));
-                  if (key) loadFilterItemsForGroup(key);
-                  else setProductFormFilterItems([]);
                 }}
                 className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               >
@@ -3781,42 +3718,6 @@ export function Admin() {
                 <p className="text-xs text-gray-400">Cargando grupos...</p>
               )}
             </div>
-            {/* Subcategory - shown dynamically when selected category has filter items */}
-            {(() => {
-              const filterKey = productFormFilterGroupKey;
-              if (!filterKey) return null;
-              const groupName = filterGroups.find((fg) => fg.key === filterKey)?.name || filterKey;
-              return (
-                <div className="grid gap-2">
-                  <Label htmlFor="subcategory">
-                    Subcategory
-                    {productFormFilterItemsLoading && (
-                      <span className="ml-2 text-xs text-gray-400">Loading...</span>
-                    )}
-                  </Label>
-                  {productFormFilterItems.length === 0 && !productFormFilterItemsLoading ? (
-                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-                      No subcategories found for this group. Go to <strong>Store Filters</strong> to add items to &ldquo;{groupName}&rdquo;.
-                    </p>
-                  ) : (
-                    <select
-                      id="subcategory"
-                      value={productForm.subcategory ?? ''}
-                      onChange={(e) => setProductForm((f) => ({ ...f, subcategory: e.target.value || undefined }))}
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-                      disabled={productFormFilterItemsLoading}
-                    >
-                      <option value="">-- None (optional) --</option>
-                      {productFormFilterItems.map((item) => (
-                        <option key={item.id} value={item.name}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-              );
-            })()}
             <div className="grid gap-2">
               <Label htmlFor="image">{t('admin.image')}</Label>
               <Input
