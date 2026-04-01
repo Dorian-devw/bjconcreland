@@ -175,19 +175,22 @@ async function ensureCategoriesTable() {
     );
   `);
   if (!(await isSeeded('categories_seeded'))) {
-    const initial = [
-      ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
-      ['Herramientas Manuales', 'Wrench', 1, 'tools'],
-      ['Materiales de Construcción', 'Building2', 2, 'raw'],
-      ['Pinturas y Acabados', 'Paintbrush', 3, 'landscaping'],
-      ['Fontanería', 'Droplets', 4, 'landscaping'],
-      ['Electricidad', 'Lightbulb', 5, 'safety'],
-    ];
-    for (const [name, icon, sortOrder, filterKey] of initial) {
-      await db.query(
-        'INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)',
-        [name, icon, sortOrder, filterKey],
-      );
+    const [rows] = await db.query('SELECT COUNT(*) as n FROM categories');
+    if (rows[0].n === 0) {
+      const initial = [
+        ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
+        ['Herramientas Manuales', 'Wrench', 1, 'tools'],
+        ['Materiales de Construcción', 'Building2', 2, 'raw'],
+        ['Pinturas y Acabados', 'Paintbrush', 3, 'landscaping'],
+        ['Fontanería', 'Droplets', 4, 'landscaping'],
+        ['Electricidad', 'Lightbulb', 5, 'safety'],
+      ];
+      for (const [name, icon, sortOrder, filterKey] of initial) {
+        await db.query(
+          'INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)',
+          [name, icon, sortOrder, filterKey],
+        );
+      }
     }
     await markSeeded('categories_seeded');
   }
@@ -204,17 +207,20 @@ async function ensureFilterGroupsTable() {
     );
   `);
   if (!(await isSeeded('filters_seeded'))) {
-    const initial = [
-      ['Herramientas', 'tools', 0],
-      ['Materias primas', 'raw', 1],
-      ['Jardinería', 'landscaping', 2],
-      ['Seguridad', 'safety', 3],
-    ];
-    for (const [name, key, sortOrder] of initial) {
-      await db.query(
-        'INSERT INTO filter_groups (name, `key`, sort_order) VALUES (?, ?, ?)',
-        [name, key, sortOrder],
-      );
+    const [rows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
+    if (rows[0].n === 0) {
+      const initial = [
+        ['Herramientas', 'tools', 0],
+        ['Materias primas', 'raw', 1],
+        ['Jardinería', 'landscaping', 2],
+        ['Seguridad', 'safety', 3],
+      ];
+      for (const [name, key, sortOrder] of initial) {
+        await db.query(
+          'INSERT INTO filter_groups (name, `key`, sort_order) VALUES (?, ?, ?)',
+          [name, key, sortOrder],
+        );
+      }
     }
     await markSeeded('filters_seeded');
   }
