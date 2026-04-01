@@ -146,6 +146,23 @@ async function initDb() {
   await db.query('SET FOREIGN_KEY_CHECKS = 1');
 }
 
+async function isSeeded(key) {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = ?", [key]);
+    return rows.length > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function markSeeded(key) {
+  try {
+    await db.query("INSERT INTO app_settings (`key`, `value`) VALUES (?, 'true') ON DUPLICATE KEY UPDATE `value` = 'true'", [key]);
+  } catch (error) {
+    console.error(`Error marking ${key} as seeded:`, error);
+  }
+}
+
 async function ensureCategoriesTable() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS categories (
@@ -157,8 +174,7 @@ async function ensureCategoriesTable() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  const [rows] = await db.query('SELECT COUNT(*) as n FROM categories');
-  if (rows[0].n === 0) {
+  if (!(await isSeeded('categories_seeded'))) {
     const initial = [
       ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
       ['Herramientas Manuales', 'Wrench', 1, 'tools'],
@@ -173,6 +189,7 @@ async function ensureCategoriesTable() {
         [name, icon, sortOrder, filterKey],
       );
     }
+    await markSeeded('categories_seeded');
   }
 }
 
@@ -186,8 +203,7 @@ async function ensureFilterGroupsTable() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  const [rows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
-  if (rows[0].n === 0) {
+  if (!(await isSeeded('filters_seeded'))) {
     const initial = [
       ['Herramientas', 'tools', 0],
       ['Materias primas', 'raw', 1],
@@ -200,6 +216,7 @@ async function ensureFilterGroupsTable() {
         [name, key, sortOrder],
       );
     }
+    await markSeeded('filters_seeded');
   }
 }
 
@@ -271,4 +288,4 @@ async function ensureServicesTable() {
   }
 }
 
-module.exports = { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable };
+module.exports = { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable, isSeeded, markSeeded };
