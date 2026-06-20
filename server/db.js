@@ -215,6 +215,26 @@ async function initDb() {
   }
 }
 
+async function isSeeded(key) {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = ?", [key]);
+    return rows.length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function markSeeded(key) {
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES (?, 'true') ON DUPLICATE KEY UPDATE `value` = 'true'",
+      [key]
+    );
+  } catch (e) {
+    console.error(`[db] Error marking ${key} as seeded:`, e.message);
+  }
+}
+
 async function ensureCategoriesTable() {
   try {
     await db.query(`
@@ -227,22 +247,25 @@ async function ensureCategoriesTable() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB;
     `);
-    const [rows] = await db.query('SELECT COUNT(*) as n FROM categories');
-    if (rows[0].n === 0) {
-      const initial = [
-        ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
-        ['Herramientas Manuales', 'Wrench', 1, 'tools'],
-        ['Materiales de Construcción', 'Building2', 2, 'raw'],
-        ['Pinturas y Acabados', 'Paintbrush', 3, 'landscaping'],
-        ['Fontanería', 'Droplets', 4, 'landscaping'],
-        ['Electricidad', 'Lightbulb', 5, 'safety'],
-      ];
-      for (const [name, icon, sortOrder, filterKey] of initial) {
-        await db.query(
-          'INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)',
-          [name, icon, sortOrder, filterKey],
-        );
+    if (!(await isSeeded('categories_seeded'))) {
+      const [rows] = await db.query('SELECT COUNT(*) as n FROM categories');
+      if (rows[0].n === 0) {
+        const initial = [
+          ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
+          ['Herramientas Manuales', 'Wrench', 1, 'tools'],
+          ['Materiales de Construcción', 'Building2', 2, 'raw'],
+          ['Pinturas y Acabados', 'Paintbrush', 3, 'landscaping'],
+          ['Fontanería', 'Droplets', 4, 'landscaping'],
+          ['Electricidad', 'Lightbulb', 5, 'safety'],
+        ];
+        for (const [name, icon, sortOrder, filterKey] of initial) {
+          await db.query(
+            'INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)',
+            [name, icon, sortOrder, filterKey],
+          );
+        }
       }
+      await markSeeded('categories_seeded');
     }
   } catch (e) {
     console.warn('[db] ensureCategoriesTable:', e.sqlMessage || e.message);
@@ -260,20 +283,23 @@ async function ensureFilterGroupsTable() {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB;
     `);
-    const [rows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
-    if (rows[0].n === 0) {
-      const initial = [
-        ['Herramientas', 'tools', 0],
-        ['Materias primas', 'raw', 1],
-        ['Jardinería', 'landscaping', 2],
-        ['Seguridad', 'safety', 3],
-      ];
-      for (const [name, key, sortOrder] of initial) {
-        await db.query(
-          'INSERT INTO filter_groups (name, `key`, sort_order) VALUES (?, ?, ?)',
-          [name, key, sortOrder],
-        );
+    if (!(await isSeeded('filters_seeded'))) {
+      const [rows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
+      if (rows[0].n === 0) {
+        const initial = [
+          ['Herramientas', 'tools', 0],
+          ['Materias primas', 'raw', 1],
+          ['Jardinería', 'landscaping', 2],
+          ['Seguridad', 'safety', 3],
+        ];
+        for (const [name, key, sortOrder] of initial) {
+          await db.query(
+            'INSERT INTO filter_groups (name, `key`, sort_order) VALUES (?, ?, ?)',
+            [name, key, sortOrder],
+          );
+        }
       }
+      await markSeeded('filters_seeded');
     }
   } catch (e) {
     console.warn('[db] ensureFilterGroupsTable:', e.sqlMessage || e.message);
@@ -306,7 +332,7 @@ async function ensurePromoBannersTable() {
       description TEXT,
       sort_order INT NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+    ) ENGINE=InnoDB;
   `);
 }
 
@@ -327,37 +353,15 @@ async function ensureServicesTable() {
       image_before TEXT DEFAULT NULL,
       image_after TEXT DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+    ) ENGINE=InnoDB;
   `);
 
-  // Add sort_order column to existing tables that may not have it
-  try {
-    await db.query('ALTER TABLE services ADD COLUMN sort_order INT NOT NULL DEFAULT 0');
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  // Add brand fields to existing tables that may not have them
-  try {
-    await db.query('ALTER TABLE services ADD COLUMN brand_name VARCHAR(255) DEFAULT NULL');
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  try {
-    await db.query('ALTER TABLE services ADD COLUMN brand_tagline VARCHAR(255) DEFAULT NULL');
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  try {
-    await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL');
-  } catch (e) {
-    // Column already exists, ignore
-  }
-  try {
-    await db.query('ALTER TABLE services ADD COLUMN image_before TEXT DEFAULT NULL');
-  } catch (_) {}
-  try {
-    await db.query('ALTER TABLE services ADD COLUMN image_after TEXT DEFAULT NULL');
-  } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN sort_order INT NOT NULL DEFAULT 0'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN brand_name VARCHAR(255) DEFAULT NULL'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN brand_tagline VARCHAR(255) DEFAULT NULL'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN image_before TEXT DEFAULT NULL'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN image_after TEXT DEFAULT NULL'); } catch (_) {}
 }
 
 async function ensureChatTables() {
@@ -387,4 +391,15 @@ async function ensureChatTables() {
   } catch (_) {}
 }
 
-module.exports = { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable, ensureChatTables };
+module.exports = {
+  db,
+  initDb,
+  isSeeded,
+  markSeeded,
+  ensurePromoBannersTable,
+  ensureCategoriesTable,
+  ensureFilterGroupsTable,
+  ensureFilterItemsTable,
+  ensureServicesTable,
+  ensureChatTables,
+};
