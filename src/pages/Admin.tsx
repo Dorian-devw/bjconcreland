@@ -32,6 +32,10 @@ import {
 
   BookOpen,
   Download,
+  MessageCircle,
+  Send,
+  User,
+  RefreshCw,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -65,7 +69,7 @@ import {
 import type { Order, Product, ProductTag } from '@/types';
 import { translations } from '@/context/LanguageContext';
 
-type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'settings';
+type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'settings' | 'chat';
 
 export interface Offer {
   id: number;
@@ -694,6 +698,90 @@ export function Admin() {
   const serviceContentRef = useRef<HTMLTextAreaElement | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
+  // ── Chat state ──────────────────────────────────────────────────────────────
+  interface ChatSession {
+    id: number;
+    session_id: string;
+    visitor_name: string;
+    status: string;
+    unread_admin: number;
+    created_at: string;
+    last_message_at: string;
+  }
+  interface ChatMsg {
+    id: number;
+    session_id: string;
+    sender: 'user' | 'admin';
+    message: string;
+    created_at: string;
+  }
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [selectedChatSession, setSelectedChatSession] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatReply, setChatReply] = useState('');
+  const [chatReplySending, setChatReplySending] = useState(false);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  const loadChatSessions = useCallback(async () => {
+    setChatLoading(true);
+    try {
+      const res = await fetchWithAuth(`${API}/chat/sessions`);
+      if (res.status === 401) { logout(); navigate('/login'); return; }
+      if (!res.ok) return;
+      const data: ChatSession[] = await res.json();
+      setChatSessions(data);
+    } catch (_) {} finally {
+      setChatLoading(false);
+    }
+  }, [logout, navigate]);
+
+  const loadChatMessages = useCallback(async (sid: string) => {
+    try {
+      const res = await fetchWithAuth(`${API}/chat/messages/${sid}`);
+      if (!res.ok) return;
+      const data: ChatMsg[] = await res.json();
+      setChatMessages(data);
+      setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
+    } catch (_) {}
+  }, []);
+
+  const markChatRead = useCallback(async (sid: string) => {
+    try {
+      await fetchWithAuth(`${API}/chat/sessions/${sid}/read`, { method: 'PUT' });
+      setChatSessions((prev) => prev.map((s) => s.session_id === sid ? { ...s, unread_admin: 0 } : s));
+    } catch (_) {}
+  }, []);
+
+  const sendAdminReply = async () => {
+    if (!chatReply.trim() || !selectedChatSession || chatReplySending) return;
+    const text = chatReply.trim();
+    setChatReply('');
+    setChatReplySending(true);
+    try {
+      await fetchWithAuth(`${API}/chat/sessions/${selectedChatSession}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text }),
+      });
+      await loadChatMessages(selectedChatSession);
+    } catch (_) {} finally {
+      setChatReplySending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (section === 'chat') loadChatSessions();
+  }, [section, loadChatSessions]);
+
+  useEffect(() => {
+    if (!selectedChatSession || section !== 'chat') return;
+    loadChatMessages(selectedChatSession);
+    markChatRead(selectedChatSession);
+  }, [selectedChatSession, section, loadChatMessages, markChatRead]);
+
+  const chatUnread = chatSessions.reduce((sum, s) => sum + (s.unread_admin || 0), 0);
+
   const loadOrders = useCallback(async () => {
     setOrdersLoading(true);
     try {
@@ -1244,11 +1332,11 @@ export function Admin() {
 
   const handleSaveProduct = async () => {
     if (!productForm.name.trim() || productForm.price < 0 || productForm.stock < 0) {
-      setProductError('Completa nombre, precio y stock.');
+      setProductError('Please fill in name, price and stock.');
       return;
     }
     if (!productForm.category.trim()) {
-      setProductError('Selecciona una categoría.');
+      setProductError('Please select a category.');
       return;
     }
     setProductError(null);
@@ -1273,7 +1361,7 @@ export function Admin() {
         if (!res.ok) {
           const text = await res.text();
           if (text.includes('Cannot POST') || text.includes('Cannot PUT')) {
-            throw new Error('El servidor no tiene la ruta. ¿Está corriendo el backend? (carpeta server → npm run start)');
+            throw new Error('Server route not found. Is the backend running? (server folder → npm run start)');
           }
           let data: { error?: string } = {};
           try {
@@ -1297,17 +1385,17 @@ export function Admin() {
         if (!res.ok) {
           const text = await res.text();
           if (text.includes('Cannot POST') || text.includes('Cannot PUT')) {
-            throw new Error('El servidor no tiene la ruta. ¿Está corriendo el backend? (carpeta server → npm run start)');
+            throw new Error('Server route not found. Is the backend running? (server folder → npm run start)');
           }
           let data: { error?: string } = {};
           try {
             data = JSON.parse(text);
           } catch {
-            if (res.status === 413) throw new Error('La imagen es demasiado grande. Prueba con una imagen más pequeña.');
+            if (res.status === 413) throw new Error('Image is too large. Try a smaller image.');
             throw new Error(text || `Error ${res.status}`);
           }
           const msg = (data as { error?: string }).error;
-          if (res.status === 400 && !msg) throw new Error('Faltan campos requeridos: nombre, precio, categoría y stock.');
+          if (res.status === 400 && !msg) throw new Error('Required fields missing: name, price, category and stock.');
           throw new Error(msg || 'Error creating product');
         }
       }
@@ -1525,7 +1613,7 @@ export function Admin() {
         if (!res.ok) {
           const text = await res.text();
           if (text.trimStart().startsWith('<!') || text.includes('Cannot POST') || text.includes('Cannot GET')) {
-            throw new Error('El servidor no tiene la ruta de banners. Para el servidor (Ctrl+C) y vuelve a ejecutar en la carpeta server: npm start o node index.js');
+            throw new Error('Server banner route not found. Stop the server (Ctrl+C) and re-run in the server folder: npm start or node index.js');
           }
           let msg = `Error creating (${res.status})`;
           try {
@@ -1535,7 +1623,7 @@ export function Admin() {
             if (text && text.length < 200) msg = text;
           }
           if (typeof msg === 'string' && (msg.includes('no such table') || msg.includes('promo_banners'))) {
-            throw new Error('La base de datos no tiene la tabla de banners. Reinicia el servidor (carpeta server).');
+            throw new Error('Database is missing the banners table. Restart the server (server folder).');
           }
           throw new Error(msg);
         }
@@ -1855,232 +1943,188 @@ export function Admin() {
     }
   };
 
+  const navItem = (
+    s: AdminSection,
+    icon: React.ReactNode,
+    label: React.ReactNode,
+    badge?: React.ReactNode,
+  ) => (
+    <button
+      key={s}
+      onClick={() => { setSection(s); setMobileSidebarOpen(false); }}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-all duration-150 text-left font-medium group ${
+        section === s
+          ? 'bg-[#e85d04] text-white shadow-md shadow-[#e85d04]/20'
+          : 'text-slate-400 hover:text-white hover:bg-white/5'
+      }`}
+    >
+      <span className={`shrink-0 transition-colors ${section === s ? 'text-white' : 'text-slate-500 group-hover:text-white'}`}>{icon}</span>
+      <span className="min-w-0 flex-1">{label}</span>
+      {badge}
+    </button>
+  );
+
+  const sectionLabel: Record<AdminSection, string> = {
+    dashboard: 'Dashboard', orders: 'Pedidos', products: 'Productos',
+    categories: 'Categorías', filterGroups: 'Filtros', carousel: 'Carrusel',
+    promoBanners: 'Banners', offers: 'Ofertas', services: 'Servicios',
+    settings: 'Configuración', chat: 'Live Chat',
+  };
+
   return (
-    <div className="min-h-screen bg-[#f8f8f8] pt-[8.75rem]">
-      {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-[8.75rem] left-0 right-0 z-50 bg-[#1e5631] text-white flex items-center px-4 py-3 shadow-md">
-        <button
-          type="button"
-          onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="p-2 rounded-lg hover:bg-white/10 transition-colors mr-3"
-          aria-label="Toggle menu"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {mobileSidebarOpen
-              ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
-          </svg>
-        </button>
-        <span className="font-semibold text-sm">Admin Panel</span>
-      </div>
+    <div className="min-h-screen flex" style={{ background: '#f1f5f9' }}>
 
-      <div className="flex">
-        {/* Mobile overlay */}
-        {mobileSidebarOpen && (
-          <div
-            className="lg:hidden fixed inset-0 bg-black/50 z-40"
-            style={{ top: 'calc(8.75rem + 2.75rem)' }}
-            onClick={() => setMobileSidebarOpen(false)}
-          />
-        )}
-        {/* Sidebar - Main menu */}
-        <aside
-          className={`w-64 bg-[#1e5631] text-white fixed left-0 bottom-0 flex flex-col z-40 transition-transform duration-300
-            ${ mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full' }
-            lg:translate-x-0
-          `}
-          style={{ top: 'calc(8.75rem)' }}
-        >
-          <div className="flex flex-col flex-1 min-h-0 p-5 overflow-hidden">
-            <p className="text-xs font-bold uppercase tracking-wider text-white/70 mb-4 px-3 shrink-0">MENU</p>
-            <nav className="space-y-1 flex-1 min-h-0 overflow-y-auto pr-1 pb-2">
-              <button
-                onClick={() => setSection('dashboard')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'dashboard' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className={`w-2 h-2 rounded-sm shrink-0 ${section === 'dashboard' ? 'bg-[#e85d04]' : 'bg-transparent'}`} />
-                <LayoutDashboard className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.dashboard')}</span>
-              </button>
-              <button
-                onClick={() => setSection('orders')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'orders' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <ShoppingBag className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.orders')}</span>
-              </button>
-              <button
-                onClick={() => setSection('products')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'products' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <Package className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.products')}</span>
-              </button>
-              <button
-                onClick={() => setSection('categories')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'categories' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <Layers className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.categories')}</span>
-              </button>
-              <button
-                onClick={() => setSection('filterGroups')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'filterGroups' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <Filter className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.filterGroups')}</span>
-              </button>
-              <button
-                onClick={() => setSection('carousel')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'carousel' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <ImageIcon className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.carousel')}</span>
-              </button>
-              <button
-                onClick={() => setSection('promoBanners')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'promoBanners' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <LayoutGrid className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.promoBanners')}</span>
-              </button>
-              <button
-                onClick={() => setSection('offers')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'offers' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <Percent className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.offers')}</span>
-              </button>
-              <button
-                onClick={() => setSection('services')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'services' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <BookOpen className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.services')}</span>
-              </button>
-              <button
-                onClick={() => setSection('settings')}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-left ${section === 'settings' ? 'bg-white/20' : 'hover:bg-white/10'
-                  }`}
-              >
-                <span className="w-2 h-2 rounded-sm shrink-0 bg-transparent" />
-                <Settings className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">Settings</span>
-              </button>
-            </nav>
-            <div className="shrink-0 mt-4 pt-4 border-t border-white/20">
+      {/* ── Sidebar ───────────────────────────────────────────────── */}
+      {mobileSidebarOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+          onClick={() => setMobileSidebarOpen(false)} />
+      )}
 
-              <button
-                onClick={() => { logout(); navigate('/login'); }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-white/10 transition-colors text-white/90 text-left"
-              >
-                <span className="w-2 h-2 shrink-0 bg-transparent" aria-hidden />
-                <LogOut className="w-5 h-5 shrink-0" />
-                <span className="min-w-0 flex-1">{t('admin.logout')}</span>
-              </button>
+      <aside className={`w-60 shrink-0 fixed top-0 left-0 bottom-0 z-50 flex flex-col transition-transform duration-300 ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+        style={{ background: '#0f172a' }}>
+
+        {/* Logo */}
+        <div className="h-16 flex items-center gap-3 px-5 border-b border-white/[0.06] shrink-0">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs text-white shrink-0"
+            style={{ background: 'linear-gradient(135deg,#e85d04,#c44d03)' }}>JJ</div>
+          <div>
+            <p className="text-white font-bold text-[13px] leading-none">JJ Construcción</p>
+            <p className="text-slate-500 text-[10px] mt-0.5">Panel Admin</p>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5 min-h-0">
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2">General</p>
+          {navItem('dashboard', <LayoutDashboard className="w-4 h-4" />, t('admin.dashboard'))}
+          {navItem('orders', <ShoppingBag className="w-4 h-4" />, t('admin.orders'),
+            stats.pending > 0 ? <span className="ml-auto bg-[#e85d04] text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">{stats.pending}</span> : undefined)}
+          {navItem('chat', <MessageCircle className="w-4 h-4" />, 'Live Chat',
+            chatUnread > 0 ? <span className="ml-auto bg-emerald-400 text-[#0f172a] text-[10px] font-black px-1.5 py-0.5 rounded-md">{chatUnread}</span> : undefined)}
+
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Contenido</p>
+          {navItem('products', <Package className="w-4 h-4" />, t('admin.products'))}
+          {navItem('services', <BookOpen className="w-4 h-4" />, t('admin.services'))}
+          {navItem('categories', <Layers className="w-4 h-4" />, t('admin.categories'))}
+          {navItem('filterGroups', <Filter className="w-4 h-4" />, t('admin.filterGroups'))}
+
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Tienda</p>
+          {navItem('carousel', <ImageIcon className="w-4 h-4" />, t('admin.carousel'))}
+          {navItem('promoBanners', <LayoutGrid className="w-4 h-4" />, t('admin.promoBanners'))}
+          {navItem('offers', <Percent className="w-4 h-4" />, t('admin.offers'))}
+
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Sistema</p>
+          {navItem('settings', <Settings className="w-4 h-4" />, 'Configuración')}
+        </nav>
+
+        {/* User + Logout */}
+        <div className="shrink-0 px-3 py-4 border-t border-white/[0.06]">
+          <div className="flex items-center gap-2.5 px-3 mb-3">
+            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#e85d04] to-[#c44d03] flex items-center justify-center text-white text-[10px] font-black shrink-0">A</div>
+            <div className="min-w-0">
+              <p className="text-white text-[12px] font-semibold leading-none truncate">Administrador</p>
+              <p className="text-slate-500 text-[10px] mt-0.5">En línea</p>
             </div>
           </div>
-        </aside>
+          <button onClick={() => { logout(); navigate('/login'); }}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-white hover:bg-white/5 transition-all font-medium">
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span>{t('admin.logout')}</span>
+          </button>
+        </div>
+      </aside>
 
-        <main className="flex-1 lg:ml-64 p-4 pt-16 lg:pt-6">
+      {/* ── Right side ───────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-screen lg:ml-60">
+
+        {/* Top bar */}
+        <header className="h-16 shrink-0 flex items-center gap-4 px-5 lg:px-8 border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
+          {/* Mobile hamburger */}
+          <button type="button" onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+            className="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {mobileSidebarOpen
+                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
+            </svg>
+          </button>
+
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-slate-400">Panel</span>
+            <span className="text-slate-300">/</span>
+            <span className="font-semibold text-slate-700">{sectionLabel[section]}</span>
+          </div>
+
+          {/* Right actions */}
+          <div className="ml-auto flex items-center gap-3">
+            <Link to="/" target="_blank"
+              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white">
+              <ExternalLink className="w-3.5 h-3.5" />
+              Ver sitio
+            </Link>
+            {chatUnread > 0 && (
+              <button onClick={() => setSection('chat')}
+                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
+                <MessageCircle className="w-5 h-5" />
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#e85d04] text-white text-[9px] font-black rounded-full flex items-center justify-center">{chatUnread}</span>
+              </button>
+            )}
+          </div>
+        </header>
+
+        {/* Page content */}
+        <main className="flex-1 px-5 pb-8 pt-6 lg:px-8">
+          <div>
           {/* ========== PANEL DE CONTROL ========== */}
           {section === 'dashboard' && (
             <>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#333]">{t('admin.dashboard')}</h1>
-                  <p className="text-gray-500 text-sm mt-1">{t('admin.welcome')}</p>
+                  <h1 className="text-xl font-black text-slate-800">{t('admin.dashboard')}</h1>
+                  <p className="text-slate-400 text-sm mt-0.5">{t('admin.welcome')}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" className="border-gray-200 text-gray-600">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Last 30 days
+                  <Button variant="outline" className="border-slate-200 text-slate-500 text-sm h-9">
+                    <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                    Últimos 30 días
                   </Button>
-                  <Button
-                    onClick={openAddProduct}
-                    className="bg-[#e85d04] hover:bg-[#d35400] text-white"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
+                  <Button onClick={openAddProduct}
+                    className="text-sm h-9 font-semibold text-white shadow-md shadow-[#e85d04]/20"
+                    style={{ background: 'linear-gradient(135deg,#e85d04,#c44d03)' }}>
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
                     {t('admin.add_product')}
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm mb-1">{t('admin.total_orders')}</p>
-                      <p className="text-2xl font-bold text-[#333]">{stats.total}</p>
-                      <p className={`text-xs font-medium mt-2 ${pctTotal >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{fmtPct(pctTotal)}</p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {[
+                  { icon: <ShoppingBag className="w-5 h-5 text-white" />, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/20', value: stats.total, label: t('admin.total_orders'), pct: pctTotal },
+                  { icon: <Package className="w-5 h-5 text-white" />, color: 'from-amber-400 to-orange-500', shadow: 'shadow-amber-400/20', value: stats.pending, label: t('admin.pending'), pct: pctPending },
+                  { icon: <Truck className="w-5 h-5 text-white" />, color: 'from-emerald-500 to-green-600', shadow: 'shadow-emerald-500/20', value: stats.shipped + stats.delivered, label: t('admin.shipped'), pct: pctShipped },
+                  { icon: <CreditCard className="w-5 h-5 text-white" />, color: 'from-violet-500 to-purple-600', shadow: 'shadow-violet-500/20', value: `$${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, label: t('admin.total_sales'), pct: pctRevenue },
+                ].map(({ icon, color, shadow, value, label, pct: p }) => (
+                  <div key={label} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg ${shadow}`}>
+                        {icon}
+                      </div>
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${p >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                        {fmtPct(p)}
+                      </span>
                     </div>
-                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                      <ShoppingBag className="w-5 h-5 text-blue-600" />
-                    </div>
+                    <p className="text-[1.75rem] font-black text-slate-800 leading-none">{value}</p>
+                    <p className="text-slate-400 text-[13px] mt-1.5 font-medium">{label}</p>
                   </div>
-                </div>
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm mb-1">{t('admin.pending')}</p>
-                      <p className="text-2xl font-bold text-[#333]">{stats.pending}</p>
-                      <p className={`text-xs font-medium mt-2 ${pctPending >= 0 ? 'text-amber-600' : 'text-red-600'}`}>{fmtPct(pctPending)}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-amber-600" />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm mb-1">{t('admin.shipped')}</p>
-                      <p className="text-2xl font-bold text-[#333]">{stats.shipped + stats.delivered}</p>
-                      <p className={`text-xs font-medium mt-2 ${pctShipped >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmtPct(pctShipped)}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-green-600" />
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-gray-500 text-sm mb-1">{t('admin.total_sales')}</p>
-                      <p className="text-2xl font-bold text-[#333]">
-                        ${stats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                      </p>
-                      <p className={`text-xs font-medium mt-2 ${pctRevenue >= 0 ? 'text-purple-600' : 'text-red-600'}`}>{fmtPct(pctRevenue)}</p>
-                    </div>
-                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <CreditCard className="w-5 h-5 text-purple-600" />
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                 <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <h2 className="text-lg font-bold text-[#333]">{t('admin.recent_orders')}</h2>
-                    <p className="text-gray-500 text-sm mt-0.5">{t('admin.recent_orders_desc')}</p>
+                    <h2 className="text-lg font-bold text-[#0f172a]">{t('admin.recent_orders')}</h2>
+                    <p className="text-slate-500 text-sm mt-0.5">{t('admin.recent_orders_desc')}</p>
                   </div>
                   <button
                     type="button"
@@ -2092,7 +2136,7 @@ export function Admin() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-[#f8f8f8]">
+                    <thead className="bg-slate-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.client')}</th>
                         <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('admin.product')}</th>
@@ -2117,15 +2161,15 @@ export function Admin() {
                               : `${order.items[0].product.name} +${order.items.length - 1} más`
                             : '—';
                           const statusLabel = order.status === 'pending' ? 'PENDING' : order.status === 'paid' ? 'IN PROCESS' : order.status === 'shipped' ? 'SHIPPED' : order.status === 'delivered' ? 'DELIVERED' : order.status === 'cancelled' ? 'CANCELLED' : order.status;
-                          const statusClass = order.status === 'pending' ? 'bg-amber-100 text-amber-800' : order.status === 'paid' ? 'bg-blue-100 text-blue-800' : order.status === 'shipped' || order.status === 'delivered' ? 'bg-green-100 text-green-800' : order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
+                          const statusClass = order.status === 'pending' ? 'bg-amber-50 text-amber-700 border border-amber-200' : order.status === 'paid' ? 'bg-blue-50 text-blue-700 border border-blue-200' : order.status === 'shipped' || order.status === 'delivered' ? 'bg-green-50 text-green-700 border border-green-200' : order.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-800';
                           return (
-                            <tr key={order.id} className="hover:bg-gray-50/50">
-                              <td className="px-6 py-4 text-sm font-medium text-[#333]">{order.customer.name}</td>
+                            <tr key={order.id} className="hover:bg-slate-50/80">
+                              <td className="px-6 py-4 text-sm font-medium text-[#0f172a]">{order.customer.name}</td>
                               <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">{productLabel}</td>
                               <td className="px-6 py-4 text-sm text-gray-500">{formatOrderDate(order.createdAt)}</td>
-                              <td className="px-6 py-4 text-sm font-medium text-[#333]">${order.total.toFixed(2)}</td>
+                              <td className="px-6 py-4 text-sm font-medium text-[#0f172a]">${order.total.toFixed(2)}</td>
                               <td className="px-6 py-4">
-                                <span className={`inline-flex text-xs font-semibold px-2 py-1 rounded ${statusClass}`}>{statusLabel}</span>
+                                <span className={`inline-flex text-xs font-semibold px-2 py-1 rounded-full ${statusClass}`}>{statusLabel}</span>
                               </td>
                               <td className="px-6 py-4">
                                 <button
@@ -2156,17 +2200,23 @@ export function Admin() {
                 </div>
               </div>
 
-              <div className="bg-[#e85d04] text-white rounded-xl p-5 flex gap-4 items-start">
-                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                  <Info className="w-5 h-5" />
-                </div>
-                <div className="text-sm leading-relaxed">
-                  <p>
-                    Select <strong>Orders</strong> to see who bought and manage orders.
-                    <strong> Products</strong> to add, edit or delete stock.
-                    <strong> Carousel</strong> to manage the images for the main banner.
-                  </p>
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[
+                  { icon: ShoppingBag, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/15', label: 'Pedidos', desc: 'Gestiona y actualiza el estado de los pedidos.', action: 'orders' as AdminSection },
+                  { icon: Package, color: 'from-emerald-500 to-green-600', shadow: 'shadow-emerald-500/15', label: 'Productos', desc: 'Agrega, edita y administra el inventario.', action: 'products' as AdminSection },
+                  { icon: MessageCircle, color: 'from-[#e85d04] to-[#c44d03]', shadow: 'shadow-orange-500/15', label: 'Live Chat', desc: 'Responde mensajes de visitantes en tiempo real.', action: 'chat' as AdminSection },
+                ].map(({ icon: Icon, color, shadow, label, desc, action }) => (
+                  <button key={action} onClick={() => setSection(action)}
+                    className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 p-5 text-left flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shrink-0 shadow-lg ${shadow} group-hover:scale-110 transition-transform duration-200`}>
+                      <Icon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">{label}</p>
+                      <p className="text-slate-400 text-xs mt-0.5 leading-relaxed">{desc}</p>
+                    </div>
+                  </button>
+                ))}
               </div>
             </>
           )}
@@ -2175,11 +2225,16 @@ export function Admin() {
           {/* ========== PEDIDOS / QUIENES COMPRARON ========== */}
           {section === 'orders' && (
             <>
-              <h1 className="text-2xl font-bold text-[#333] mb-6">{t('admin.orders_title')}</h1>
-              <div className="bg-white rounded-lg shadow-sm">
-                <div className="p-6 border-b border-gray-200">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">{t('admin.orders_title')}</h1>
+                  <p className="text-slate-500 text-sm mt-1">Manage and track all customer orders</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
+                <div className="p-6 border-b border-gray-100">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <h2 className="text-xl font-semibold text-[#333]">Orders</h2>
+                    <h2 className="text-lg font-bold text-[#0f172a]">Orders</h2>
                     <div className="flex gap-3">
                       <div className="relative">
                         <Input
@@ -2187,7 +2242,7 @@ export function Admin() {
                           placeholder={t('admin.search_placeholder')}
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-64 pr-10 bg-[#f8f8f8] border-gray-200"
+                          className="w-64 pr-10 bg-slate-50 border-gray-200"
                         />
                         <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       </div>
@@ -2196,7 +2251,7 @@ export function Admin() {
                         onChange={(e) =>
                           setStatusFilter(e.target.value as Order['status'] | 'all')
                         }
-                        className="px-4 py-2 bg-[#f8f8f8] rounded-lg border border-gray-200 text-sm"
+                        className="px-4 py-2 bg-slate-50 rounded-lg border border-gray-200 text-sm"
                       >
                         <option value="all">{t('admin.all_status')}</option>
                         <option value="pending">{t('admin.status_pending')}</option>
@@ -2210,30 +2265,30 @@ export function Admin() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-[#f8f8f8]">
+                    <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
-                          {t('admin.recent_orders').replace('Pedidos Recientes', 'Pedido')}
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          Order
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.client')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.products_title')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Total
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Payment
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.status')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.date')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.actions')}
                         </th>
                       </tr>
@@ -2259,13 +2314,13 @@ export function Admin() {
                         </tr>
                       ) : (
                         filteredOrders.map((order) => (
-                          <tr key={order.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 text-sm font-medium text-[#333]">
+                          <tr key={order.id} className="hover:bg-slate-50/80">
+                            <td className="px-6 py-4 text-sm font-medium text-[#0f172a]">
                               {order.id}
                             </td>
                             <td className="px-6 py-4">
                               <div>
-                                <p className="text-sm font-medium text-[#333]">
+                                <p className="text-sm font-medium text-[#0f172a]">
                                   {order.customer.name}
                                 </p>
                                 <p className="text-xs text-gray-500">{order.customer.phone}</p>
@@ -2340,8 +2395,8 @@ export function Admin() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#333]">{t('admin.services')}</h1>
-                  <p className="text-gray-500 text-sm mt-1">Manage articles and services</p>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">{t('admin.services')}</h1>
+                  <p className="text-slate-500 text-sm mt-1">Manage articles and services</p>
                 </div>
                 <Button
                   onClick={openAddService}
@@ -2352,7 +2407,7 @@ export function Admin() {
                 </Button>
               </div>
               {services.length > 0 && services.length <= 3 && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4 mb-6">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-semibold text-[#333]">Home Preview (Positions 1-3)</p>
                     <span className="text-xs text-gray-400">Only shown when there are 3 or fewer services</span>
@@ -2372,32 +2427,32 @@ export function Admin() {
                   </div>
                 </div>
               )}
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-[#f8f8f8]">
+                    <thead className="bg-slate-50">
                       <tr>
                         {services.length <= 3 && (
-                          <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                          <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                             Home Position
                           </th>
                         )}
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Order
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.image')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.title')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.category')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Video
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.actions')}
                         </th>
                       </tr>
@@ -2417,7 +2472,7 @@ export function Admin() {
                         </tr>
                       ) : (
                         services.map((service, index) => (
-                          <tr key={service.id} className="hover:bg-gray-50 transition-colors">
+                          <tr key={service.id} className="hover:bg-slate-50/80 transition-colors">
                             {services.length <= 3 && (
                               <td className="px-6 py-4">
                                 <select
@@ -2509,7 +2564,10 @@ export function Admin() {
           {section === 'products' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">{t('admin.products_title')}</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">{t('admin.products_title')}</h1>
+                  <p className="text-slate-500 text-sm mt-1">Manage your product catalog</p>
+                </div>
                 <Button
                   onClick={openAddProduct}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
@@ -2518,30 +2576,30 @@ export function Admin() {
                   {t('admin.add_product')}
                 </Button>
               </div>
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-[#f8f8f8]">
+                    <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.image')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.name')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.category')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.price')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.stock')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.tag')}
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">
+                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           {t('admin.actions')}
                         </th>
                       </tr>
@@ -2561,7 +2619,7 @@ export function Admin() {
                         </tr>
                       ) : (
                         products.map((product) => (
-                          <tr key={product.id} className="hover:bg-gray-50">
+                          <tr key={product.id} className="hover:bg-slate-50/80">
                             <td className="px-6 py-4">
                               <img
                                 src={product.image}
@@ -2595,10 +2653,10 @@ export function Admin() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-sm text-[#1e5631] hover:underline"
-                                  title="Ver en tienda (misma vista que el cliente)"
+                                  title="View in store (same view as the customer)"
                                 >
                                   <ExternalLink className="w-4 h-4" />
-                                  Ver en tienda
+                                  View in store
                                 </Link>
                                 <Button
                                   variant="outline"
@@ -2633,8 +2691,8 @@ export function Admin() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#333]">Home Categories</h1>
-                  <p className="text-gray-500 text-sm mt-1">Icon categories shown on the homepage grid</p>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Home Categories</h1>
+                  <p className="text-slate-500 text-sm mt-1">Icon categories shown on the homepage grid</p>
                 </div>
                 <Button
                   onClick={openAddCategory}
@@ -2644,10 +2702,10 @@ export function Admin() {
                   New category
                 </Button>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 text-sm text-amber-800">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
                 <strong>ℹ️ Home Categories vs Store Filters:</strong> These are the icon-based category tiles displayed on the homepage (e.g. "Concrete tools", "Hand tools"). They are assigned to products and can optionally link to a <em>Store Filter</em> group (see &ldquo;Filter Groups&rdquo; in the sidebar) which controls the left sidebar checkboxes on the Store page.
               </div>
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {categoriesLoading ? (
                   <div className="p-12 text-center text-gray-500">Loading categories...</div>
                 ) : categories.length === 0 ? (
@@ -2657,7 +2715,7 @@ export function Admin() {
                 ) : (
                   <ul className="divide-y divide-gray-100">
                     {categories.map((cat) => (
-                      <li key={cat.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
+                      <li key={cat.id} className="flex items-center gap-4 p-4 hover:bg-slate-50/80">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-[#333]">{cat.name}</p>
                           <p className="text-xs text-gray-500">
@@ -2695,8 +2753,8 @@ export function Admin() {
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#333]">Store Filters</h1>
-                  <p className="text-gray-500 text-sm mt-1">Sidebar checkbox filters on the Store page</p>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Store Filters</h1>
+                  <p className="text-slate-500 text-sm mt-1">Sidebar checkbox filters on the Store page</p>
                 </div>
                 <Button
                   onClick={openAddFilterGroup}
@@ -2706,10 +2764,10 @@ export function Admin() {
                   New filter group
                 </Button>
               </div>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-800">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-800">
                 <strong>ℹ️ Store Filters:</strong> These are the checkbox options shown in the left sidebar of the Store page. After creating a filter group here, go to <strong>Home Categories</strong> and assign each category to one of these groups so it appears in the Store sidebar.
               </div>
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {filterGroupsLoading ? (
                   <div className="p-12 text-center text-gray-500">Loading filter groups...</div>
                 ) : filterGroups.length === 0 ? (
@@ -2719,7 +2777,7 @@ export function Admin() {
                 ) : (
                   <ul className="divide-y divide-gray-100">
                     {filterGroups.map((fg) => (
-                      <li key={fg.id} className="p-4 hover:bg-gray-50">
+                      <li key={fg.id} className="p-4 hover:bg-slate-50/80">
                         {/* Filter group header */}
                         <div className="flex items-center gap-4">
                           <div className="flex-1 min-w-0">
@@ -2758,7 +2816,10 @@ export function Admin() {
           {section === 'carousel' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Homepage Carousel</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Homepage Carousel</h1>
+                  <p className="text-slate-500 text-sm mt-1">Carousel images are displayed on the homepage and rotate every 5 seconds. Order: top to bottom.</p>
+                </div>
                 <Button
                   onClick={openAddSlide}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
@@ -2767,10 +2828,7 @@ export function Admin() {
                   Add image
                 </Button>
               </div>
-              <p className="text-gray-600 mb-6">
-                Carousel images are displayed on the homepage and rotate every 5 seconds. Order: top to bottom.
-              </p>
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {carouselLoading ? (
                   <div className="p-12 text-center text-gray-500">Loading carousel...</div>
                 ) : carouselSlides.length === 0 ? (
@@ -2780,7 +2838,7 @@ export function Admin() {
                 ) : (
                   <ul className="divide-y divide-gray-100">
                     {carouselSlides.map((slide, index) => (
-                      <li key={slide.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
+                      <li key={slide.id} className="flex items-center gap-4 p-4 hover:bg-slate-50/80">
                         <div className="flex flex-col gap-0.5">
                           <button
                             type="button"
@@ -2843,7 +2901,10 @@ export function Admin() {
           {section === 'promoBanners' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Promo Banners</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Promo Banners</h1>
+                  <p className="text-slate-500 text-sm mt-1">These banners appear on the homepage below the main carousel and rotate every 6 seconds.</p>
+                </div>
                 <Button
                   onClick={openAddPromoBanner}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
@@ -2852,10 +2913,7 @@ export function Admin() {
                   Add banner
                 </Button>
               </div>
-              <p className="text-gray-600 mb-6">
-                These banners appear on the homepage below the main carousel and rotate every 6 seconds. Each has a title and description (e.g. &quot;Free Shipping&quot; / &quot;On orders over $500&quot;).
-              </p>
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {promoBannersLoading ? (
                   <div className="p-12 text-center text-gray-500">Loading banners...</div>
                 ) : promoBanners.length === 0 ? (
@@ -2865,7 +2923,7 @@ export function Admin() {
                 ) : (
                   <ul className="divide-y divide-gray-100">
                     {promoBanners.map((banner, index) => (
-                      <li key={banner.id} className="flex items-center gap-4 p-4 hover:bg-gray-50">
+                      <li key={banner.id} className="flex items-center gap-4 p-4 hover:bg-slate-50/80">
                         <div className="flex flex-col gap-0.5">
                           <button
                             type="button"
@@ -2926,7 +2984,10 @@ export function Admin() {
           {section === 'offers' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <h1 className="text-2xl font-bold text-[#333]">Offers</h1>
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Offers</h1>
+                  <p className="text-slate-500 text-sm mt-1">Offers are displayed in the store. Each product can only have one active offer.</p>
+                </div>
                 <Button
                   onClick={openAddOffer}
                   className="bg-[#1e5631] hover:bg-[#164a28] text-white"
@@ -2935,10 +2996,7 @@ export function Admin() {
                   New offer
                 </Button>
               </div>
-              <p className="text-gray-600 mb-6">
-                Offers are displayed in the store under the Offers section. Each product can only have one active offer.
-              </p>
-              <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 {offersLoading ? (
                   <div className="p-12 text-center text-gray-500">Loading offers...</div>
                 ) : offers.length === 0 ? (
@@ -2948,20 +3006,20 @@ export function Admin() {
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-[#f8f8f8]">
+                      <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Product</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Discount</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Offer price</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Valid until</th>
-                          <th className="px-6 py-3 text-left text-sm font-medium text-gray-600">Actions</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Product</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Discount</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Offer price</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Valid until</th>
+                          <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {offers.map((offer) => {
                           const offerPrice = offer.product.price * (1 - offer.discountPercent / 100);
                           return (
-                            <tr key={offer.id} className="hover:bg-gray-50">
+                            <tr key={offer.id} className="hover:bg-slate-50/80">
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
                                   <img src={offer.product.image} alt="" className="w-12 h-12 object-cover rounded-md" />
@@ -2999,16 +3057,164 @@ export function Admin() {
             </>
           )}
 
+          {/* ========== CHAT ========== */}
+          {section === 'chat' && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Live Chat</h1>
+                  <p className="text-slate-500 text-sm mt-1">Reply to visitors in real time.</p>
+                </div>
+                <button
+                  onClick={loadChatSessions}
+                  className="flex items-center gap-2 text-sm font-semibold text-[#1e5631] hover:text-[#164a28] bg-white border border-[#1e5631]/20 hover:border-[#1e5631]/50 px-4 py-2 rounded-xl transition-all shadow-sm"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Refresh
+                </button>
+              </div>
+
+              <div className="flex gap-4 h-[calc(100vh-13rem)] min-h-[480px]">
+                {/* Sessions list */}
+                <div className="w-72 shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-slate-50 shrink-0">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Conversations ({chatSessions.length})</p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+                    {chatLoading && chatSessions.length === 0 ? (
+                      <div className="p-6 text-center text-gray-400 text-sm">Loading…</div>
+                    ) : chatSessions.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <MessageCircle className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                        <p className="text-gray-400 text-sm">No conversations yet.</p>
+                      </div>
+                    ) : (
+                      chatSessions.map((s) => (
+                        <button
+                          key={s.session_id}
+                          onClick={() => setSelectedChatSession(s.session_id)}
+                          className={`w-full text-left px-4 py-3 transition-colors flex gap-3 items-start ${
+                            selectedChatSession === s.session_id ? 'bg-[#1e5631]/5 border-l-2 border-[#1e5631]' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[#1e5631]/10 flex items-center justify-center shrink-0 mt-0.5">
+                            <User className="w-4 h-4 text-[#1e5631]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-sm font-semibold text-[#0f172a] truncate">{s.visitor_name}</p>
+                              {s.unread_admin > 0 && (
+                                <span className="shrink-0 w-4 h-4 bg-[#e85d04] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                                  {s.unread_admin}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-gray-400 mt-0.5">
+                              {new Date(s.last_message_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Message thread */}
+                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
+                  {!selectedChatSession ? (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center">
+                        <MessageCircle className="w-14 h-14 text-gray-200 mx-auto mb-3" />
+                        <p className="text-gray-500 font-semibold">Select a conversation</p>
+                        <p className="text-gray-400 text-sm mt-1">Choose a session from the left to start replying.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Thread header */}
+                      <div className="px-5 py-3 border-b border-gray-100 bg-slate-50 shrink-0 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#1e5631]/10 flex items-center justify-center shrink-0">
+                          <User className="w-4 h-4 text-[#1e5631]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-[#0f172a]">
+                            {chatSessions.find((s) => s.session_id === selectedChatSession)?.visitor_name || 'Visitor'}
+                          </p>
+                          <p className="text-[11px] text-gray-400">Session: {selectedChatSession.slice(0, 8)}…</p>
+                        </div>
+                        <button
+                          onClick={() => loadChatMessages(selectedChatSession)}
+                          className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                          title="Refresh messages"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Messages */}
+                      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8faf9]">
+                        {chatMessages.length === 0 ? (
+                          <div className="text-center py-12 text-gray-400 text-sm">No messages yet.</div>
+                        ) : (
+                          chatMessages.map((msg) => (
+                            <div key={msg.id} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
+                              {msg.sender === 'user' && (
+                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-[9px] font-bold shrink-0 mt-auto mb-1 mr-1.5">
+                                  <User className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                              <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
+                                msg.sender === 'admin'
+                                  ? 'bg-[#1e5631] text-white rounded-br-sm shadow-sm'
+                                  : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-bl-sm'
+                              }`}>
+                                <p>{msg.message}</p>
+                                <p className={`text-[10px] mt-0.5 ${msg.sender === 'admin' ? 'text-white/55 text-right' : 'text-gray-400'}`}>
+                                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                        <div ref={chatBottomRef} />
+                      </div>
+
+                      {/* Reply input */}
+                      <div className="p-3 border-t border-gray-100 bg-white flex gap-2 items-end shrink-0">
+                        <textarea
+                          value={chatReply}
+                          onChange={(e) => setChatReply(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdminReply(); } }}
+                          placeholder="Type a reply…"
+                          rows={2}
+                          className="flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e5631]/25 focus:border-[#1e5631]/50 placeholder:text-gray-400 leading-relaxed bg-gray-50/60"
+                          style={{ maxHeight: '100px', overflowY: 'auto' }}
+                        />
+                        <button
+                          onClick={sendAdminReply}
+                          disabled={!chatReply.trim() || chatReplySending}
+                          className="w-10 h-10 bg-[#1e5631] hover:bg-[#164a28] disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-sm"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
           {/* ========== SETTINGS ========== */}
           {section === 'settings' && (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-[#333]">Settings</h1>
-                  <p className="text-gray-500 text-sm mt-1">General site configuration</p>
+                  <h1 className="text-2xl font-bold text-[#0f172a]">Settings</h1>
+                  <p className="text-slate-500 text-sm mt-1">General site configuration</p>
                 </div>
               </div>
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 mb-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Browser Tab Title</h3>
                 <div className="flex flex-col gap-4">
                   <div>
@@ -3031,7 +3237,7 @@ export function Admin() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Site Logo</h3>
                 <div className="flex flex-col sm:flex-row gap-6 items-start">
                   <div className="w-32 h-32 rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
@@ -3122,7 +3328,7 @@ export function Admin() {
               </div>
 
               {/* ========== FOOTER SETTINGS ========== */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Pie de página (Footer)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
@@ -3240,7 +3446,7 @@ export function Admin() {
               </div>
 
               {/* ========== T&C SETTINGS ========== */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Términos y Condiciones</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Edita el texto público que los usuarios ven en la página de Términos y Condiciones. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
@@ -3287,7 +3493,7 @@ export function Admin() {
               </div>
 
               {/* ========== PRIVACY POLICY SETTINGS ========== */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Política de Privacidad</h3>
                 <p className="text-sm text-gray-500 mb-4">
                   Edita el texto público que los usuarios ven en la página de Política de Privacidad. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
@@ -3334,7 +3540,7 @@ export function Admin() {
               </div>
 
               {/* ========== GLOBAL TEXT SETTINGS ========== */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Textos Globales y Navegación</h3>
                 <p className="text-sm text-gray-500 mb-6">
                   Modifica los textos de los botones, menús de navegación y pequeños subtítulos de toda la página pública.
@@ -3391,7 +3597,7 @@ export function Admin() {
               </div>
 
               {/* header settings*/}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Encabezado de Servicios (Home)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -3436,7 +3642,7 @@ export function Admin() {
               </div>
 
               {/* contact settings*/}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Página de Contacto</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
@@ -3491,7 +3697,7 @@ export function Admin() {
               </div>
 
               {/* heavy equipment settings */}
-              <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Página Equipo Pesado (Banner)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -3555,15 +3761,16 @@ export function Admin() {
 
             </>
           )}
+          </div>
         </main>
       </div>
 
       {/* Modal detalle pedido */}
       {selectedOrder && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-[#333]">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-[#0f172a]">
                 Pedido {selectedOrder.id}
               </h3>
               <button
@@ -3575,8 +3782,8 @@ export function Admin() {
             </div>
             <div className="p-6 space-y-6">
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Cliente</h4>
-                <div className="bg-[#f8f8f8] rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-slate-500 mb-2">Cliente</h4>
+                <div className="bg-slate-50 rounded-xl p-4">
                   <p><span className="text-gray-500">Nombre:</span> {selectedOrder.customer.name}</p>
                   <p><span className="text-gray-500">Teléfono:</span> {selectedOrder.customer.phone}</p>
                   <p><span className="text-gray-500">Dirección:</span> {selectedOrder.customer.address}</p>
@@ -3586,12 +3793,12 @@ export function Admin() {
                 </div>
               </div>
               <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Productos</h4>
+                <h4 className="text-sm font-semibold text-slate-500 mb-2">Productos</h4>
                 <div className="space-y-3">
                   {selectedOrder.items.map((item) => (
                     <div
                       key={item.product.id}
-                      className="flex items-center gap-4 bg-[#f8f8f8] rounded-lg p-3"
+                      className="flex items-center gap-4 bg-slate-50 rounded-xl p-3"
                     >
                       <img
                         src={item.product.image}
@@ -3885,7 +4092,7 @@ export function Admin() {
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid gap-2">
-              <Label>Subir desde tu equipo</Label>
+              <Label>Upload from your device</Label>
               <div className="flex items-center gap-2">
                 <input
                   type="file"
@@ -4011,14 +4218,14 @@ export function Admin() {
               </select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="category-filter">Grupo en tienda (filtro lateral)</Label>
+              <Label htmlFor="category-filter">Store filter group (sidebar)</Label>
               <select
                 id="category-filter"
                 value={categoryForm.filterKey}
                 onChange={(e) => setCategoryForm((f) => ({ ...f, filterKey: e.target.value }))}
                 className="h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
               >
-                <option value="">Ninguno</option>
+                <option value="">None</option>
                 {filterGroups.map((fg) => (
                   <option key={fg.id} value={fg.key}>{fg.name}</option>
                 ))}
@@ -4033,7 +4240,7 @@ export function Admin() {
               disabled={categorySaving || !categoryForm.name.trim()}
               className="bg-[#1e5631] hover:bg-[#164a28]"
             >
-              {categorySaving ? t('loading') : editingCategoryId ? t('save') : 'Crear'}
+              {categorySaving ? t('loading') : editingCategoryId ? t('save') : 'Create'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4045,7 +4252,7 @@ export function Admin() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this category?</AlertDialogTitle>
             <AlertDialogDescription>
-              Los productos que usen esta categoría seguirán mostrándola como texto. Solo se quita de la lista de categorías para nuevos productos.
+              Products using this category will still display it as text. It will only be removed from the category list for new products.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -4059,27 +4266,27 @@ export function Admin() {
       <Dialog open={filterGroupDialogOpen} onOpenChange={setFilterGroupDialogOpen}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingFilterGroupId ? 'Editar grupo de filtro' : 'Nuevo grupo de filtro'}</DialogTitle>
+            <DialogTitle>{editingFilterGroupId ? 'Edit filter group' : 'New filter group'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="fg-name">Nombre (ej. Herramientas, Materias primas)</Label>
+              <Label htmlFor="fg-name">Name (e.g. Tools, Raw materials)</Label>
               <Input
                 id="fg-name"
                 value={filterGroupForm.name}
                 onChange={(e) => setFilterGroupForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Herramientas"
+                placeholder="Tools"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="fg-key">Clave (para filtros, ej. tools)</Label>
+              <Label htmlFor="fg-key">Key (for filters, e.g. tools)</Label>
               <Input
                 id="fg-key"
                 value={filterGroupForm.key}
                 onChange={(e) => setFilterGroupForm((f) => ({ ...f, key: e.target.value }))}
                 placeholder="tools"
               />
-              <p className="text-xs text-gray-500">Si la dejas vacía se genera del nombre.</p>
+              <p className="text-xs text-gray-500">Leave blank to auto-generate from name.</p>
             </div>
           </div>
           <DialogFooter>
@@ -4090,7 +4297,7 @@ export function Admin() {
               disabled={filterGroupSaving || !filterGroupForm.name.trim()}
               className="bg-[#1e5631] hover:bg-[#164a28]"
             >
-              {filterGroupSaving ? t('loading') : editingFilterGroupId ? t('save') : 'Crear'}
+              {filterGroupSaving ? t('loading') : editingFilterGroupId ? t('save') : 'Create'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -4102,7 +4309,7 @@ export function Admin() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this filter group?</AlertDialogTitle>
             <AlertDialogDescription>
-              Las categorías que usen este grupo quedarán sin grupo asignado. El grupo dejará de aparecer en el filtro de la tienda.
+              Categories using this group will have no group assigned. The group will no longer appear in the store filter.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -4116,19 +4323,19 @@ export function Admin() {
       <Dialog open={promoBannerDialogOpen} onOpenChange={(open) => { setPromoBannerDialogOpen(open); if (!open) setPromoBannerError(null); }}>
         <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingPromoBannerId ? 'Editar banner promocional' : 'Añadir banner promocional'}</DialogTitle>
+            <DialogTitle>{editingPromoBannerId ? 'Edit promo banner' : 'Add promo banner'}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             {promoBannerError && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{promoBannerError}</p>
             )}
             <div className="grid gap-2">
-              <Label htmlFor="promo-image">URL de la imagen *</Label>
+              <Label htmlFor="promo-image">Image URL *</Label>
               <Input
                 id="promo-image"
                 value={promoBannerForm.image}
                 onChange={(e) => setPromoBannerForm((f) => ({ ...f, image: e.target.value }))}
-                placeholder="/promo-tools.jpg o https://..."
+                placeholder="/promo-tools.jpg or https://..."
               />
             </div>
             <div className="relative flex items-center gap-2">
@@ -4136,7 +4343,7 @@ export function Admin() {
               <div className="h-px flex-1 bg-gray-200" />
             </div>
             <div className="grid gap-2">
-              <Label>Subir desde tu equipo</Label>
+              <Label>Upload from your device</Label>
               <div className="flex items-center gap-2">
                 <input
                   type="file"

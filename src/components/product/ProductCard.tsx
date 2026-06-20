@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Check, Star } from 'lucide-react';
+import { ShoppingCart, Check, Star, Scale } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { Product, ProductTag } from '@/types';
 import { useCartStore } from '@/store/cartStore';
+import { useCompareStore } from '@/store/compareStore';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -50,7 +51,10 @@ interface ProductCardProps {
 
 export function ProductCard({ product, offer }: ProductCardProps) {
   const { addToCart } = useCartStore();
+  const { toggle, isSelected, isFull } = useCompareStore();
   const { t } = useLanguage();
+  const selected = isSelected(product.id);
+  const full = isFull() && !selected;
   const [showAddedMessage, setShowAddedMessage] = useState(false);
   const [countdown, setCountdown] = useState<string | null>(offer?.validUntil ? formatCountdown(offer.validUntil) : null);
 
@@ -176,6 +180,23 @@ export function ProductCard({ product, offer }: ProductCardProps) {
             </span>
           )}
         </div>
+
+        {/* Compare toggle */}
+        <button
+          onClick={() => toggle(product)}
+          disabled={full}
+          title={full ? 'Max 4 products' : selected ? 'Remove from comparison' : 'Add to comparison'}
+          className={`w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold border transition-all duration-200 mb-2 ${
+            selected
+              ? 'bg-[#1e5631]/10 border-[#1e5631] text-[#1e5631]'
+              : full
+              ? 'border-gray-100 text-gray-300 cursor-not-allowed'
+              : 'border-gray-200 text-gray-400 hover:border-[#1e5631] hover:text-[#1e5631] hover:bg-[#1e5631]/5'
+          }`}
+        >
+          <Scale className="w-3.5 h-3.5" />
+          {selected ? 'Comparing ✓' : full ? 'Max reached' : 'Compare'}
+        </button>
 
         <Button
           onClick={handleAddToCart}

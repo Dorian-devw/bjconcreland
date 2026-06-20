@@ -3,7 +3,10 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { Search } from 'lucide-react';
 import { ProductCard } from '@/components/product/ProductCard';
+import { CompareBar } from '@/components/product/CompareBar';
+import { CompareModal } from '@/components/product/CompareModal';
 import { useProductsStore } from '@/store/productsStore';
+import { useCompareStore } from '@/store/compareStore';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
@@ -23,6 +26,8 @@ export function Catalog() {
   const { products, loading, error, fetchProducts } = useProductsStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [offersByProductId, setOffersByProductId] = useState<Record<string, CatalogOffer>>({});
+  const [compareOpen, setCompareOpen] = useState(false);
+  const { items: compareItems } = useCompareStore();
   const [categories, setCategories] = useState<CategoryFromApi[]>([]);
   const [filterGroups, setFilterGroups] = useState<FilterGroupFromApi[]>([]);
 
@@ -134,7 +139,7 @@ export function Catalog() {
   const showingText = `${t('catalog.showing')} ${from}-${to} ${t('catalog.of')} ${totalFiltered} ${t('catalog.products')}`;
 
   return (
-    <div className="min-h-screen bg-white pt-[8.75rem]">
+    <div className={`min-h-screen bg-white pt-[8.75rem] ${compareItems.length > 0 ? 'pb-24' : ''}`}>
       {/* Hero Banner - Dark green */}
       <div className="max-w-[80rem] mx-auto px-[5%] mt-6 mb-6">
         <div className="bg-[#1e5631] rounded-xl py-10 px-6 md:py-12 md:px-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
@@ -289,6 +294,14 @@ export function Catalog() {
           </div>
         </div>
       </div>
+
+      {/* Compare floating bar + modal */}
+      <CompareBar onCompare={() => setCompareOpen(true)} />
+      <CompareModal
+        isOpen={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        offersByProductId={offersByProductId}
+      />
     </div>
   );
 }

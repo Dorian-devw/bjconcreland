@@ -19,10 +19,12 @@ import { PrivacyPolicy } from '@/pages/PrivacyPolicy';
 import { TermsConditions } from '@/pages/TermsConditions';
 import './App.css';
 import { Toaster } from 'sonner';
+import { ChatWidget } from '@/components/ChatWidget';
 
 function AppContent() {
   const location = useLocation();
-  const hideFooter = location.pathname === '/jozarzc';
+  const isAdmin = location.pathname === '/jozarzc';
+  const hideFooter = isAdmin;
 
   const { logo, tabTitle, fetchTabTitle } = useSettingsStore();
 
@@ -56,8 +58,8 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
-      <CartSidebar />
+      {!isAdmin && <Navbar />}
+      {!isAdmin && <CartSidebar />}
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -77,6 +79,7 @@ function AppContent() {
         </Routes>
       </main>
       {!hideFooter && <Footer />}
+      {!isAdmin && <ChatWidget />}
       <Toaster position="top-right" richColors closeButton />
     </div>
   );

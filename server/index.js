@@ -2,6 +2,8 @@
 require('dotenv/config');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
@@ -9,11 +11,23 @@ const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable } = require('./db.js');
+const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable, ensureChatTables } = require('./db.js');
 const { seed } = require('./seed.js');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'clave-secreta-cambiar-en-produccion';
+// ── JWT Secret — falla en producción si no está configurado ──────────────────
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: JWT_SECRET no está configurado. El servidor no puede arrancar en producción sin él.');
+    process.exit(1);
+  } else {
+    console.warn('ADVERTENCIA: JWT_SECRET no configurado. Usando valor de desarrollo. NO usar en producción.');
+  }
+}
+const JWT_SECRET_FINAL = JWT_SECRET || 'dev-secret-solo-local-cambiar-en-produccion';
+
 const PORT = process.env.PORT || 3002;
+const IS_PROD = process.env.NODE_ENV === 'production';
 
 // twilio
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
@@ -26,27 +40,80 @@ function getTwilioClient() {
   return twilio(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN);
 }
 
-// db
-seed().then(() => {
-  console.log('Base de datos inicializada (y poblada si estaba vacía) desde index.js.');
+// ── DB init ──────────────────────────────────────────────────────────────────
+seed().then(async () => {
+  console.log('Base de datos inicializada desde index.js.');
+  // Inicializar tablas de chat al arranque (no en cada request)
+  await ensureChatTables();
+  console.log('Tablas de chat listas.');
 }).catch(console.error);
 
 const app = express();
 
-const allowedOrigins = [
-  'https://bjconcreland.com',
-  'https://www.bjconcreland.com',
-  'http://localhost:5173',
-  'http://localhost:3000',
-];
+// ── CORS — solo localhost en desarrollo ─────────────────────────────────────
+const allowedOrigins = IS_PROD
+  ? ['https://bjconcreland.com', 'https://www.bjconcreland.com']
+  : ['https://bjconcreland.com', 'https://www.bjconcreland.com', 'http://localhost:5173', 'http://localhost:3000'];
 
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (apps móviles, Postman en dev)
+    if (!origin && !IS_PROD) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS bloqueado: ${origin}`));
+  },
+  credentials: true,
 }));
 
+// ── Helmet — headers de seguridad ───────────────────────────────────────────
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // permite cargar imágenes desde el frontend
+  contentSecurityPolicy: false, // el frontend tiene su propio CSP
+}));
+app.disable('x-powered-by');
 
-app.use(express.json({ limit: '10mb' }));
+// ── Body size — máximo 200kb para JSON (no 10MB) ────────────────────────────
+app.use(express.json({ limit: '200kb' }));
+
+// ── Rate limiters ──────────────────────────────────────────────���─────────────
+
+// Login: máximo 10 intentos cada 15 minutos por IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.' },
+});
+
+// Chat: máximo 30 mensajes por minuto por IP
+const chatMsgLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados mensajes. Espera un momento.' },
+});
+
+// Crear sesiones de chat: máximo 10 por hora por IP
+const chatSessionLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas sesiones creadas. Intenta más tarde.' },
+});
+
+// API general: máximo 300 requests por minuto por IP
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes. Intenta de nuevo en un momento.' },
+});
+
+app.use('/api/', apiLimiter);
 
 // static files
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -133,23 +200,32 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 app.post('/api/contact/email', async (req, res) => {
   const { fullName, email, phone, subject, message } = req.body || {};
 
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
+  if (String(message).length > 5000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: 'jose.zevallos@bjconcreland.com',
-    subject: `Nueva Consulta Web: ${subject || 'Contacto General'}`,
+    subject: `Nueva Consulta Web: ${escHtml(subject) || 'Contacto General'}`,
     html: `
       <h2>Nuevo mensaje de contacto desde la web</h2>
-      <p><strong>Nombre:</strong> ${fullName || 'No especificado'}</p>
-      <p><strong>Email:</strong> ${email || 'No especificado'}</p>
-      <p><strong>Teléfono:</strong> ${phone || 'No especificado'}</p>
-      <p><strong>Asunto:</strong> ${subject || 'No especificado'}</p>
+      <p><strong>Nombre:</strong> ${escHtml(fullName) || 'No especificado'}</p>
+      <p><strong>Email:</strong> ${escHtml(email) || 'No especificado'}</p>
+      <p><strong>Teléfono:</strong> ${escHtml(phone) || 'No especificado'}</p>
+      <p><strong>Asunto:</strong> ${escHtml(subject) || 'No especificado'}</p>
       <h3>Mensaje:</h3>
-      <p style="white-space: pre-wrap;">${message}</p>
+      <p style="white-space: pre-wrap;">${escHtml(message)}</p>
     `,
   };
 
@@ -158,7 +234,7 @@ app.post('/api/contact/email', async (req, res) => {
     res.json({ success: true, message: 'Correo enviado exitosamente' });
   } catch (error) {
     console.error('Error enviando correo:', error);
-    res.status(500).json({ error: 'Error enviando el correo', details: error.message });
+    res.status(500).json({ error: 'Error enviando el correo' });
   }
 });
 
@@ -445,14 +521,14 @@ function authMiddleware(req, res, next) {
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'No autorizado' });
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    req.user = jwt.verify(token, JWT_SECRET_FINAL);
     next();
   } catch {
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginLimiter, async (req, res) => {
   try {
     const { username, password } = req.body || {};
 
@@ -485,7 +561,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username },
-      JWT_SECRET,
+      JWT_SECRET_FINAL,
       { expiresIn: '7d' }
     );
 
@@ -564,121 +640,141 @@ app.delete('/api/products/:id', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/categories', async (req, res) => {
-  await ensureCategoriesTable();
-  const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories ORDER BY sort_order ASC, name ASC');
-  res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  try {
+    await ensureCategoriesTable();
+    const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories ORDER BY sort_order ASC, name ASC');
+    res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  } catch (e) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 app.post('/api/categories', authMiddleware, async (req, res) => {
-  await ensureCategoriesTable();
-  const { name, icon, filterKey } = req.body || {};
-  if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' });
-  const [countRows] = await db.query('SELECT COUNT(*) as n FROM categories');
   try {
+    await ensureCategoriesTable();
+    const { name, icon, filterKey } = req.body || {};
+    if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+    const [countRows] = await db.query('SELECT COUNT(*) as n FROM categories');
     const [result] = await db.query('INSERT INTO categories (name, icon, sort_order, filter_key) VALUES (?, ?, ?, ?)', [name.trim(), (icon && String(icon).trim()) || 'Wrench', countRows[0].n, (filterKey && String(filterKey).trim()) || null]);
     const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories WHERE id=?', [result.insertId]);
     res.status(201).json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 app.put('/api/categories/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { name, icon, sortOrder, filterKey } = req.body || {};
-  const [existingRows] = await db.query('SELECT * FROM categories WHERE id = ?', [id]);
-  const existing = existingRows[0];
-  if (!existing) return res.status(404).json({ error: 'No encontrado' });
-  const newName = name !== undefined ? String(name).trim() : existing.name;
-  if (!newName) return res.status(400).json({ error: 'Nombre vacío' });
   try {
+    const { id } = req.params;
+    const { name, icon, sortOrder, filterKey } = req.body || {};
+    const [existingRows] = await db.query('SELECT * FROM categories WHERE id = ?', [id]);
+    const existing = existingRows[0];
+    if (!existing) return res.status(404).json({ error: 'No encontrado' });
+    const newName = name !== undefined ? String(name).trim() : existing.name;
+    if (!newName) return res.status(400).json({ error: 'Nombre vacío' });
     await db.query('UPDATE categories SET name=?, icon=?, sort_order=?, filter_key=? WHERE id=?', [newName, (icon !== undefined ? String(icon) : existing.icon) || 'Wrench', sortOrder != null ? Number(sortOrder) : existing.sort_order, filterKey !== undefined ? (filterKey && String(filterKey).trim() || null) : existing.filter_key, id]);
     const [rows] = await db.query('SELECT id, name, icon, sort_order AS sortOrder, filter_key AS filterKey FROM categories WHERE id=?', [id]);
     res.json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 app.delete('/api/categories/:id', authMiddleware, async (req, res) => {
-  const [result] = await db.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
-  if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
-  res.status(204).send();
+  try {
+    const [result] = await db.query('DELETE FROM categories WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
+    res.status(204).send();
+  } catch (e) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 app.get('/api/filter-groups', async (req, res) => {
-  await ensureFilterGroupsTable();
-  const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC');
-  res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  try {
+    await ensureFilterGroupsTable();
+    const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups ORDER BY sort_order ASC, name ASC');
+    res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  } catch (e) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 // ========== FILTER ITEMS ==========
 app.get('/api/filter-items', async (req, res) => {
-  await ensureFilterItemsTable();
-  const { groupKey } = req.query;
-  if (groupKey) {
-    const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE filter_group_key = ? ORDER BY sort_order ASC, name ASC', [groupKey]);
-    return res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  try {
+    await ensureFilterItemsTable();
+    const { groupKey } = req.query;
+    if (groupKey) {
+      const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE filter_group_key = ? ORDER BY sort_order ASC, name ASC', [groupKey]);
+      return res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+    }
+    const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items ORDER BY filter_group_key ASC, sort_order ASC, name ASC');
+    res.json(rows.map(r => ({ ...r, id: String(r.id) })));
+  } catch (e) {
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
-  const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items ORDER BY filter_group_key ASC, sort_order ASC, name ASC');
-  res.json(rows.map(r => ({ ...r, id: String(r.id) })));
 });
 
 app.post('/api/filter-items', authMiddleware, async (req, res) => {
-  await ensureFilterItemsTable();
-  const { filterGroupKey, name } = req.body || {};
-  if (!filterGroupKey || !name || !name.trim()) return res.status(400).json({ error: 'filterGroupKey and name are required' });
-  const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_items WHERE filter_group_key = ?', [filterGroupKey]);
   try {
+    await ensureFilterItemsTable();
+    const { filterGroupKey, name } = req.body || {};
+    if (!filterGroupKey || !name || !name.trim()) return res.status(400).json({ error: 'filterGroupKey and name are required' });
+    const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_items WHERE filter_group_key = ?', [filterGroupKey]);
     const [result] = await db.query('INSERT INTO filter_items (filter_group_key, name, sort_order) VALUES (?, ?, ?)', [filterGroupKey, name.trim(), countRows[0].n]);
     const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE id = ?', [result.insertId]);
     res.status(201).json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Item already exists in this group' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 app.put('/api/filter-items/:id', authMiddleware, async (req, res) => {
-  const { id } = req.params;
-  const { name } = req.body || {};
-  const [existingRows] = await db.query('SELECT * FROM filter_items WHERE id = ?', [id]);
-  const existing = existingRows[0];
-  if (!existing) return res.status(404).json({ error: 'Not found' });
-  const newName = name !== undefined ? String(name).trim() : existing.name;
-  if (!newName) return res.status(400).json({ error: 'Name cannot be empty' });
   try {
+    const { id } = req.params;
+    const { name } = req.body || {};
+    const [existingRows] = await db.query('SELECT * FROM filter_items WHERE id = ?', [id]);
+    const existing = existingRows[0];
+    if (!existing) return res.status(404).json({ error: 'Not found' });
+    const newName = name !== undefined ? String(name).trim() : existing.name;
+    if (!newName) return res.status(400).json({ error: 'Name cannot be empty' });
     await db.query('UPDATE filter_items SET name = ? WHERE id = ?', [newName, id]);
     const [rows] = await db.query('SELECT id, filter_group_key AS filterGroupKey, name, sort_order AS sortOrder FROM filter_items WHERE id = ?', [id]);
     res.json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Item already exists' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 app.delete('/api/filter-items/:id', authMiddleware, async (req, res) => {
-  const [result] = await db.query('DELETE FROM filter_items WHERE id = ?', [req.params.id]);
-  if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });
-  res.status(204).send();
+  try {
+    const [result] = await db.query('DELETE FROM filter_items WHERE id = ?', [req.params.id]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });
+    res.status(204).send();
+  } catch (e) {
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
 });
 
 app.post('/api/filter-groups', authMiddleware, async (req, res) => {
-  await ensureFilterGroupsTable();
-  const { name, key } = req.body || {};
-  if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nombre obligatorio' });
-  const keyVal = (key != null && String(key).trim()) ? String(key).trim().toLowerCase().replace(/\s+/g, '-') : name.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 32);
-  if (!keyVal) return res.status(400).json({ error: 'Indica nombre' });
-  const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
   try {
+    await ensureFilterGroupsTable();
+    const { name, key } = req.body || {};
+    if (!name || typeof name !== 'string' || !name.trim()) return res.status(400).json({ error: 'Nombre obligatorio' });
+    const keyVal = (key != null && String(key).trim()) ? String(key).trim().toLowerCase().replace(/\s+/g, '-') : name.trim().toLowerCase().replace(/\s+/g, '-').slice(0, 32);
+    if (!keyVal) return res.status(400).json({ error: 'Indica nombre' });
+    const [countRows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
     const [result] = await db.query('INSERT INTO filter_groups (name, `key`, sort_order) VALUES (?, ?, ?)', [name.trim(), keyVal, countRows[0].n]);
     const [rows] = await db.query('SELECT id, name, `key`, sort_order AS sortOrder FROM filter_groups WHERE id=?', [result.insertId]);
     res.status(201).json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -697,7 +793,7 @@ app.put('/api/filter-groups/:id', authMiddleware, async (req, res) => {
     res.json({ ...rows[0], id: String(rows[0].id) });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Ya existe' });
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
@@ -710,21 +806,36 @@ app.delete('/api/filter-groups/:id', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/orders', authMiddleware, async (req, res) => {
-  const [rows] = await db.query('SELECT id, customer_name, customer_phone, customer_address, customer_notes, total, payment_method, status, created_at FROM orders ORDER BY created_at DESC');
-  const orders = [];
-  for (const row of rows) {
-    const [items] = await db.query('SELECT product_id AS productId, product_name AS productName, product_price AS productPrice, product_image AS productImage, quantity FROM order_items WHERE order_id = ?', [row.id]);
-    orders.push({
-      id: row.id,
-      customer: { name: row.customer_name, phone: row.customer_phone, address: row.customer_address, notes: row.customer_notes },
-      items: items.map(i => ({ product: { id: i.productId, name: i.productName, price: Number(i.productPrice), image: i.productImage }, quantity: i.quantity })),
-      total: Number(row.total),
-      paymentMethod: row.payment_method,
-      status: row.status,
-      createdAt: row.created_at
-    });
+  const [rows] = await db.query(`
+    SELECT o.id, o.customer_name, o.customer_phone, o.customer_address, o.customer_notes,
+           o.total, o.payment_method, o.status, o.created_at,
+           oi.product_id AS productId, oi.product_name AS productName,
+           oi.product_price AS productPrice, oi.product_image AS productImage, oi.quantity
+    FROM orders o
+    LEFT JOIN order_items oi ON oi.order_id = o.id
+    ORDER BY o.created_at DESC, o.id, oi.id
+  `);
+  const ordersMap = new Map();
+  for (const r of rows) {
+    if (!ordersMap.has(r.id)) {
+      ordersMap.set(r.id, {
+        id: r.id,
+        customer: { name: r.customer_name, phone: r.customer_phone, address: r.customer_address, notes: r.customer_notes },
+        items: [],
+        total: Number(r.total),
+        paymentMethod: r.payment_method,
+        status: r.status,
+        createdAt: r.created_at,
+      });
+    }
+    if (r.productId) {
+      ordersMap.get(r.id).items.push({
+        product: { id: r.productId, name: r.productName, price: Number(r.productPrice), image: r.productImage },
+        quantity: r.quantity,
+      });
+    }
   }
-  res.json(orders);
+  res.json([...ordersMap.values()]);
 });
 
 app.patch('/api/orders/:id/status', authMiddleware, async (req, res) => {
@@ -737,7 +848,8 @@ app.patch('/api/orders/:id/status', authMiddleware, async (req, res) => {
 });
 
 app.post('/api/orders', async (req, res) => {
-  const { id, customer, items, total, paymentMethod, stripePaymentId } = req.body;
+  const { customer, items, total, paymentMethod, stripePaymentId } = req.body;
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
@@ -1032,7 +1144,8 @@ app.post('/api/create-payment-intent', async (req, res) => {
     });
     res.send({ clientSecret: paymentIntent.client_secret });
   } catch (error) {
-    res.status(500).send({ error: error.message });
+    console.error('[stripe]', error.message);
+    res.status(500).send({ error: 'Error procesando el pago' });
   }
 });
 
@@ -1042,17 +1155,17 @@ app.get('/api/auth/verify-token', authMiddleware, (req, res) => {
 
 app.get('/api/services', async (req, res) => {
   await ensureServicesTable();
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
 });
 
 app.post('/api/services', authMiddleware, async (req, res) => {
   await ensureServicesTable();
-  const { title, category, description, image, video, content, brandName, brandTagline, homeSlot } = req.body || {};
+  const { title, category, description, image, video, content, brandName, brandTagline, homeSlot, imageBefore, imageAfter } = req.body || {};
   if (!title || !category || !description) return res.status(400).json({ error: 'Faltan campos' });
   const [countRows] = await db.query('SELECT COUNT(*) as n FROM services');
   const [result] = await db.query(
-    'INSERT INTO services (title, category, description, image, video, content, brand_name, brand_tagline, home_slot, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO services (title, category, description, image, video, content, brand_name, brand_tagline, home_slot, sort_order, image_before, image_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       title.trim(),
       category.trim(),
@@ -1063,20 +1176,22 @@ app.post('/api/services', authMiddleware, async (req, res) => {
       brandName?.trim() || null,
       brandTagline?.trim() || null,
       homeSlot ?? null,
-      countRows[0].n
+      countRows[0].n,
+      imageBefore || null,
+      imageAfter || null,
     ]
   );
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services WHERE id=?', [result.insertId]);
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services WHERE id=?', [result.insertId]);
   res.status(201).json(rows[0]);
 });
 
 app.put('/api/services/:id', authMiddleware, async (req, res) => {
   await ensureServicesTable();
-  const { title, category, description, image, video, content, sortOrder, brandName, brandTagline, homeSlot } = req.body || {};
+  const { title, category, description, image, video, content, sortOrder, brandName, brandTagline, homeSlot, imageBefore, imageAfter } = req.body || {};
   const [existingRows] = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
   if (!existingRows.length) return res.status(404).json({ error: 'No encontrado' });
   await db.query(
-    'UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=?, brand_name=?, brand_tagline=?, home_slot=?, sort_order=? WHERE id=?',
+    'UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=?, brand_name=?, brand_tagline=?, home_slot=?, sort_order=?, image_before=?, image_after=? WHERE id=?',
     [
       title ?? existingRows[0].title,
       category ?? existingRows[0].category,
@@ -1088,10 +1203,12 @@ app.put('/api/services/:id', authMiddleware, async (req, res) => {
       brandTagline !== undefined ? (brandTagline?.trim() || null) : existingRows[0].brand_tagline,
       homeSlot !== undefined ? (homeSlot === null ? null : Number(homeSlot)) : existingRows[0].home_slot,
       sortOrder ?? existingRows[0].sort_order,
+      imageBefore !== undefined ? (imageBefore || null) : existingRows[0].image_before,
+      imageAfter !== undefined ? (imageAfter || null) : existingRows[0].image_after,
       req.params.id
     ]
   );
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services WHERE id=?', [req.params.id]);
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services WHERE id=?', [req.params.id]);
   res.json(rows[0]);
 });
 
@@ -1113,8 +1230,147 @@ app.patch('/api/services/reorder', authMiddleware, async (req, res) => {
   for (let i = 0; i < order.length; i++) {
     await db.query('UPDATE services SET sort_order = ? WHERE id = ?', [i, order[i]]);
   }
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
+});
+
+// ─────────────── CHAT ───────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Create or retrieve a chat session (public)
+app.post('/api/chat/sessions', chatSessionLimiter, async (req, res) => {
+  await ensureChatTables();
+  const { sessionId, visitorName } = req.body || {};
+  if (!sessionId) return res.status(400).json({ error: 'sessionId required' });
+  if (!UUID_RE.test(sessionId)) return res.status(400).json({ error: 'sessionId inválido' });
+  const [existing] = await db.query('SELECT * FROM chat_sessions WHERE session_id = ?', [sessionId]);
+  if (existing.length > 0) {
+    if (visitorName && visitorName.trim()) {
+      await db.query('UPDATE chat_sessions SET visitor_name = ? WHERE session_id = ?', [visitorName.trim(), sessionId]);
+    }
+    return res.json({ ...existing[0], visitorName: visitorName?.trim() || existing[0].visitor_name });
+  }
+  const name = (visitorName && visitorName.trim()) ? visitorName.trim() : 'Visitor';
+  await db.query('INSERT INTO chat_sessions (session_id, visitor_name) VALUES (?, ?)', [sessionId, name]);
+  const [[row]] = await db.query('SELECT * FROM chat_sessions WHERE session_id = ?', [sessionId]);
+  res.status(201).json(row);
+});
+
+// Get messages for a session (public — session_id acts as the access token)
+app.get('/api/chat/messages/:sessionId', async (req, res) => {
+  await ensureChatTables();
+  const [rows] = await db.query(
+    'SELECT id, session_id, sender, message, created_at FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC',
+    [req.params.sessionId]
+  );
+  res.json(rows);
+});
+
+const AUTO_REPLY = `¡Hola! 👋 Gracias por contactarnos. Somos el equipo de JJ Construcción.\n\nPor favor cuéntanos:\n• ¿Cuál es tu consulta o necesidad?\n• ¿En qué proyecto o servicio estás interesado?\n\nUn asesor te responderá a la brevedad. ¡Estamos aquí para ayudarte!`;
+
+const NOTIFY_WHATSAPP = process.env.NOTIFY_WHATSAPP;
+const NOTIFY_EMAIL    = process.env.NOTIFY_EMAIL;
+
+async function sendChatNotification(visitorName, firstMessage) {
+  const preview = firstMessage.length > 120 ? firstMessage.slice(0, 120) + '…' : firstMessage;
+
+  // WhatsApp via Twilio
+  if (NOTIFY_WHATSAPP && TWILIO_ACCOUNT_SID && TWILIO_AUTH_TOKEN && TWILIO_FROM_NUMBER) {
+    try {
+      const client = getTwilioClient();
+      await client.messages.create({
+        from: `whatsapp:${TWILIO_FROM_NUMBER}`,
+        to:   `whatsapp:${NOTIFY_WHATSAPP}`,
+        body: `💬 *Nuevo mensaje en el chat*\n\n👤 Visitante: ${visitorName}\n📝 Mensaje: "${preview}"\n\nResponde desde el panel admin → Live Chat.`,
+      });
+    } catch (err) {
+      console.error('[chat notify] WhatsApp error:', err.message);
+    }
+  }
+
+  // Email via Nodemailer
+  if (NOTIFY_EMAIL && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to:   NOTIFY_EMAIL,
+        subject: `💬 Nuevo mensaje en el chat — ${visitorName}`,
+        html: `
+          <h2 style="color:#1e5631;">Nuevo mensaje en el chat</h2>
+          <p><strong>Visitante:</strong> ${visitorName}</p>
+          <p><strong>Mensaje:</strong></p>
+          <blockquote style="border-left:4px solid #1e5631;padding:8px 16px;color:#333;background:#f0faf3;">${preview}</blockquote>
+          <p>Entra al panel de administración → sección <strong>Live Chat</strong> para responderle.</p>
+        `,
+      });
+    } catch (err) {
+      console.error('[chat notify] Email error:', err.message);
+    }
+  }
+}
+
+// User sends a message (public)
+app.post('/api/chat/messages', chatMsgLimiter, async (req, res) => {
+  await ensureChatTables();
+  const { sessionId, message } = req.body || {};
+  if (!sessionId || !message || !String(message).trim()) return res.status(400).json({ error: 'sessionId and message required' });
+  if (!UUID_RE.test(sessionId)) return res.status(400).json({ error: 'sessionId inválido' });
+  if (String(message).length > 2000) return res.status(400).json({ error: 'Mensaje demasiado largo (máx. 2000 caracteres)' });
+  const [session] = await db.query('SELECT id FROM chat_sessions WHERE session_id = ?', [sessionId]);
+  if (!session.length) return res.status(404).json({ error: 'Session not found' });
+
+  // check if this is the first user message in the session
+  const [[{ count: prevCount }]] = await db.query(
+    'SELECT COUNT(*) AS count FROM chat_messages WHERE session_id = ? AND sender = ?',
+    [sessionId, 'user']
+  );
+  const isFirst = Number(prevCount) === 0;
+
+  await db.query('INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)', [sessionId, 'user', String(message).trim()]);
+  await db.query('UPDATE chat_sessions SET unread_admin = unread_admin + 1, last_message_at = NOW() WHERE session_id = ?', [sessionId]);
+  const [[row]] = await db.query('SELECT id, session_id, sender, message, created_at FROM chat_messages WHERE session_id = ? ORDER BY id DESC LIMIT 1', [sessionId]);
+
+  // on first message: auto-reply + notify admin
+  if (isFirst) {
+    await db.query('INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)', [sessionId, 'admin', AUTO_REPLY]);
+    await db.query('UPDATE chat_sessions SET last_message_at = NOW() WHERE session_id = ?', [sessionId]);
+
+    // get visitor name for the notification
+    const [[sess]] = await db.query('SELECT visitor_name FROM chat_sessions WHERE session_id = ?', [sessionId]);
+    sendChatNotification(sess?.visitor_name || 'Visitante', String(message).trim()).catch(() => {});
+  }
+
+  res.status(201).json(row);
+});
+
+// Admin: list all chat sessions (protected)
+app.get('/api/chat/sessions', authMiddleware, async (req, res) => {
+  await ensureChatTables();
+  const [rows] = await db.query(
+    'SELECT id, session_id, visitor_name, status, unread_admin, created_at, last_message_at FROM chat_sessions ORDER BY last_message_at DESC'
+  );
+  res.json(rows);
+});
+
+// Admin: reply to a session (protected)
+app.post('/api/chat/sessions/:sessionId/reply', authMiddleware, async (req, res) => {
+  await ensureChatTables();
+  const { message } = req.body || {};
+  if (!message || !String(message).trim()) return res.status(400).json({ error: 'message required' });
+  const [session] = await db.query('SELECT id FROM chat_sessions WHERE session_id = ?', [req.params.sessionId]);
+  if (!session.length) return res.status(404).json({ error: 'Session not found' });
+  await db.query('INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)', [req.params.sessionId, 'admin', String(message).trim()]);
+  await db.query('UPDATE chat_sessions SET last_message_at = NOW() WHERE session_id = ?', [req.params.sessionId]);
+  const [[row]] = await db.query('SELECT id, session_id, sender, message, created_at FROM chat_messages WHERE session_id = ? ORDER BY id DESC LIMIT 1', [req.params.sessionId]);
+  res.status(201).json(row);
+});
+
+// Admin: mark session as read (protected)
+app.put('/api/chat/sessions/:sessionId/read', authMiddleware, async (req, res) => {
+  await ensureChatTables();
+  await db.query('UPDATE chat_sessions SET unread_admin = 0 WHERE session_id = ?', [req.params.sessionId]);
+  res.json({ ok: true });
 });
 
 app.listen(PORT, () => console.log('Servidor API en http://localhost:' + PORT));
