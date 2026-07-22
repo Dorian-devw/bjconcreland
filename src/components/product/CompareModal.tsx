@@ -8,7 +8,7 @@ import type { CatalogOffer } from '@/pages/Catalog';
 interface CompareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  offersByProductId: Record<string, CatalogOffer>;
+  offersByProductId?: Record<string, CatalogOffer>;
 }
 
 function Stars({ rating }: { rating: number }) {
@@ -119,7 +119,7 @@ function CellContent({
   }
 }
 
-export function CompareModal({ isOpen, onClose, offersByProductId }: CompareModalProps) {
+export function CompareModal({ isOpen, onClose, offersByProductId = {} }: CompareModalProps) {
   const { items, remove } = useCompareStore();
   const { addToCart } = useCartStore();
 

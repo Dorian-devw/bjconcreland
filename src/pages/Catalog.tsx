@@ -3,8 +3,6 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { Search } from 'lucide-react';
 import { ProductCard } from '@/components/product/ProductCard';
-import { CompareBar } from '@/components/product/CompareBar';
-import { CompareModal } from '@/components/product/CompareModal';
 import { useProductsStore } from '@/store/productsStore';
 import { useCompareStore } from '@/store/compareStore';
 import { Input } from '@/components/ui/input';
@@ -26,7 +24,6 @@ export function Catalog() {
   const { products, loading, error, fetchProducts } = useProductsStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const [offersByProductId, setOffersByProductId] = useState<Record<string, CatalogOffer>>({});
-  const [compareOpen, setCompareOpen] = useState(false);
   const { items: compareItems } = useCompareStore();
   const [categories, setCategories] = useState<CategoryFromApi[]>([]);
   const [filterGroups, setFilterGroups] = useState<FilterGroupFromApi[]>([]);
@@ -295,13 +292,6 @@ export function Catalog() {
         </div>
       </div>
 
-      {/* Compare floating bar + modal */}
-      <CompareBar onCompare={() => setCompareOpen(true)} />
-      <CompareModal
-        isOpen={compareOpen}
-        onClose={() => setCompareOpen(false)}
-        offersByProductId={offersByProductId}
-      />
     </div>
   );
 }

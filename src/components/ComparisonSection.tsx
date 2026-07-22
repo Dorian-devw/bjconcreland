@@ -350,7 +350,7 @@ function MobileCards() {
 
       {/* Other plans quick links */}
       <div className="flex gap-3">
-        {PLANS.filter((_, i) => i !== active).map((p, i) => (
+        {PLANS.filter((_, i) => i !== active).map((p) => (
           <button
             key={p.id}
             onClick={() => setActive(PLANS.findIndex((pl) => pl.id === p.id))}

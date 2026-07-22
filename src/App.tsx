@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useSettingsStore } from '@/store/settingsStore';
+import { CompareBar } from '@/components/product/CompareBar';
+import { CompareModal } from '@/components/product/CompareModal';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { CartSidebar } from '@/components/cart/CartSidebar';
@@ -22,6 +24,7 @@ import { Toaster } from 'sonner';
 import { ChatWidget } from '@/components/ChatWidget';
 
 function AppContent() {
+  const [compareOpen, setCompareOpen] = useState(false);
   const location = useLocation();
   const isAdmin = location.pathname === '/jozarzc';
   const hideFooter = isAdmin;
@@ -80,6 +83,8 @@ function AppContent() {
       </main>
       {!hideFooter && <Footer />}
       {!isAdmin && <ChatWidget />}
+      {!isAdmin && <CompareBar onCompare={() => setCompareOpen(true)} />}
+      {!isAdmin && <CompareModal isOpen={compareOpen} onClose={() => setCompareOpen(false)} />}
       <Toaster position="top-right" richColors closeButton />
     </div>
   );

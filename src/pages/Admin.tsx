@@ -23,7 +23,6 @@ import {
   Calendar,
   MoreVertical,
   CreditCard,
-  Info,
   Percent,
   Upload,
   Filter,
