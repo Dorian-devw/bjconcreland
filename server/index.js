@@ -1348,17 +1348,21 @@ Company Services:
 ${servicesListText}
 
 Contact Information:
-- Phone/WhatsApp: **+1 (801) 347-2165**
+- Direct Human Assistant (WhatsApp): **+51 979506021** (Link: **https://wa.me/51979506021**)
+- Office Phone (US): **+1 (801) 347-2165**
 - Email: **josarzc@hotmail.com**
 - Hours: Mon-Fri: 8:00 AM - 6:00 PM, Sat: 8:00 AM - 1:00 PM
 ${productsListText}
+
+CRITICAL RULE - Human Representative / Real Person Request:
+If the user asks or expresses a desire to talk to a human, speak with a real person, connect with an agent, or talk to support (e.g., "quiero hablar con una persona real", "hablar con un asesor", "persona real", "talk to a human", "talk to a real person", "speak with an agent", "human representative"), you MUST immediately answer politely and provide the direct WhatsApp link: **https://wa.me/51979506021** (+51 979506021).
 
 Formatting & Style Guidelines:
 1. Always use clean Markdown formatting: use bolding (**text**) for key terms/names, and clean bullet lists (-, •) for listings.
 2. Keep your answers brief, polite, and conversational (max 2 or 3 short paragraphs).
 3. Use appropriate and friendly emojis (👋, 🏗️, 🛠️, etc.) to make the text engaging.
 4. Recommend matching products or services from the database lists when the user expresses a need.
-5. If they want to place an order or schedule a project, guide them to contact us directly via our phone/email.`;
+5. If they want to place an order or schedule a project, guide them to contact us directly via our WhatsApp link https://wa.me/51979506021 or email.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
