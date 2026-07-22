@@ -18,6 +18,28 @@ interface ChatMessage {
   created_at: string;
 }
 
+function renderMessageContent(text: string) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  return lines.map((line, lineIdx) => {
+    // Split by markdown bold tags: **bold**
+    const parts = line.split(/(\*\*.*?\*\*)/g);
+    const lineContent = parts.map((part, partIdx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={partIdx} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+
+    return (
+      <span key={lineIdx}>
+        {lineContent}
+        {lineIdx < lines.length - 1 && <br />}
+      </span>
+    );
+  });
+}
+
 export function ChatWidget() {
   const location = useLocation();
 
@@ -216,7 +238,7 @@ export function ChatWidget() {
                         : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-bl-sm'
                     }`}
                   >
-                    <p>{msg.message}</p>
+                    <p className="whitespace-pre-wrap">{renderMessageContent(msg.message)}</p>
                     <p className={`text-[10px] mt-0.5 ${msg.sender === 'user' ? 'text-white/55 text-right' : 'text-gray-400'}`}>
                       {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>

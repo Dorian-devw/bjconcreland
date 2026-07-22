@@ -1310,6 +1310,106 @@ async function sendChatNotification(visitorName, firstMessage) {
   }
 }
 
+async function getGroqReply(chatHistory, dbProducts = [], dbServices = [], visitorName = 'Visitor') {
+  return new Promise((resolve, reject) => {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return reject(new Error('GROQ_API_KEY no configurada'));
+    }
+
+    // Format products list for AI context
+    let productsListText = "";
+    if (dbProducts && dbProducts.length > 0) {
+      productsListText = "\nProducts currently in our store (you can recommend these):" +
+        dbProducts.map(p => `\n- **${p.name}** ($${p.price}) | Category: ${p.category} | ${p.description || 'No description'}`).join('');
+    } else {
+      productsListText = "\n(No products are currently available in the database, but we sell general construction tools and supplies).";
+    }
+
+    // Format services list for AI context
+    let servicesListText = "";
+    if (dbServices && dbServices.length > 0) {
+      servicesListText = "\nServices we offer (you can recommend these):" +
+        dbServices.map(s => `\n- **${s.title}** (Category: ${s.category}) | ${s.description || 'No description'}`).join('');
+    } else {
+      servicesListText = "\nServices we offer:\n- **General Construction & Renovations**\n- **Home Remodeling & Finishes**\n- **Concrete, Masonry & Structures**\n- **Project Design**";
+    }
+
+    const systemPrompt = `You are the virtual AI assistant for the company "JJ Construcción".
+Your goal is to assist visitors professionally, warmly, and efficiently.
+
+Visitor's Name: "${visitorName}"
+(Address the user by their name in a friendly, natural way. If the name is 'Visitor' or 'Visitante', use a general warm greeting).
+
+Language Rule:
+Our target audience is primarily English-speaking, so please respond in English by default. However, if the user writes to you in Spanish or any other language, you MUST respond in that same language.
+
+Company Services:
+${servicesListText}
+
+Contact Information:
+- Phone/WhatsApp: **+1 (801) 347-2165**
+- Email: **josarzc@hotmail.com**
+- Hours: Mon-Fri: 8:00 AM - 6:00 PM, Sat: 8:00 AM - 1:00 PM
+${productsListText}
+
+Formatting & Style Guidelines:
+1. Always use clean Markdown formatting: use bolding (**text**) for key terms/names, and clean bullet lists (-, •) for listings.
+2. Keep your answers brief, polite, and conversational (max 2 or 3 short paragraphs).
+3. Use appropriate and friendly emojis (👋, 🏗️, 🛠️, etc.) to make the text engaging.
+4. Recommend matching products or services from the database lists when the user expresses a need.
+5. If they want to place an order or schedule a project, guide them to contact us directly via our phone/email.`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...chatHistory.map(h => ({
+        role: h.sender === 'user' ? 'user' : 'assistant',
+        content: h.message
+      }))
+    ];
+
+    const postData = JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 500
+    });
+
+    const options = {
+      hostname: 'api.groq.com',
+      port: 443,
+      path: '/openai/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          if (res.statusCode !== 200) {
+            return reject(new Error(`Groq API error (status ${res.statusCode}): ${data}`));
+          }
+          const response = JSON.parse(data);
+          const reply = response.choices?.[0]?.message?.content || '';
+          resolve(reply.trim());
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    req.on('error', (e) => reject(e));
+    req.write(postData);
+    req.end();
+  });
+}
+
 // User sends a message (public)
 app.post('/api/chat/messages', chatMsgLimiter, async (req, res) => {
   await ensureChatTables();
@@ -1317,8 +1417,10 @@ app.post('/api/chat/messages', chatMsgLimiter, async (req, res) => {
   if (!sessionId || !message || !String(message).trim()) return res.status(400).json({ error: 'sessionId and message required' });
   if (!UUID_RE.test(sessionId)) return res.status(400).json({ error: 'sessionId inválido' });
   if (String(message).length > 2000) return res.status(400).json({ error: 'Mensaje demasiado largo (máx. 2000 caracteres)' });
-  const [session] = await db.query('SELECT id FROM chat_sessions WHERE session_id = ?', [sessionId]);
+  
+  const [session] = await db.query('SELECT id, visitor_name FROM chat_sessions WHERE session_id = ?', [sessionId]);
   if (!session.length) return res.status(404).json({ error: 'Session not found' });
+  const visitorName = session[0].visitor_name || 'Visitor';
 
   // check if this is the first user message in the session
   const [[{ count: prevCount }]] = await db.query(
@@ -1327,16 +1429,50 @@ app.post('/api/chat/messages', chatMsgLimiter, async (req, res) => {
   );
   const isFirst = Number(prevCount) === 0;
 
+  // Insert user's message
   await db.query('INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)', [sessionId, 'user', String(message).trim()]);
   await db.query('UPDATE chat_sessions SET unread_admin = unread_admin + 1, last_message_at = NOW() WHERE session_id = ?', [sessionId]);
   const [[row]] = await db.query('SELECT id, session_id, sender, message, created_at FROM chat_messages WHERE session_id = ? ORDER BY id DESC LIMIT 1', [sessionId]);
 
-  // on first message: auto-reply + notify admin
-  if (isFirst) {
-    await db.query('INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)', [sessionId, 'admin', AUTO_REPLY]);
-    await db.query('UPDATE chat_sessions SET last_message_at = NOW() WHERE session_id = ?', [sessionId]);
+  // Fetch conversation history for Groq context (last 20 messages)
+  const [history] = await db.query(
+    'SELECT sender, message FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC LIMIT 20',
+    [sessionId]
+  );
 
-    // get visitor name for the notification
+  // Fetch active products and services from database to feed into the AI context
+  let dbProducts = [];
+  let dbServices = [];
+  try {
+    const [productsRows] = await db.query('SELECT name, price, category, description, stock FROM products LIMIT 25');
+    dbProducts = productsRows;
+  } catch (dbErr) {
+    console.error('[Groq context product fetch error]:', dbErr.message);
+  }
+
+  try {
+    const [servicesRows] = await db.query('SELECT title, category, description FROM services LIMIT 25');
+    dbServices = servicesRows;
+  } catch (dbErr) {
+    console.error('[Groq context services fetch error]:', dbErr.message);
+  }
+
+  let replyText = '';
+  try {
+    // Generate AI response with products and services list + visitor name personalization
+    replyText = await getGroqReply(history, dbProducts, dbServices, visitorName);
+  } catch (error) {
+    console.error('[Groq Chatbot Error]:', error.message);
+    // Fallback response if AI fails
+    replyText = isFirst ? AUTO_REPLY : 'I apologize, I am experiencing technical difficulties. A representative will get back to you shortly.';
+  }
+
+  // Insert AI reply as admin message
+  await db.query('INSERT INTO chat_messages (session_id, sender, message) VALUES (?, ?, ?)', [sessionId, 'admin', replyText]);
+  await db.query('UPDATE chat_sessions SET last_message_at = NOW() WHERE session_id = ?', [sessionId]);
+
+  // Notify admin on first message
+  if (isFirst) {
     const [[sess]] = await db.query('SELECT visitor_name FROM chat_sessions WHERE session_id = ?', [sessionId]);
     sendChatNotification(sess?.visitor_name || 'Visitante', String(message).trim()).catch(() => {});
   }
