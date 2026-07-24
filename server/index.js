@@ -1135,9 +1135,9 @@ app.post('/api/create-payment-intent', async (req, res) => {
         total += price * item.quantity;
       }
     }
-    const shipping = total > 500 ? 0 : 25;
-    const tax = Math.round(total * 0.08 * 100) / 100;
-    const finalAmount = Math.round((total + shipping + tax) * 100);
+    const shipping = 0; // Forced free shipping per request (aligned with frontend)
+    const tax = 0; // Tax removed per user request
+    const finalAmount = Math.round((total + shipping) * 100);
     const paymentIntent = await stripe.paymentIntents.create({
       amount: finalAmount, currency: 'usd', automatic_payment_methods: { enabled: true },
       metadata: { customer_name: customer?.name || '', customer_email: customer?.email || '' }
@@ -1348,21 +1348,21 @@ Company Services:
 ${servicesListText}
 
 Contact Information:
-- Direct Human Assistant (WhatsApp): **+51 979506021** (Link: **https://wa.me/51979506021**)
+- Direct Human Assistant (WhatsApp): **+1 (801) 347-2165** (Link: **https://wa.me/18013472165**)
 - Office Phone (US): **+1 (801) 347-2165**
 - Email: **josarzc@hotmail.com**
 - Hours: Mon-Fri: 8:00 AM - 6:00 PM, Sat: 8:00 AM - 1:00 PM
 ${productsListText}
 
 CRITICAL RULE - Human Representative / Real Person Request:
-If the user asks or expresses a desire to talk to a human, speak with a real person, connect with an agent, or talk to support (e.g., "quiero hablar con una persona real", "hablar con un asesor", "persona real", "talk to a human", "talk to a real person", "speak with an agent", "human representative"), you MUST immediately answer politely and provide the direct WhatsApp link: **https://wa.me/51979506021** (+51 979506021).
+If the user asks or expresses a desire to talk to a human, speak with a real person, connect with an agent, or talk to support (e.g., "quiero hablar con una persona real", "hablar con un asesor", "persona real", "talk to a human", "talk to a real person", "speak with an agent", "human representative"), you MUST immediately answer politely and provide the direct WhatsApp link: **https://wa.me/18013472165** (+1 (801) 347-2165).
 
 Formatting & Style Guidelines:
 1. Always use clean Markdown formatting: use bolding (**text**) for key terms/names, and clean bullet lists (-, •) for listings.
 2. Keep your answers brief, polite, and conversational (max 2 or 3 short paragraphs).
 3. Use appropriate and friendly emojis (👋, 🏗️, 🛠️, etc.) to make the text engaging.
 4. Recommend matching products or services from the database lists when the user expresses a need.
-5. If they want to place an order or schedule a project, guide them to contact us directly via our WhatsApp link https://wa.me/51979506021 or email.`;
+5. If they want to place an order or schedule a project, guide them to contact us directly via our WhatsApp link https://wa.me/18013472165 or email.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -1424,7 +1424,21 @@ app.post('/api/chat/messages', chatMsgLimiter, async (req, res) => {
   
   const [session] = await db.query('SELECT id, visitor_name FROM chat_sessions WHERE session_id = ?', [sessionId]);
   if (!session.length) return res.status(404).json({ error: 'Session not found' });
-  const visitorName = session[0].visitor_name || 'Visitor';
+  let visitorName = session[0].visitor_name || 'Visitor';
+
+  // Automatically extract visitor name if they introduce themselves and it's currently 'Visitor'
+  if (visitorName === 'Visitor' || visitorName === 'Visitante') {
+    const nameRegex = /(?:me llamo|mi nombre es|soy|my name is|i'm|i am)\s+([a-zA-ZñÑáéíóúüÁÉÍÓÚÜ\s]+)/i;
+    const match = String(message).match(nameRegex);
+    if (match && match[1]) {
+      const extractedName = match[1].trim().split(/\s+/)[0];
+      if (extractedName && extractedName.length > 1 && extractedName.length < 30) {
+        const formattedName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1).toLowerCase();
+        await db.query('UPDATE chat_sessions SET visitor_name = ? WHERE session_id = ?', [formattedName, sessionId]);
+        visitorName = formattedName;
+      }
+    }
+  }
 
   // check if this is the first user message in the session
   const [[{ count: prevCount }]] = await db.query(
