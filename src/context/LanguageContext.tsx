@@ -179,6 +179,12 @@ export const translations: Translations = {
     'services.featured_tag': { es: 'Featured', en: 'Featured' },
     'services.read_article': { es: 'Read full article', en: 'Read full article' },
     'services.view_details': { es: 'View details', en: 'View details' },
+    'services.no_available': { es: 'No services available.', en: 'No services available.' },
+    'services.no_category': { es: 'No services in this category.', en: 'No services in this category.' },
+    'services.interest': { es: 'Interested in any of our services?', en: 'Interested in any of our services?' },
+    'services.interest_desc': { es: 'Contact us and receive a free quote.', en: 'Contact us and receive a free quote.' },
+    'services.view_all_btn': { es: 'View all', en: 'View all' },
+    'services.get_quote': { es: 'Get Quote', en: 'Get Quote' },
 
     // Contact
     'contact.title': { es: 'Contact Us', en: 'Contact Us' },

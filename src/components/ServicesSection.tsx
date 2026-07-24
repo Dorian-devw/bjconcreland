@@ -242,7 +242,7 @@ export function ServicesSection() {
                 {!loading && filtered.length === 0 && (
                     <div className="text-center py-20">
                         <Building2 className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                        <p className="text-gray-400 text-sm">No hay servicios disponibles.</p>
+                        <p className="text-gray-400 text-sm">{t('services.no_available')}</p>
                     </div>
                 )}
 
@@ -253,17 +253,17 @@ export function ServicesSection() {
                         <div className="absolute inset-0 pointer-events-none"
                             style={{ background: 'radial-gradient(ellipse 50% 100% at 20% 50%, rgba(30,86,49,0.35) 0%, transparent 70%)' }} />
                         <div className="relative z-10">
-                            <p className="font-black text-white text-base mb-0.5">¿Te interesa alguno de nuestros servicios?</p>
-                            <p className="text-white/40 text-sm">Contáctanos y recibe una cotización sin compromiso.</p>
+                            <p className="font-black text-white text-base mb-0.5">{t('services.interest')}</p>
+                            <p className="text-white/40 text-sm">{t('services.interest_desc')}</p>
                         </div>
                         <div className="relative z-10 flex items-center gap-3 shrink-0">
                             <Link to="/services" onClick={() => window.scrollTo(0, 0)}
                                 className="text-white/60 hover:text-white font-bold text-sm transition-colors px-5 py-2.5 rounded-full border border-white/10 hover:border-white/30">
-                                Ver todos
+                                {t('services.view_all_btn')}
                             </Link>
                             <Link to="/contact" onClick={() => window.scrollTo(0, 0)}
                                 className="inline-flex items-center gap-2 bg-[#e85d04] hover:bg-[#c94e00] text-white font-black text-sm px-6 py-2.5 rounded-full transition-all duration-200 shadow-lg shadow-[#e85d04]/20">
-                                Cotizar
+                                {t('services.get_quote')}
                                 <ArrowRight className="w-4 h-4" />
                             </Link>
                         </div>
