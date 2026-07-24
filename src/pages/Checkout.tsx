@@ -147,8 +147,8 @@ export function Checkout() {
 
   const subtotal = getTotalPrice();
   const shipping: number = 0; // Forced free shipping per request
-  const taxEstimated = Math.round(subtotal * 0.08 * 100) / 100;
-  const total = subtotal + shipping + taxEstimated;
+  const taxEstimated = 0;
+  const total = subtotal + shipping;
 
   const isFormValid = useMemo(() => {
     const nameOk = formData.fullName.trim().length >= 3;
@@ -303,10 +303,6 @@ export function Checkout() {
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal</span>
                 <span className="font-medium">${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>Tax (Included)</span>
-                <span className="font-medium">${tax.toFixed(2)}</span>
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-4">
                 <span className="text-xl font-bold text-[#111]">Total Paid</span>
@@ -509,10 +505,6 @@ export function Checkout() {
                   <span className="text-[#2d9d5f] font-medium">
                     {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
                   </span>
-                </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>Tax (estimated)</span>
-                  <span className="text-[#333]">${taxEstimated.toFixed(2)}</span>
                 </div>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-gray-200 mb-6">
