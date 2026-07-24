@@ -121,17 +121,20 @@ export function ChatWidget() {
     return () => clearInterval(id);
   }, [initialized, isAdmin, fetchMessages]);
 
+  const prevOpen = useRef(open);
+  const prevMessagesLength = useRef(messages.length);
+
   useEffect(() => {
     if (open) {
       setUnread(0);
       lastAdminCount.current = messages.filter((m) => m.sender === 'admin').length;
+    }
+    if (open && (!prevOpen.current || messages.length > prevMessagesLength.current)) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 80);
     }
+    prevOpen.current = open;
+    prevMessagesLength.current = messages.length;
   }, [open, messages]);
-
-  useEffect(() => {
-    if (open) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, open]);
 
   if (isAdmin) return null;
 
@@ -159,6 +162,12 @@ export function ChatWidget() {
     const text = input.trim();
     setInput('');
     setSending(true);
+
+    // Auto-save name if they typed it in nameInput but didn't click save
+    if (!visitorName && nameInput.trim()) {
+      await handleSetName();
+    }
+
     try {
       await fetch(`${API}/chat/messages`, {
         method: 'POST',
@@ -215,7 +224,7 @@ export function ChatWidget() {
               </p>
             </div>
             <a
-              href="https://wa.me/51979506021"
+              href="https://wa.me/18013472165"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold px-3 py-1 rounded-full transition-all shadow-sm active:scale-95 shrink-0"
@@ -262,7 +271,7 @@ export function ChatWidget() {
                   Ask our AI assistant or talk directly with a Human Assistant.
                 </p>
                 <a
-                  href="https://wa.me/51979506021"
+                  href="https://wa.me/18013472165"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 mt-4 bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md active:scale-95"
