@@ -147,7 +147,6 @@ export function Checkout() {
 
   const subtotal = getTotalPrice();
   const shipping: number = 0; // Forced free shipping per request
-  const taxEstimated = 0;
   const total = subtotal + shipping;
 
   const isFormValid = useMemo(() => {
@@ -227,8 +226,7 @@ export function Checkout() {
   }
 
   if (showSuccess && lastOrder) {
-    const subtotal = lastOrder.total / 1.08; // Backward calculation for demo
-    const tax = lastOrder.total - subtotal;
+    const subtotal = lastOrder.total;
 
     return (
       <div className="min-h-screen bg-[#f8f9fa] pt-[8.75rem] pb-12 flex items-center justify-center p-4">
