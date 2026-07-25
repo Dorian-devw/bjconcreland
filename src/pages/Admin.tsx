@@ -1964,10 +1964,10 @@ export function Admin() {
   );
 
   const sectionLabel: Record<AdminSection, string> = {
-    dashboard: 'Dashboard', orders: 'Pedidos', products: 'Productos',
-    categories: 'Categorías', filterGroups: 'Filtros', carousel: 'Carrusel',
-    promoBanners: 'Banners', offers: 'Ofertas', services: 'Servicios',
-    settings: 'Configuración', chat: 'Live Chat',
+    dashboard: 'Dashboard', orders: 'Orders', products: 'Products',
+    categories: 'Home Categories', filterGroups: 'Store Filters', carousel: 'Carousel',
+    promoBanners: 'Promo Banners', offers: 'Offers', services: 'Services / Blog',
+    settings: 'Settings', chat: 'Live Chat',
   };
 
   return (
@@ -1988,7 +1988,7 @@ export function Admin() {
             style={{ background: 'linear-gradient(135deg,#e85d04,#c44d03)' }}>JJ</div>
           <div>
             <p className="text-white font-bold text-[13px] leading-none">JJ Construcción</p>
-            <p className="text-slate-500 text-[10px] mt-0.5">Panel Admin</p>
+            <p className="text-slate-500 text-[10px] mt-0.5">Admin Panel</p>
           </div>
         </div>
 
@@ -2001,19 +2001,19 @@ export function Admin() {
           {navItem('chat', <MessageCircle className="w-4 h-4" />, 'Live Chat',
             chatUnread > 0 ? <span className="ml-auto bg-emerald-400 text-[#0f172a] text-[10px] font-black px-1.5 py-0.5 rounded-md">{chatUnread}</span> : undefined)}
 
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Contenido</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Content</p>
           {navItem('products', <Package className="w-4 h-4" />, t('admin.products'))}
           {navItem('services', <BookOpen className="w-4 h-4" />, t('admin.services'))}
           {navItem('categories', <Layers className="w-4 h-4" />, t('admin.categories'))}
           {navItem('filterGroups', <Filter className="w-4 h-4" />, t('admin.filterGroups'))}
 
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Tienda</p>
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Store</p>
           {navItem('carousel', <ImageIcon className="w-4 h-4" />, t('admin.carousel'))}
           {navItem('promoBanners', <LayoutGrid className="w-4 h-4" />, t('admin.promoBanners'))}
           {navItem('offers', <Percent className="w-4 h-4" />, t('admin.offers'))}
 
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Sistema</p>
-          {navItem('settings', <Settings className="w-4 h-4" />, 'Configuración')}
+          <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">System</p>
+          {navItem('settings', <Settings className="w-4 h-4" />, 'Settings')}
         </nav>
 
         {/* User + Logout */}
@@ -2021,8 +2021,8 @@ export function Admin() {
           <div className="flex items-center gap-2.5 px-3 mb-3">
             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#e85d04] to-[#c44d03] flex items-center justify-center text-white text-[10px] font-black shrink-0">A</div>
             <div className="min-w-0">
-              <p className="text-white text-[12px] font-semibold leading-none truncate">Administrador</p>
-              <p className="text-slate-500 text-[10px] mt-0.5">En línea</p>
+              <p className="text-white text-[12px] font-semibold leading-none truncate">Administrator</p>
+              <p className="text-slate-500 text-[10px] mt-0.5">Online</p>
             </div>
           </div>
           <button onClick={() => { logout(); navigate('/login'); }}
@@ -2050,7 +2050,7 @@ export function Admin() {
 
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">Panel</span>
+            <span className="text-slate-400">Admin</span>
             <span className="text-slate-300">/</span>
             <span className="font-semibold text-slate-700">{sectionLabel[section]}</span>
           </div>
@@ -2060,7 +2060,7 @@ export function Admin() {
             <Link to="/" target="_blank"
               className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white">
               <ExternalLink className="w-3.5 h-3.5" />
-              Ver sitio
+              View site
             </Link>
             {chatUnread > 0 && (
               <button onClick={() => setSection('chat')}
@@ -2086,7 +2086,7 @@ export function Admin() {
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" className="border-slate-200 text-slate-500 text-sm h-9">
                     <Calendar className="w-3.5 h-3.5 mr-1.5" />
-                    Últimos 30 días
+                    Last 30 days
                   </Button>
                   <Button onClick={openAddProduct}
                     className="text-sm h-9 font-semibold text-white shadow-md shadow-[#e85d04]/20"
@@ -2201,9 +2201,9 @@ export function Admin() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
-                  { icon: ShoppingBag, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/15', label: 'Pedidos', desc: 'Gestiona y actualiza el estado de los pedidos.', action: 'orders' as AdminSection },
-                  { icon: Package, color: 'from-emerald-500 to-green-600', shadow: 'shadow-emerald-500/15', label: 'Productos', desc: 'Agrega, edita y administra el inventario.', action: 'products' as AdminSection },
-                  { icon: MessageCircle, color: 'from-[#e85d04] to-[#c44d03]', shadow: 'shadow-orange-500/15', label: 'Live Chat', desc: 'Responde mensajes de visitantes en tiempo real.', action: 'chat' as AdminSection },
+                  { icon: ShoppingBag, color: 'from-blue-500 to-blue-600', shadow: 'shadow-blue-500/15', label: 'Orders', desc: 'Manage and update order status.', action: 'orders' as AdminSection },
+                  { icon: Package, color: 'from-emerald-500 to-green-600', shadow: 'shadow-emerald-500/15', label: 'Products', desc: 'Add, edit and manage inventory.', action: 'products' as AdminSection },
+                  { icon: MessageCircle, color: 'from-[#e85d04] to-[#c44d03]', shadow: 'shadow-orange-500/15', label: 'Live Chat', desc: 'Reply to visitor messages in real time.', action: 'chat' as AdminSection },
                 ].map(({ icon: Icon, color, shadow, label, desc, action }) => (
                   <button key={action} onClick={() => setSection(action)}
                     className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-200 p-5 text-left flex items-start gap-4">
@@ -3247,13 +3247,13 @@ export function Admin() {
                     ) : (
                       <div className="text-center p-4">
                         <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                        <span className="text-xs text-gray-400">Sin logo</span>
+                        <span className="text-xs text-gray-400">No logo</span>
                       </div>
                     )}
                     {uploadingLogo && (
                       <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center">
                         <Loader className="w-6 h-6 text-[#1e5631] animate-spin mb-1" />
-                        <span className="text-xs font-medium text-[#1e5631]">Subiendo...</span>
+                        <span className="text-xs font-medium text-[#1e5631]">Uploading...</span>
                       </div>
                     )}
                   </div>
@@ -3540,9 +3540,9 @@ export function Admin() {
 
               {/* ========== GLOBAL TEXT SETTINGS ========== */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Textos Globales y Navegación</h3>
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Global Texts and Navigation</h3>
                 <p className="text-sm text-gray-500 mb-6">
-                  Modifica los textos de los botones, menús de navegación y pequeños subtítulos de toda la página pública.
+                  Modify the button texts, navigation menus, and small subtitles across the public website.
                 </p>
 
                 <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
@@ -3597,10 +3597,10 @@ export function Admin() {
 
               {/* header settings*/}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Encabezado de Servicios (Home)</h3>
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Services Header (Home)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Título Principal</Label>
+                    <Label>Main Title</Label>
                     <Input 
                       className="mt-1" 
                       value={servicesHeaderForm.title} 
@@ -3609,7 +3609,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Texto Destacado (Verde)</Label>
+                    <Label>Highlighted Text (Green)</Label>
                     <Input 
                       className="mt-1" 
                       value={servicesHeaderForm.highlight} 
@@ -3618,7 +3618,7 @@ export function Admin() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Descripción</Label>
+                    <Label>Description</Label>
                     <textarea 
                       className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
                       value={servicesHeaderForm.description}
@@ -3642,10 +3642,10 @@ export function Admin() {
 
               {/* contact settings*/}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Página de Contacto</h3>
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Contact Page</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <Label>Título</Label>
+                    <Label>Title</Label>
                     <Input 
                       className="mt-1" 
                       value={contactInfoForm.title} 
@@ -3654,7 +3654,7 @@ export function Admin() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Descripción</Label>
+                    <Label>Description</Label>
                     <textarea 
                       className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
                       value={contactInfoForm.description}
@@ -3663,7 +3663,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Teléfono de Contacto</Label>
+                    <Label>Contact Phone</Label>
                     <Input 
                       className="mt-1" 
                       value={contactInfoForm.phone} 
@@ -3672,7 +3672,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Email de Contacto</Label>
+                    <Label>Contact Email</Label>
                     <Input 
                       className="mt-1" 
                       type="email"
@@ -3697,10 +3697,10 @@ export function Admin() {
 
               {/* heavy equipment settings */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Página Equipo Pesado (Banner)</h3>
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Heavy Equipment Page (Banner)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Etiqueta / Badge superior</Label>
+                    <Label>Label / Top Badge</Label>
                     <Input 
                       className="mt-1" 
                       value={heavyEqForm.badge} 
@@ -3709,7 +3709,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Título Principal</Label>
+                    <Label>Main Title</Label>
                     <Input 
                       className="mt-1" 
                       value={heavyEqForm.title} 
@@ -3718,7 +3718,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Texto Destacado (Naranja)</Label>
+                    <Label>Highlighted Text (Orange)</Label>
                     <Input 
                       className="mt-1" 
                       value={heavyEqForm.highlight} 
@@ -3727,7 +3727,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Texto Inferior Gigante</Label>
+                    <Label>Bottom Watermark Text</Label>
                     <Input 
                       className="mt-1" 
                       value={heavyEqForm.bottomText} 
@@ -3736,7 +3736,7 @@ export function Admin() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Descripción Central</Label>
+                    <Label>Main Description</Label>
                     <textarea 
                       className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
                       value={heavyEqForm.description}
@@ -3921,7 +3921,7 @@ export function Admin() {
                 ))}
               </select>
               {filterGroupsLoading && (
-                <p className="text-xs text-gray-400">Cargando grupos...</p>
+                <p className="text-xs text-gray-400">Loading groups...</p>
               )}
             </div>
             <div className="grid gap-2">
@@ -3930,12 +3930,12 @@ export function Admin() {
                 id="image"
                 value={productForm.image}
                 onChange={(e) => setProductForm((f) => ({ ...f, image: e.target.value }))}
-                placeholder="/product-drill.jpg o sube una foto"
+                placeholder="/product-drill.jpg or upload a photo"
               />
               <div className="flex flex-wrap items-center gap-3 mt-1">
                 <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-[#1e5631] text-[#1e5631] hover:bg-[#1e5631]/10 text-sm font-medium">
                   <Upload className="w-4 h-4" />
-                  Subir desde PC o celular
+                  Upload from PC or mobile
                   <input
                     type="file"
                     accept="image/*"
@@ -4078,12 +4078,12 @@ export function Admin() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="slide-image">URL de la imagen *</Label>
+              <Label htmlFor="slide-image">Image URL *</Label>
               <Input
                 id="slide-image"
                 value={slideForm.image}
                 onChange={(e) => setSlideForm((f) => ({ ...f, image: e.target.value }))}
-                placeholder="/hero-banner.jpg o https://..."
+                placeholder="/hero-banner.jpg or https://..."
               />
             </div>
             <div className="relative flex items-center gap-2">
@@ -4116,56 +4116,56 @@ export function Admin() {
                   className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#1e5631] bg-[#1e5631]/5 px-4 py-2 text-sm font-medium text-[#1e5631] hover:bg-[#1e5631]/10"
                 >
                   <Upload className="w-4 h-4" />
-                  Elegir archivo
+                  Choose file
                 </Label>
                 {uploadingSlideImage && (
                   <span className="text-xs text-gray-500 flex items-center gap-1">
                     <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
-                    Subiendo...
+                    Uploading...
                   </span>
                 )}
                 {uploadSlideImageError && (
                   <span className="text-xs text-red-500">{uploadSlideImageError}</span>
                 )}
                 {slideForm.image && !slideForm.image.startsWith('data:') && !uploadingSlideImage && (
-                  <span className="text-xs text-green-600">✓ Imagen subida</span>
+                  <span className="text-xs text-green-600">✓ Image uploaded</span>
                 )}
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="slide-title">Título (opcional)</Label>
+              <Label htmlFor="slide-title">Title (optional)</Label>
               <Input
                 id="slide-title"
                 value={slideForm.title}
                 onChange={(e) => setSlideForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="Título principal del slide"
+                placeholder="Main title of the slide"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="slide-highlight">Texto destacado (opcional)</Label>
+              <Label htmlFor="slide-highlight">Highlight text (optional)</Label>
               <Input
                 id="slide-highlight"
                 value={slideForm.highlight}
                 onChange={(e) => setSlideForm((f) => ({ ...f, highlight: e.target.value }))}
-                placeholder="Texto en color diferente (ej. CONSTRUCCIÓN)"
+                placeholder="Text in different color (e.g. CONSTRUCTION)"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="slide-desc">Descripción (opcional)</Label>
+              <Label htmlFor="slide-desc">Description (optional)</Label>
               <Input
                 id="slide-desc"
                 value={slideForm.description}
                 onChange={(e) => setSlideForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Descripción corta"
+                placeholder="Short description"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="slide-alt">Texto alternativo (opcional)</Label>
+              <Label htmlFor="slide-alt">Alt text (optional)</Label>
               <Input
                 id="slide-alt"
                 value={slideForm.alt}
                 onChange={(e) => setSlideForm((f) => ({ ...f, alt: e.target.value }))}
-                placeholder="Descripción de la imagen"
+                placeholder="Image description"
               />
             </div>
           </div>
@@ -4192,28 +4192,28 @@ export function Admin() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="category-name">Nombre *</Label>
+              <Label htmlFor="category-name">Name *</Label>
               <Input
                 id="category-name"
                 value={categoryForm.name}
                 onChange={(e) => setCategoryForm((f) => ({ ...f, name: e.target.value }))}
-                placeholder="Ej. Herramientas Eléctricas"
+                placeholder="e.g. Power Tools"
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="category-icon">Icono</Label>
+              <Label htmlFor="category-icon">Icon</Label>
               <select
                 id="category-icon"
                 value={categoryForm.icon}
                 onChange={(e) => setCategoryForm((f) => ({ ...f, icon: e.target.value }))}
                 className="h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
               >
-                <option value="Zap">Zap (rayo)</option>
-                <option value="Wrench">Wrench (llave)</option>
-                <option value="Building2">Building2 (edificio)</option>
-                <option value="Paintbrush">Paintbrush (pincel)</option>
-                <option value="Droplets">Droplets (gotas)</option>
-                <option value="Lightbulb">Lightbulb (bombilla)</option>
+                <option value="Zap">Zap (lightning)</option>
+                <option value="Wrench">Wrench (key/wrench)</option>
+                <option value="Building2">Building2 (building)</option>
+                <option value="Paintbrush">Paintbrush (brush)</option>
+                <option value="Droplets">Droplets (water drops)</option>
+                <option value="Lightbulb">Lightbulb (bulb)</option>
               </select>
             </div>
             <div className="grid gap-2">
@@ -4398,7 +4398,7 @@ export function Admin() {
                 id="promo-desc"
                 value={promoBannerForm.description}
                 onChange={(e) => setPromoBannerForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Ej. En compras mayores a $500"
+                placeholder="e.g. On purchases over $500"
               />
             </div>
           </div>
@@ -4579,7 +4579,7 @@ export function Admin() {
                   id="service-title"
                   value={serviceForm.title}
                   onChange={(e) => setServiceForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="Ej. Construcción Residencial"
+                  placeholder="e.g. Residential Construction"
                 />
               </div>
               <div className="grid gap-2">
@@ -4588,7 +4588,7 @@ export function Admin() {
                   id="service-category"
                   value={serviceForm.category}
                   onChange={(e) => setServiceForm((f) => ({ ...f, category: e.target.value }))}
-                  placeholder="Ej. Residencial, Comercial..."
+                  placeholder="e.g. Residential, Commercial..."
                 />
               </div>
             </div>
