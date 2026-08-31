@@ -50,6 +50,9 @@ seed().then(async () => {
 
 const app = express();
 
+// Confiar en el proxy inverso de Coolify / Traefik / Nginx para express-rate-limit
+app.set('trust proxy', 1);
+
 // ── CORS — solo localhost en desarrollo ─────────────────────────────────────
 const allowedOrigins = IS_PROD
   ? ['https://bjconcreland.com', 'https://www.bjconcreland.com']
@@ -1373,7 +1376,7 @@ Formatting & Style Guidelines:
     ];
 
     const postData = JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
       messages: messages,
       temperature: 0.7,
       max_tokens: 500
