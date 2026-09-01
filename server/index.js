@@ -50,8 +50,7 @@ seed().then(async () => {
 
 const app = express();
 
-// Confiar en el proxy inverso de Coolify / Traefik / Nginx para express-rate-limit
-app.set('trust proxy', 1);
+
 
 // ── CORS — solo localhost en desarrollo ─────────────────────────────────────
 const allowedOrigins = IS_PROD
@@ -1356,6 +1355,11 @@ Contact Information:
 - Email: **josarzc@hotmail.com**
 - Hours: Mon-Fri: 8:00 AM - 6:00 PM, Sat: 8:00 AM - 1:00 PM
 ${productsListText}
+
+CRITICAL CONVERSATIONAL RULES:
+1. GREETINGS & SIMPLE MESSAGES: If the user simply greets you (e.g., "hi", "hello", "hola", "buenos días") or sends a brief message, reply warmly and briefly (1-2 sentences). DO NOT dump tables of products or lists of inventory on general greetings! Simply greet them and ask how you can help.
+2. RELEVANCE & SPECIFICITY: Answer the user's specific question directly. ONLY recommend or list products/services when the user explicitly asks about them or mentions a related need.
+3. NO STUCK REPETITIONS: Pay close attention to what the user said in their latest message. Do not repeat previous template answers or table listings unless specifically requested.
 
 CRITICAL RULE - Human Representative / Real Person Request:
 If the user asks or expresses a desire to talk to a human, speak with a real person, connect with an agent, or talk to support (e.g., "quiero hablar con una persona real", "hablar con un asesor", "persona real", "talk to a human", "talk to a real person", "speak with an agent", "human representative"), you MUST immediately answer politely and provide the direct WhatsApp link: **https://wa.me/18013472165** (+1 (801) 347-2165).
