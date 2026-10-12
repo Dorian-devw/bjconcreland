@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
-import { ArrowRight, Zap, Wrench, Building2, Paintbrush, Droplets, Lightbulb } from 'lucide-react';
-import { ProductCard } from '@/components/product/ProductCard';
+import { Zap, Wrench, Building2, Paintbrush, Droplets, Lightbulb } from 'lucide-react';
 import { useProductsStore } from '@/store/productsStore';
 import { Button } from '@/components/ui/button';
 import { ServicesSection } from '@/components/ServicesSection';
@@ -33,11 +32,6 @@ interface PromoBannerItem {
   sortOrder: number;
 }
 
-interface CatalogOffer {
-  validUntil: string | null;
-  discountPercent: number;
-}
-
 export function Home() {
   const { t } = useLanguage();
   const { products, loading, error, fetchProducts } = useProductsStore();
@@ -49,27 +43,11 @@ export function Home() {
   const [categories, setCategories] = useState<{ id: string; name: string; icon: string }[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const categoriesEffectId = useRef(0);
-  const [offersByProductId, setOffersByProductId] = useState<Record<string, CatalogOffer>>({});
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`${API}/offers`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (cancelled || !Array.isArray(data)) return;
-        const map: Record<string, CatalogOffer> = {};
-        data.forEach((o: { productId: string | number; validUntil?: string; discountPercent: number }) => {
-          map[String(o.productId)] = { validUntil: o.validUntil ?? null, discountPercent: o.discountPercent };
-        });
-        setOffersByProductId(map);
-      })
-      .catch(() => { });
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

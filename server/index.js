@@ -50,6 +50,9 @@ seed().then(async () => {
 
 const app = express();
 
+// Confiar en el reverse proxy (Coolify / Traefik / Nginx) para rate limiting e IPs
+app.set('trust proxy', 1);
+
 
 
 // ── CORS — solo localhost en desarrollo ─────────────────────────────────────

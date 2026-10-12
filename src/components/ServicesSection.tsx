@@ -1,4 +1,4 @@
-import { ArrowRight, ChevronRight, Building2, Zap, Wrench, HardHat, Factory, Hammer, SplitSquareHorizontal } from 'lucide-react';
+import { Building2, Zap, Wrench, HardHat, Factory, Hammer } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
@@ -37,7 +37,6 @@ const strip = (t: string) =>
 export function ServicesSection() {
     const { t } = useLanguage();
     const [services, setServices] = useState<Service[]>([]);
-    const [activeFilter, setActiveFilter] = useState('all');
     const [selected, setSelected] = useState<Service | null>(null);
     const [loading, setLoading] = useState(true);
     const { servicesHeader, fetchServicesHeader } = useSettingsStore();
@@ -56,18 +55,13 @@ export function ServicesSection() {
             .catch(() => setLoading(false));
     }, []);
 
-    const cats = Array.from(new Set(services.map(s => s.category)));
-    const filters = ['all', ...cats];
-
-    const ordered = (() => {
+    const filtered = (() => {
         if (services.some(s => s.homeSlot != null))
             return [...services].sort((a, b) => (a.homeSlot ?? 99) - (b.homeSlot ?? 99));
         return services;
     })();
 
-    const filtered = activeFilter === 'all' ? ordered : ordered.filter(s => s.category === activeFilter);
-    const featured = filtered[0] ?? null;
-    const rest = filtered.slice(1);
+
     return (
         <section id="servicios" className="w-full overflow-hidden flex flex-col md:flex-row">
             <ServiceDetailModal service={selected} isOpen={!!selected} onClose={() => setSelected(null)} />
