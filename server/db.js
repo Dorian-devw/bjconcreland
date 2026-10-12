@@ -251,12 +251,12 @@ async function ensureCategoriesTable() {
       const [rows] = await db.query('SELECT COUNT(*) as n FROM categories');
       if (rows[0].n === 0) {
         const initial = [
-          ['Herramientas Eléctricas', 'Zap', 0, 'tools'],
-          ['Herramientas Manuales', 'Wrench', 1, 'tools'],
-          ['Materiales de Construcción', 'Building2', 2, 'raw'],
-          ['Pinturas y Acabados', 'Paintbrush', 3, 'landscaping'],
-          ['Fontanería', 'Droplets', 4, 'landscaping'],
-          ['Electricidad', 'Lightbulb', 5, 'safety'],
+          ['Power Tools', 'Zap', 0, 'tools'],
+          ['Hand Tools', 'Wrench', 1, 'tools'],
+          ['Construction Materials', 'Building2', 2, 'raw'],
+          ['Paints & Finishes', 'Paintbrush', 3, 'landscaping'],
+          ['Plumbing', 'Droplets', 4, 'landscaping'],
+          ['Electrical', 'Lightbulb', 5, 'safety'],
         ];
         for (const [name, icon, sortOrder, filterKey] of initial) {
           await db.query(
@@ -287,10 +287,10 @@ async function ensureFilterGroupsTable() {
       const [rows] = await db.query('SELECT COUNT(*) as n FROM filter_groups');
       if (rows[0].n === 0) {
         const initial = [
-          ['Herramientas', 'tools', 0],
-          ['Materias primas', 'raw', 1],
-          ['Jardinería', 'landscaping', 2],
-          ['Seguridad', 'safety', 3],
+          ['Tools', 'tools', 0],
+          ['Raw Materials', 'raw', 1],
+          ['Landscaping', 'landscaping', 2],
+          ['Safety & Protection', 'safety', 3],
         ];
         for (const [name, key, sortOrder] of initial) {
           await db.query(

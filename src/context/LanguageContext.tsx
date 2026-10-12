@@ -154,7 +154,7 @@ export const translations: Translations = {
     'catalog.view_equipment': { es: 'VIEW EQUIPMENT', en: 'VIEW EQUIPMENT' },
     'catalog.search_title': { es: 'SEARCH PRODUCTS', en: 'SEARCH PRODUCTS' },
     'catalog.search_placeholder': { es: 'Cement, shovels...', en: 'Cement, shovels...' },
-    'catalog.categories_title': { es: 'FILTROS DE TIENDA', en: 'STORE FILTERS' },
+    'catalog.categories_title': { es: 'STORE FILTERS', en: 'STORE FILTERS' },
     'catalog.price_range': { es: 'PRICE RANGE', en: 'PRICE RANGE' },
     'catalog.showing': { es: 'Showing', en: 'Showing' },
     'catalog.of': { es: 'of', en: 'of' },

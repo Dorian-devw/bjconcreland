@@ -136,45 +136,45 @@ export function Catalog() {
   const showingText = `${t('catalog.showing')} ${from}-${to} ${t('catalog.of')} ${totalFiltered} ${t('catalog.products')}`;
 
   return (
-    <div className={`min-h-screen bg-white pt-[8.75rem] ${compareItems.length > 0 ? 'pb-24' : ''}`}>
-      {/* Hero Banner - Dark green */}
-      <div className="max-w-[80rem] mx-auto px-[5%] mt-6 mb-6">
-        <div className="bg-[#1e5631] rounded-xl py-10 px-6 md:py-12 md:px-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+    <div className={`min-h-screen bg-[#faf8f5] pt-[6.25rem] ${compareItems.length > 0 ? 'pb-24' : ''}`}>
+      {/* Hero Banner - Solid Brand Header Style (matching Home Featured Projects & Services) */}
+      <section className="w-full bg-[#a8876c] px-[5%] py-16 md:py-20 text-[#3a2f2a]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-end justify-between gap-8">
           <div>
-            <span className="inline-block bg-[#e85d04] text-white text-xs font-bold uppercase tracking-wide px-3 py-1.5 rounded-md mb-4">
-              {t('catalog.hero_tag')}
+            <span className="text-xs font-bold uppercase tracking-widest mb-3 block text-[#3a2f2a]/80">
+              {t('catalog.hero_tag') || 'OFFICIAL STORE'}
             </span>
-            <h1 className="text-2xl md:text-4xl font-bold text-white mb-2">
-              {t('catalog.hero_title')}
+            <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl leading-[1.05] max-w-2xl text-[#3a2f2a]">
+              {t('catalog.hero_title') || 'Premium Materials & Quality Products'}
             </h1>
-            <p className="text-white text-sm md:text-base max-w-xl">
+            <p className="text-sm md:text-base text-[#3a2f2a]/90 mt-4 max-w-xl font-medium">
               {t('catalog.hero_desc')}
             </p>
-            <p className="text-white/90 text-xs italic mt-2">{t('catalog.hero_disclaimer')}</p>
           </div>
+
           <div className="flex-shrink-0">
-            <Button
-              asChild
-              className="bg-[#333] hover:bg-[#444] text-white font-bold uppercase text-sm tracking-widest px-6 py-3 rounded-lg"
+            <Link
+              to="/heavy-equipment"
+              className="inline-block bg-[#3a2f2a] hover:bg-black text-white font-bold uppercase text-xs tracking-widest px-8 py-4 transition-colors"
             >
-              <Link to="/heavy-equipment">{t('catalog.view_equipment')}</Link>
-            </Button>
+              {t('catalog.view_equipment')}
+            </Link>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Main content - light gray background */}
-      <div className="bg-[#f8f8f8] py-8">
-        <div className="max-w-[80rem] mx-auto px-[5%] flex flex-col lg:flex-row gap-8">
-          {/* Sidebar - SEARCH PRODUCTS, CATEGORIES, PRICE RANGE */}
-          <aside className="w-full lg:w-72 flex-shrink-0">
-            <div className="bg-[#f8f8f8] space-y-8">
+      {/* Main Content Area */}
+      <div className="w-full py-12 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col lg:flex-row gap-12">
+          {/* Sidebar */}
+          <aside className="w-full lg:w-64 flex-shrink-0">
+            <div className="bg-white p-6 border border-gray-100 space-y-8 sticky top-32">
               <div>
-                <h3 className="font-bold text-[#333] text-sm uppercase tracking-wide mb-3">
+                <h3 className="font-bold text-[#3a2f2a] text-xs uppercase tracking-widest mb-3 pb-2 border-b border-gray-100">
                   {t('catalog.search_title')}
                 </h3>
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <Input
                     type="text"
                     placeholder={t('catalog.search_placeholder')}
@@ -184,34 +184,36 @@ export function Catalog() {
                       if (e.target.value) setSearchParams({ q: e.target.value });
                       else setSearchParams({});
                     }}
-                    className="pl-10 bg-[#f8f8f8] border border-gray-200 rounded-lg h-11 text-[#333] placeholder:text-gray-400"
+                    className="pl-9 bg-[#fdfbf9] border-gray-200 text-xs rounded-none h-10 text-[#3a2f2a] placeholder:text-gray-400 focus:border-[#a8876c]"
                   />
                 </div>
               </div>
 
-              <div>
-                <h3 className="font-bold text-[#333] text-sm uppercase tracking-wide mb-4">
-                  {t('catalog.categories_title')}
-                </h3>
-                <div className="space-y-3">
-                  {sidebarCategories.map((cat) => (
-                    <label
-                      key={cat.value}
-                      className="flex items-center gap-3 cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={selectedSidebarCats.includes(cat.value)}
-                        onCheckedChange={() => handleSidebarCatToggle(cat.value)}
-                        className="border-[#333] data-[state=checked]:bg-[#1e5631] data-[state=checked]:border-[#1e5631]"
-                      />
-                      <span className="text-sm text-[#333]">{cat.label}</span>
-                    </label>
-                  ))}
+              {sidebarCategories.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-[#3a2f2a] text-xs uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">
+                    {t('catalog.categories_title')}
+                  </h3>
+                  <div className="space-y-3">
+                    {sidebarCategories.map((cat) => (
+                      <label
+                        key={cat.value}
+                        className="flex items-center gap-3 cursor-pointer group text-xs text-gray-600 hover:text-[#3a2f2a]"
+                      >
+                        <Checkbox
+                          checked={selectedSidebarCats.includes(cat.value)}
+                          onCheckedChange={() => handleSidebarCatToggle(cat.value)}
+                          className="border-gray-300 data-[state=checked]:bg-[#a8876c] data-[state=checked]:border-[#a8876c] rounded-none"
+                        />
+                        <span className="group-hover:translate-x-0.5 transition-transform font-medium">{cat.label}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
-                <h3 className="font-bold text-[#333] text-sm uppercase tracking-wide mb-4">
+                <h3 className="font-bold text-[#3a2f2a] text-xs uppercase tracking-widest mb-4 pb-2 border-b border-gray-100">
                   {t('catalog.price_range')}
                 </h3>
                 <Slider
@@ -221,24 +223,38 @@ export function Catalog() {
                   step={10}
                   className="mb-4"
                 />
-                <div className="flex justify-between text-sm text-[#333]">
+                <div className="flex justify-between text-xs font-semibold text-gray-500">
                   <span>$0</span>
                   <span>${priceRange[1] === 1000 ? '1000+' : priceRange[1]}</span>
                 </div>
               </div>
+
+              {(searchQuery || selectedSidebarCats.length > 0 || priceRange[0] > 0 || priceRange[1] < 1000) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedSidebarCats([]);
+                    setPriceRange([0, 1000]);
+                    setSearchParams({});
+                  }}
+                  className="w-full text-center text-xs uppercase tracking-wider text-[#a8876c] hover:underline font-bold pt-2 block"
+                >
+                  {t('catalog.clear_filters')}
+                </button>
+              )}
             </div>
           </aside>
 
           {/* Product grid area */}
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-              <p className="text-sm text-[#333]">{showingText}</p>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-normal text-[#333]">{t('catalog.sort_by')}</span>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 pb-4 border-b border-gray-200">
+              <p className="text-xs uppercase tracking-widest font-semibold text-gray-500">{showingText}</p>
+              <div className="flex items-center gap-3">
+                <span className="text-xs uppercase tracking-wider font-bold text-[#3a2f2a]">{t('catalog.sort_by')}</span>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="bg-white border border-gray-200 rounded-lg px-4 py-2 text-sm font-bold text-[#333] focus:outline-none focus:ring-2 focus:ring-[#1e5631]"
+                  className="bg-white border border-gray-200 px-4 py-2 text-xs font-semibold text-[#3a2f2a] focus:outline-none focus:border-[#a8876c]"
                 >
                   <option value="newest">{t('catalog.sort_newest')}</option>
                   <option value="price-asc">{t('catalog.sort_price_asc')}</option>
@@ -251,21 +267,21 @@ export function Catalog() {
             {loading && productList.length === 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch" aria-busy="true">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div key={i} className="animate-pulse rounded-lg bg-gray-200 border border-gray-300 h-80" />
+                  <div key={i} className="animate-pulse bg-white border border-gray-100 h-96" />
                 ))}
               </div>
             ) : error && productList.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
-                <p className="text-[#333] mb-4">{error}</p>
-                <Button onClick={() => fetchProducts()} className="bg-[#1e5631] hover:bg-[#164a28] text-white">
+              <div className="text-center py-20 bg-white border border-gray-100">
+                <p className="text-gray-900 mb-4">{error}</p>
+                <Button onClick={() => fetchProducts()} className="bg-[#a8876c] hover:bg-[#8f7158] text-white rounded-none uppercase text-xs tracking-widest">
                   {t('home.retry')}
                 </Button>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-lg">
-                <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-[#333] mb-2">{t('catalog.no_results_title')}</h3>
-                <p className="text-gray-500 mb-4">{t('catalog.no_results_desc')}</p>
+              <div className="text-center py-20 bg-white border border-gray-100">
+                <Search className="w-12 h-12 text-[#a8876c]/40 mx-auto mb-4" />
+                <h3 className="font-serif text-2xl font-bold text-[#3a2f2a] mb-2">{t('catalog.no_results_title')}</h3>
+                <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">{t('catalog.no_results_desc')}</p>
                 <Button
                   onClick={() => {
                     setSearchQuery('');
@@ -274,13 +290,13 @@ export function Catalog() {
                     setSearchParams({});
                     fetchProducts();
                   }}
-                  className="bg-[#1e5631] hover:bg-[#164a28] text-white"
+                  className="bg-[#a8876c] hover:bg-[#3a2f2a] text-white rounded-none uppercase text-xs tracking-widest px-8 py-4"
                 >
                   {t('catalog.clear_filters')}
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
                 {filteredProducts.map((product) => (
                   <div key={product.id}>
                     <ProductCard product={product} offer={offersByProductId[String(product.id)]} />
