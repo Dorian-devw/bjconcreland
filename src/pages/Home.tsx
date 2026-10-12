@@ -188,9 +188,9 @@ export function Home() {
   };
 
   return (
-    <div className="min-h-screen pt-[8.75rem]">
-      {/* Hero Section - Carrusel (imágenes gestionadas en Admin) */}
-      <section className="relative h-[500px] md:h-[600px] flex items-center justify-center overflow-hidden">
+    <div className="min-h-screen pt-[6.25rem]">
+      {/* Hero Section - Full Screen */}
+      <section className="relative min-h-[calc(100vh-6.25rem)] flex items-center justify-center overflow-hidden">
         {/* Carrusel de fondos */}
         {slides.map((slide, i) => (
           <div
@@ -222,29 +222,28 @@ export function Home() {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 text-center text-white px-4 animate-fadeIn">
-          <h1 className="text-4xl md:text-6xl font-medium mb-4 leading-tight">
+        <div className="relative z-10 text-center text-white px-4 animate-fadeIn w-full max-w-7xl mx-auto">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-light mb-6 leading-[1.1] tracking-tight">
             {slides[heroIndex].title || slides[heroIndex].highlight ? (
               <>
                 {slides[heroIndex].title}
                 <br />
-                <span className="text-[#c8a48c]">{slides[heroIndex].highlight}</span>
+                <span className="font-semibold text-white">{slides[heroIndex].highlight}</span>
               </>
             ) : (
               <>
-                {t('home.hero_title')}
-                <br />
-                <span className="text-[#c8a48c]">{t('home.hero_highlight')}</span>
+                Bringing Your <br />
+                <span className="font-semibold text-white">Concrete Visions</span><br />
+                to Reality
               </>
             )}
           </h1>
-          <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto text-gray-200">
-            {slides[heroIndex].description || t('home.hero_desc')}
+          <p className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto text-gray-200 font-light">
+            {slides[heroIndex].description || 'Serving the area with premium quality concrete and landscaping for over 40 Years'}
           </p>
           <Link to="/catalog">
-            <Button className="btn-primary text-lg px-8 py-4">
+            <Button className="bg-[#2b5c9c] hover:bg-[#1f4577] text-white text-lg px-10 py-6 rounded-md font-semibold transition-colors">
               {t('home.view_products')}
-              <ArrowRight className="w-5 h-5 ml-2" />
             </Button>
           </Link>
         </div>
@@ -304,34 +303,37 @@ export function Home() {
       )}
 
       {/* Categories Section - siempre visible */}
-      <section className="py-20 px-[5%] bg-[#f8f0ed]">
-        <div className="max-w-[80rem] mx-auto">
-          <h2 className="text-3xl md:text-4xl text-center text-[#333] mb-12">
-            {t('home.main_categories')}
-          </h2>
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-[5%]">
+          <div className="text-center mb-16">
+            <h2 className="font-serif text-4xl md:text-5xl text-[#3a2f2a] mb-4">
+              {t('home.main_categories')}
+            </h2>
+            <div className="w-16 h-[1px] bg-[#a8876c] mx-auto"></div>
+          </div>
           {categoriesLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="animate-pulse bg-white rounded-lg p-6 h-36" />
+                <div key={i} className="animate-pulse bg-gray-100 rounded-sm p-6 h-32" />
               ))}
             </div>
           ) : categories.length === 0 ? (
-            <p className="text-center text-[#666] py-8">
+            <p className="text-center text-gray-500 py-8">
               {t('home.no_categories')}
             </p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
               {categories.map((category, index) => (
                 <Link
                   key={category.id}
                   to="/catalog"
-                  className="animate-on-scroll bg-white rounded-lg p-6 text-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1 group"
+                  className="animate-on-scroll group flex flex-col items-center text-center transition-all duration-300"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <div className="w-16 h-16 mx-auto mb-4 bg-[#f8f0ed] rounded-full flex items-center justify-center text-[#946545] transition-all group-hover:bg-[#946545] group-hover:text-white">
+                  <div className="w-16 h-16 mb-4 text-[#a8876c] group-hover:text-[#3a2f2a] transition-colors flex items-center justify-center">
                     {getIcon(category.icon)}
                   </div>
-                  <h3 className="text-sm font-medium text-[#333]">{category.name}</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-gray-900 group-hover:text-[#a8876c] transition-colors">{category.name}</h3>
                 </Link>
               ))}
             </div>
@@ -343,47 +345,55 @@ export function Home() {
       <ServicesSection />
 
       {/* Featured Products Section */}
-      <section className="py-20 px-[5%] bg-white">
-        <div className="max-w-[80rem] mx-auto">
-          <div className="flex items-center justify-between mb-12">
-            <h2 className="text-3xl md:text-4xl text-[#333]">{t('home.featured_products')}</h2>
-            <Link to="/catalog">
-              <Button variant="outline" className="btn-secondary">
-                {t('home.view_all')}
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
+      <section className="w-full bg-white">
+        <div className="w-full bg-[#a8876c] px-[5%] py-16 md:py-24 flex items-center">
+            <div className="max-w-7xl mx-auto w-full">
+                <span className="text-[#3a2f2a] text-xs font-bold uppercase tracking-widest mb-4 block">
+                    FEATURED PROJECTS
+                </span>
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+                    <h2 className="font-serif text-4xl md:text-6xl text-[#3a2f2a] leading-[1.1] max-w-2xl">
+                        Rest assured your project is done right
+                    </h2>
+                    <Link to="/catalog" className="inline-block border-b border-[#3a2f2a] text-[#3a2f2a] font-bold text-sm uppercase tracking-widest pb-1 hover:opacity-70 transition-opacity mb-2">
+                        {t('home.view_all')}
+                    </Link>
+                </div>
+            </div>
+        </div>
+
+        <div className="w-full max-w-none">
           {loading && featuredProducts.length === 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch" aria-busy="true">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="animate-pulse rounded-lg bg-[#f8f0ed] h-80" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-0 w-full" aria-busy="true">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse bg-gray-200 aspect-square w-full" />
               ))}
             </div>
           ) : error && featuredProducts.length === 0 ? (
-            <div className="text-center py-16 bg-[#f8f0ed] rounded-lg">
-              <p className="text-[#333] mb-4">{error}</p>
-              <Button onClick={() => fetchProducts()} className="bg-[#946545] hover:bg-[#7a5337] text-white">
+            <div className="text-center py-16 bg-gray-50">
+              <p className="text-gray-900 mb-4">{error}</p>
+              <Button onClick={() => fetchProducts()} className="bg-[#a8876c] hover:bg-[#8f7158] text-white">
                 {t('home.retry')}
               </Button>
             </div>
           ) : featuredProducts.length === 0 ? (
-            <div className="text-center py-16 bg-[#f8f0ed] rounded-lg text-[#333]">
+            <div className="text-center py-16 bg-gray-50 text-gray-900">
               <p>{t('home.no_featured')}</p>
-              <Link to="/catalog" className="inline-block mt-4">
-                <Button variant="outline" className="btn-secondary">{t('home.view_catalog')}</Button>
-              </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
-              {featuredProducts.map((product, index) => (
-                <div
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-0 w-full">
+              {featuredProducts.slice(0, 3).map((product, index) => (
+                <Link
                   key={product.id}
-                  className="animate-on-scroll"
+                  to={`/product/${product.id}`}
+                  className="animate-on-scroll relative group block aspect-square md:aspect-[4/5] overflow-hidden"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <ProductCard product={product} offer={offersByProductId[String(product.id)]} />
-                </div>
+                  <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                     <span className="bg-white text-[#3a2f2a] font-bold text-xs uppercase tracking-widest px-6 py-3">View Details</span>
+                  </div>
+                </Link>
               ))}
             </div>
           )}

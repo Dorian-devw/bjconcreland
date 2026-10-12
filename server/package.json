@@ -2,8 +2,8 @@
   "name": "app-server",
   "version": "1.0.0",
   "scripts": {
-    "start": "node --no-experimental-fetch index.js",
-    "seed": "node --no-experimental-fetch seed.js"
+    "start": "node index.js",
+    "seed": "node seed.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -22,6 +22,7 @@ import { TermsConditions } from '@/pages/TermsConditions';
 import './App.css';
 import { Toaster } from 'sonner';
 import { ChatWidget } from '@/components/ChatWidget';
+import { ScrollToTop } from '@/components/ScrollToTop';
 
 function AppContent() {
   const [compareOpen, setCompareOpen] = useState(false);
@@ -85,6 +86,7 @@ function AppContent() {
       {!isAdmin && <ChatWidget />}
       {!isAdmin && <CompareBar onCompare={() => setCompareOpen(true)} />}
       {!isAdmin && <CompareModal isOpen={compareOpen} onClose={() => setCompareOpen(false)} />}
+      <ScrollToTop />
       <Toaster position="top-right" richColors closeButton />
     </div>
   );
