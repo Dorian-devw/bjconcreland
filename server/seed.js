@@ -1,7 +1,6 @@
 'use strict';
 const bcrypt = require('bcryptjs');
 const { db, initDb, isSeeded, markSeeded } = require('./db.js');
-const { initialProducts } = require('./seed-data.js');
 
 async function seed() {
   await initDb();
@@ -21,29 +20,9 @@ async function seed() {
     }
   }
 
-  // products: seed only once to avoid re-adding deleted items
+  // products: no initial sample products inserted
   if (!(await isSeeded('products_seeded'))) {
-    try {
-      const [productRows] = await db.query('SELECT COUNT(*) as n FROM products');
-      if (productRows[0].n === 0) {
-        for (const p of initialProducts) {
-          await db.query(`
-            INSERT INTO products (id, name, price, image, category, store_filter_key, description, stock, rating, original_price, tag)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
-            p.id, p.name, p.price, p.image, p.category, p.storeFilterKey ?? null, p.description, p.stock, p.rating ?? null, p.originalPrice ?? null, p.tag ?? null
-          ]);
-        }
-        console.log('Productos iniciales insertados.');
-      }
-      await markSeeded('products_seeded');
-    } catch (e) {
-      if (e.errno === 1932) {
-        console.warn('[seed] Tabla products con corrupción InnoDB — arreglá la DB en cPanel/phpMyAdmin.');
-      } else {
-        throw e;
-      }
-    }
+    await markSeeded('products_seeded');
   }
 
   if (!(await isSeeded('carousel_seeded'))) {
