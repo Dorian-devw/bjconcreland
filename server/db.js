@@ -267,6 +267,19 @@ async function ensureCategoriesTable() {
       }
       await markSeeded('categories_seeded');
     }
+
+    // Auto-migración a inglés si quedaron guardadas en español en la DB
+    const translationsMap = [
+      ['Herramientas Eléctricas', 'Power Tools'],
+      ['Herramientas Manuales', 'Hand Tools'],
+      ['Materiales de Construcción', 'Construction Materials'],
+      ['Pinturas y Acabados', 'Paints & Finishes'],
+      ['Fontanería', 'Plumbing'],
+      ['Electricidad', 'Electrical'],
+    ];
+    for (const [esName, enName] of translationsMap) {
+      await db.query('UPDATE categories SET name = ? WHERE name = ?', [enName, esName]).catch(() => {});
+    }
   } catch (e) {
     console.warn('[db] ensureCategoriesTable:', e.sqlMessage || e.message);
   }
@@ -300,6 +313,17 @@ async function ensureFilterGroupsTable() {
         }
       }
       await markSeeded('filters_seeded');
+    }
+
+    // Auto-migración de filtros a inglés si quedaron en español
+    const filterTransMap = [
+      ['Herramientas', 'Tools'],
+      ['Materias primas', 'Raw Materials'],
+      ['Jardinería', 'Landscaping'],
+      ['Seguridad', 'Safety & Protection'],
+    ];
+    for (const [esName, enName] of filterTransMap) {
+      await db.query('UPDATE filter_groups SET name = ? WHERE name = ?', [enName, esName]).catch(() => {});
     }
   } catch (e) {
     console.warn('[db] ensureFilterGroupsTable:', e.sqlMessage || e.message);
