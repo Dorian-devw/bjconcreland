@@ -23,7 +23,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const { toggleCart, getTotalItems } = useCartStore();
   const { products, fetchProducts } = useProductsStore();
-  const { logo, logoWidth, logoUpdatedAt, fetchLogo } = useSettingsStore();
+  const { logo, logoWidth, logoUpdatedAt, fetchLogo, footer, fetchFooter } = useSettingsStore();
   const { t } = useLanguage();
 
   const debouncedQuery = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -39,7 +39,8 @@ export function Navbar() {
   useEffect(() => {
     fetchProducts();
     fetchLogo();
-  }, [fetchProducts, fetchLogo]);
+    fetchFooter();
+  }, [fetchProducts, fetchLogo, fetchFooter]);
 
   useEffect(() => {
     if (queryLength >= MIN_SEARCH_CHARS && searchResults.length > 0) setDropdownVisible(true);
@@ -138,11 +139,13 @@ export function Navbar() {
 
           {/* Right: Phone, Request Quote + Icons */}
           <div className="flex items-center gap-4">
-            
-            <div className="hidden xl:flex items-center gap-2 text-gray-600 font-semibold mr-4">
-               <Phone className="w-5 h-5 text-gray-500" />
-               <span className="text-[15px]">(559) 930-0561</span>
-            </div>
+            <a
+              href={`tel:${footer?.phone ? footer.phone.replace(/[^0-9+]/g, '') : '+18013472165'}`}
+              className="hidden xl:flex items-center gap-2 text-gray-700 hover:text-[#2b5c9c] font-semibold mr-4 transition-colors"
+            >
+              <Phone className="w-4 h-4 text-[#a8876c]" />
+              <span className="text-[14px] tracking-wide">{footer?.phone || '+1 (801) 347-2165'}</span>
+            </a>
 
             <Button onClick={() => navigate('/contact')} className="hidden md:flex bg-[#2b5c9c] hover:bg-[#1f4577] text-white px-6 py-2 rounded-md font-semibold text-sm transition-colors">
                Get an Estimate
