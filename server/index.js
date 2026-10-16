@@ -43,9 +43,11 @@ function getTwilioClient() {
 // ── DB init ──────────────────────────────────────────────────────────────────
 seed().then(async () => {
   console.log('Base de datos inicializada desde index.js.');
-  // Inicializar tablas de chat al arranque (no en cada request)
+  // Inicializar tablas de chat y servicios al arranque (no en cada request)
   await ensureChatTables();
   console.log('Tablas de chat listas.');
+  await ensureServicesTable();
+  console.log('Tabla de servicios y seeds listos.');
 }).catch(console.error);
 
 const app = express();
@@ -1160,17 +1162,17 @@ app.get('/api/auth/verify-token', authMiddleware, (req, res) => {
 
 app.get('/api/services', async (req, res) => {
   await ensureServicesTable();
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, images, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
 });
 
 app.post('/api/services', authMiddleware, async (req, res) => {
   await ensureServicesTable();
-  const { title, category, description, image, video, content, brandName, brandTagline, homeSlot, imageBefore, imageAfter } = req.body || {};
+  const { title, category, description, image, video, content, brandName, brandTagline, homeSlot, imageBefore, imageAfter, images } = req.body || {};
   if (!title || !category || !description) return res.status(400).json({ error: 'Faltan campos' });
   const [countRows] = await db.query('SELECT COUNT(*) as n FROM services');
   const [result] = await db.query(
-    'INSERT INTO services (title, category, description, image, video, content, brand_name, brand_tagline, home_slot, sort_order, image_before, image_after) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO services (title, category, description, image, video, content, brand_name, brand_tagline, home_slot, sort_order, image_before, image_after, images) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       title.trim(),
       category.trim(),
@@ -1184,19 +1186,20 @@ app.post('/api/services', authMiddleware, async (req, res) => {
       countRows[0].n,
       imageBefore || null,
       imageAfter || null,
+      images ? (typeof images === 'string' ? images : JSON.stringify(images)) : null,
     ]
   );
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services WHERE id=?', [result.insertId]);
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, images, created_at FROM services WHERE id=?', [result.insertId]);
   res.status(201).json(rows[0]);
 });
 
 app.put('/api/services/:id', authMiddleware, async (req, res) => {
   await ensureServicesTable();
-  const { title, category, description, image, video, content, sortOrder, brandName, brandTagline, homeSlot, imageBefore, imageAfter } = req.body || {};
+  const { title, category, description, image, video, content, sortOrder, brandName, brandTagline, homeSlot, imageBefore, imageAfter, images } = req.body || {};
   const [existingRows] = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
   if (!existingRows.length) return res.status(404).json({ error: 'No encontrado' });
   await db.query(
-    'UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=?, brand_name=?, brand_tagline=?, home_slot=?, sort_order=?, image_before=?, image_after=? WHERE id=?',
+    'UPDATE services SET title=?, category=?, description=?, image=?, video=?, content=?, brand_name=?, brand_tagline=?, home_slot=?, sort_order=?, image_before=?, image_after=?, images=? WHERE id=?',
     [
       title ?? existingRows[0].title,
       category ?? existingRows[0].category,
@@ -1210,10 +1213,11 @@ app.put('/api/services/:id', authMiddleware, async (req, res) => {
       sortOrder ?? existingRows[0].sort_order,
       imageBefore !== undefined ? (imageBefore || null) : existingRows[0].image_before,
       imageAfter !== undefined ? (imageAfter || null) : existingRows[0].image_after,
+      images !== undefined ? (typeof images === 'string' ? images : JSON.stringify(images)) : existingRows[0].images,
       req.params.id
     ]
   );
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services WHERE id=?', [req.params.id]);
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, images, created_at FROM services WHERE id=?', [req.params.id]);
   res.json(rows[0]);
 });
 

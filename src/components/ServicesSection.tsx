@@ -21,6 +21,7 @@ interface Service {
     homeSlot?: number | null;
     imageBefore?: string | null;
     imageAfter?: string | null;
+    images?: string[] | string | null;
 }
 
 const iconFor = (cat: string) => {
@@ -62,7 +63,7 @@ export function ServicesSection() {
             .then(r => r.json())
             .then(d => {
                 if (Array.isArray(d)) {
-                    setServices(d.map((s: any) => ({ ...s, icon: iconFor(s.category), imageBefore: s.imageBefore ?? null, imageAfter: s.imageAfter ?? null })));
+                    setServices(d.map((s: any) => ({ ...s, icon: iconFor(s.category), imageBefore: s.imageBefore ?? null, imageAfter: s.imageAfter ?? null, images: s.images ?? null })));
                 }
                 setLoading(false);
             })

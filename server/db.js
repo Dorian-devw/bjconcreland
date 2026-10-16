@@ -26,7 +26,7 @@ const FALLBACK_DDL = {
   categories: `CREATE TABLE categories (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL UNIQUE, icon VARCHAR(255) NOT NULL DEFAULT 'Wrench', sort_order INT NOT NULL DEFAULT 0, filter_key VARCHAR(255), created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   filter_groups: `CREATE TABLE filter_groups (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255) NOT NULL, \`key\` VARCHAR(255) NOT NULL UNIQUE, sort_order INT NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   filter_items: `CREATE TABLE filter_items (id INT AUTO_INCREMENT PRIMARY KEY, filter_group_key VARCHAR(255) NOT NULL, name VARCHAR(255) NOT NULL, sort_order INT NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY unique_item (filter_group_key, name)) ENGINE=InnoDB`,
-  services: `CREATE TABLE services (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL, category VARCHAR(255) NOT NULL, description TEXT NOT NULL, image TEXT, video TEXT, content TEXT, brand_name VARCHAR(255), brand_tagline VARCHAR(255), home_slot INT DEFAULT NULL, sort_order INT NOT NULL DEFAULT 0, image_before TEXT DEFAULT NULL, image_after TEXT DEFAULT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
+  services: `CREATE TABLE services (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL, category VARCHAR(255) NOT NULL, description TEXT NOT NULL, image TEXT, video TEXT, content TEXT, brand_name VARCHAR(255), brand_tagline VARCHAR(255), home_slot INT DEFAULT NULL, sort_order INT NOT NULL DEFAULT 0, image_before TEXT DEFAULT NULL, image_after TEXT DEFAULT NULL, images TEXT DEFAULT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   chat_sessions: `CREATE TABLE chat_sessions (id INT AUTO_INCREMENT PRIMARY KEY, session_id VARCHAR(36) NOT NULL UNIQUE, visitor_name VARCHAR(255) NOT NULL DEFAULT 'Visitor', status VARCHAR(20) NOT NULL DEFAULT 'open', unread_admin INT NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   chat_messages: `CREATE TABLE chat_messages (id INT AUTO_INCREMENT PRIMARY KEY, session_id VARCHAR(36) NOT NULL, sender VARCHAR(10) NOT NULL DEFAULT 'user', message TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
 };
@@ -376,6 +376,7 @@ async function ensureServicesTable() {
       sort_order INT NOT NULL DEFAULT 0,
       image_before TEXT DEFAULT NULL,
       image_after TEXT DEFAULT NULL,
+      images TEXT DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;
   `);
@@ -386,9 +387,19 @@ async function ensureServicesTable() {
   try { await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN image_before TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN image_after TEXT DEFAULT NULL'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN images TEXT DEFAULT NULL'); } catch (_) {}
 
   // Seed / Migración inicial del servicio Landscape
   try {
+    const allLandscapeImages = JSON.stringify([
+      '/servicio-landscape/landscape-1.webp',
+      '/servicio-landscape/landscape-2.webp',
+      '/servicio-landscape/landscape-3.webp',
+      '/servicio-landscape/landscape-4.webp',
+      '/servicio-landscape/landscape5.webp',
+      '/servicio-landscape/landscape-6.webp',
+    ]);
+
     const [existing] = await db.query('SELECT id FROM services WHERE title = ?', ['Bring Your Outdoor Space to Life']);
     if (existing.length === 0) {
       const initialService = {
@@ -396,8 +407,7 @@ async function ensureServicesTable() {
         category: 'Landscaping',
         description: "We design and install complete outdoor spaces, including lawns, plants, trees, decorative rock, garden beds, and irrigation. We also handle artificial grass, concrete, hardscapes, drainage and lighting, fencing, and outdoor structures. Whether you're starting from scratch or improving an existing yard, we'll help bring your plans to life.",
         image: '/servicio-landscape/landscape-1.webp',
-        imageBefore: '/servicio-landscape/landscape-4.webp',
-        imageAfter: '/servicio-landscape/landscape-6.webp',
+        images: allLandscapeImages,
         brandName: 'JJ Construction',
         brandTagline: 'Landscape & Concrete Specialists',
         homeSlot: 1,
@@ -405,21 +415,27 @@ async function ensureServicesTable() {
       };
 
       await db.query(`
-        INSERT INTO services (title, category, description, image, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO services (title, category, description, image, images, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
+        VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
       `, [
         initialService.title,
         initialService.category,
         initialService.description,
         initialService.image,
-        initialService.imageBefore,
-        initialService.imageAfter,
+        initialService.images,
         initialService.brandName,
         initialService.brandTagline,
         initialService.homeSlot,
         initialService.sortOrder,
       ]);
       console.log('✅ Servicio inicial "Bring Your Outdoor Space to Life" insertado con éxito.');
+    } else {
+      // Actualizar por si se había insertado con antes/después
+      await db.query(`
+        UPDATE services 
+        SET image_before = NULL, image_after = NULL, images = ? 
+        WHERE title = ?
+      `, [allLandscapeImages, 'Bring Your Outdoor Space to Life']);
     }
   } catch (err) {
     console.warn('[db] Seed landscape service:', err.sqlMessage || err.message);

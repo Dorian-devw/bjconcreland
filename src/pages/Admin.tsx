@@ -138,6 +138,9 @@ export interface ServiceItem {
   brandName?: string | null;
   brandTagline?: string | null;
   homeSlot?: number | null;
+  imageBefore?: string | null;
+  imageAfter?: string | null;
+  images?: string[] | string | null;
 }
 
 const PRODUCT_TAGS: ProductTag[] = ['IN STOCK', 'SALE', 'TOOLS', 'BULK PRICING'];

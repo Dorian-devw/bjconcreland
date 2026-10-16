@@ -18,6 +18,7 @@ interface Service {
     brandTagline?: string | null;
     imageBefore?: string | null;
     imageAfter?: string | null;
+    images?: string[] | string | null;
 }
 
 const strip = (t: string) =>

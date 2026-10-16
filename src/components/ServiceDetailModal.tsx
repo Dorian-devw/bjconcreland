@@ -9,6 +9,7 @@ interface Service {
     description: string;
     category: string;
     image: string;
+    images?: string[] | string | null;
     video?: string;
     content?: string;
     created_at?: string;
@@ -151,8 +152,20 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
 
     if (!isOpen || !service) return null;
 
+    const extraImages: string[] = (() => {
+        if (!service.images) return [];
+        if (Array.isArray(service.images)) return service.images;
+        try {
+            const parsed = JSON.parse(service.images);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return String(service.images).split(',').map(s => s.trim()).filter(Boolean);
+        }
+    })();
+
+    const allImageUrls = Array.from(new Set([service.image, ...extraImages].filter(Boolean)));
     const mediaItems = [
-        { type: 'image', url: service.image },
+        ...allImageUrls.map(url => ({ type: 'image', url })),
         ...(service.video ? [{ type: 'video', url: service.video }] : [])
     ];
 
