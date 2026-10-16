@@ -386,6 +386,44 @@ async function ensureServicesTable() {
   try { await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN image_before TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN image_after TEXT DEFAULT NULL'); } catch (_) {}
+
+  // Seed / Migración inicial del servicio Landscape
+  try {
+    const [existing] = await db.query('SELECT id FROM services WHERE title = ?', ['Bring Your Outdoor Space to Life']);
+    if (existing.length === 0) {
+      const initialService = {
+        title: 'Bring Your Outdoor Space to Life',
+        category: 'Landscaping',
+        description: "We design and install complete outdoor spaces, including lawns, plants, trees, decorative rock, garden beds, and irrigation. We also handle artificial grass, concrete, hardscapes, drainage and lighting, fencing, and outdoor structures. Whether you're starting from scratch or improving an existing yard, we'll help bring your plans to life.",
+        image: '/servicio-landscape/landscape-1.webp',
+        imageBefore: '/servicio-landscape/landscape-4.webp',
+        imageAfter: '/servicio-landscape/landscape-6.webp',
+        brandName: 'JJ Construction',
+        brandTagline: 'Landscape & Concrete Specialists',
+        homeSlot: 1,
+        sortOrder: 0,
+      };
+
+      await db.query(`
+        INSERT INTO services (title, category, description, image, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        initialService.title,
+        initialService.category,
+        initialService.description,
+        initialService.image,
+        initialService.imageBefore,
+        initialService.imageAfter,
+        initialService.brandName,
+        initialService.brandTagline,
+        initialService.homeSlot,
+        initialService.sortOrder,
+      ]);
+      console.log('✅ Servicio inicial "Bring Your Outdoor Space to Life" insertado con éxito.');
+    }
+  } catch (err) {
+    console.warn('[db] Seed landscape service:', err.sqlMessage || err.message);
+  }
 }
 
 async function ensureChatTables() {

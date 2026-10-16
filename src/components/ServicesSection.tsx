@@ -1,4 +1,4 @@
-import { Building2, Zap, Wrench, HardHat, Factory, Hammer } from 'lucide-react';
+import { Building2, Zap, Wrench, HardHat, Factory, Hammer, Trees, Sparkles, Home as HomeIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
@@ -25,8 +25,22 @@ interface Service {
 
 const iconFor = (cat: string) => {
     const map: Record<string, React.ElementType> = {
-        Residencial: Building2, Comercial: Zap, Maquinaria: Wrench,
-        Consultoría: HardHat, Industrial: Factory, Remodelación: Hammer,
+        Landscape: Trees,
+        Landscaping: Trees,
+        Jardinería: Trees,
+        Residencial: HomeIcon,
+        Residential: HomeIcon,
+        Comercial: Zap,
+        Commercial: Zap,
+        Maquinaria: Wrench,
+        Machinery: Wrench,
+        Equipment: Wrench,
+        Consultoría: HardHat,
+        Consulting: HardHat,
+        Industrial: Factory,
+        Remodelación: Hammer,
+        Remodeling: Hammer,
+        Concrete: Sparkles,
     };
     return map[cat] ?? Building2;
 };
