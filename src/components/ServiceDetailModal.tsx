@@ -163,7 +163,9 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
         }
     })();
 
-    const allImageUrls = Array.from(new Set([service.image, ...extraImages].filter(Boolean)));
+    const allImageUrls = extraImages.length > 0 
+        ? extraImages 
+        : (service.image ? [service.image] : []);
     const mediaItems = [
         ...allImageUrls.map(url => ({ type: 'image', url })),
         ...(service.video ? [{ type: 'video', url: service.video }] : [])

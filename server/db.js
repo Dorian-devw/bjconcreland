@@ -392,7 +392,6 @@ async function ensureServicesTable() {
   // Seed / Migración inicial del servicio Landscape
   try {
     const allLandscapeImages = JSON.stringify([
-      '/servicio-landscape/landscape-1.webp',
       '/servicio-landscape/landscape-2.webp',
       '/servicio-landscape/landscape-3.webp',
       '/servicio-landscape/landscape-4.webp',
@@ -430,15 +429,92 @@ async function ensureServicesTable() {
       ]);
       console.log('✅ Servicio inicial "Bring Your Outdoor Space to Life" insertado con éxito.');
     } else {
-      // Actualizar por si se había insertado con antes/después
+      // Actualizar por si se había insertado con antes/después o con landscape-1 en la galería
       await db.query(`
         UPDATE services 
-        SET image_before = NULL, image_after = NULL, images = ? 
+        SET image = '/servicio-landscape/landscape-1.webp',
+            image_before = NULL, 
+            image_after = NULL, 
+            images = ?,
+            home_slot = 1,
+            sort_order = 0
         WHERE title = ?
       `, [allLandscapeImages, 'Bring Your Outdoor Space to Life']);
     }
   } catch (err) {
     console.warn('[db] Seed landscape service:', err.sqlMessage || err.message);
+  }
+
+  // Seed / Migración inicial del servicio Concrete
+  try {
+    const concreteGalleryImages = JSON.stringify([
+      '/servicio-concrete/concrete-1.webp',
+      '/servicio-concrete/concrete-2.webp',
+      '/servicio-concrete/concrete-3.webp',
+      '/servicio-concrete/concrete-4.webp',
+      '/servicio-concrete/concrete-5.webp',
+    ]);
+
+    const concreteContent = [
+      '**Enduring Strength & Precision Craftsmanship**',
+      'At JJ Construction, we specialize in high-durability residential and commercial concrete solutions engineered to withstand heavy load demands and harsh freeze-thaw climate cycles. Whether you are upgrading your home curb appeal with a modern driveway or pouring a structural foundation, our experienced team delivers clean, long-lasting results.',
+      '**Comprehensive Concrete Services**',
+      '• **Driveways & Approaches**: High-load capacity concrete driveways engineered with reinforced sub-bases to eliminate premature cracking and settling.',
+      '• **Custom Patios & Walkways**: Beautiful, functional outdoor living surfaces tailored to your landscape with seamless transitions.',
+      '• **Structural Slabs & Foundations**: Precision-formed slabs for garages, workshops, sheds, and home additions adhering strictly to building codes.',
+      '• **Pool Decks & Coping**: Slip-resistant, weather-sealed pool surrounds designed for luxury aesthetics and family safety.',
+      '• **Steps, Stairs & Retaining Curbs**: Custom formed entries, multi-tier steps, and landscape curbing built for stability and clean aesthetics.',
+      '• **Demolition, Removal & Haul-Off**: Safe, efficient break-out and removal of old, cracked, or sunken concrete with full site cleanup.',
+      '**Our Proven Process**',
+      '1. **Site Evaluation & Laser Grading**: We establish proper elevation and drainage slopes so water always flows safely away from your structures.',
+      '2. **Sub-Base Compaction**: Solid ground preparation with compacted gravel base prevents future settling and voids.',
+      '3. **Steel Reinforcement**: Heavy rebar grids and fiber reinforcement ensure maximum tensile strength across extreme seasonal changes.',
+      '4. **Premium Mix & Professional Finishing**: High PSI commercial-grade concrete poured and finished with precision brooming or smooth architectural edges.',
+      '5. **Curing & Protection**: Proper curing techniques that lock in moisture for optimal hydration, preventing surface scaling and ensuring decades of performance.',
+    ].join('\n\n');
+
+    const [existingConcrete] = await db.query('SELECT id FROM services WHERE title = ?', ['Concrete Built Right From the Ground Up']);
+    if (existingConcrete.length === 0) {
+      await db.query(`
+        INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
+      `, [
+        'Concrete Built Right From the Ground Up',
+        'Concrete',
+        'We build driveways, patios, walkways, slabs, foundations, pool decks, steps, and curbs, and remove old concrete. Each job starts with proper site prep, grading, and reinforcement so it finishes clean and lasts.',
+        '/servicio-concrete/concrete-6.webp',
+        concreteGalleryImages,
+        concreteContent,
+        'JJ Construction',
+        'Landscape & Concrete Specialists',
+        2,
+        1,
+      ]);
+      console.log('✅ Servicio inicial "Concrete Built Right From the Ground Up" insertado con éxito.');
+    } else {
+      await db.query(`
+        UPDATE services 
+        SET category = 'Concrete',
+            description = ?,
+            image = '/servicio-concrete/concrete-6.webp',
+            images = ?,
+            content = ?,
+            image_before = NULL,
+            image_after = NULL,
+            brand_name = 'JJ Construction',
+            brand_tagline = 'Landscape & Concrete Specialists',
+            home_slot = 2,
+            sort_order = 1
+        WHERE title = ?
+      `, [
+        'We build driveways, patios, walkways, slabs, foundations, pool decks, steps, and curbs, and remove old concrete. Each job starts with proper site prep, grading, and reinforcement so it finishes clean and lasts.',
+        concreteGalleryImages,
+        concreteContent,
+        'Concrete Built Right From the Ground Up',
+      ]);
+    }
+  } catch (err) {
+    console.warn('[db] Seed concrete service:', err.sqlMessage || err.message);
   }
 }
 

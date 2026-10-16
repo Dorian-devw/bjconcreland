@@ -140,9 +140,23 @@ export function ServicesSection() {
                                         {s.title}
                                     </h3>
                                     
-                                    <p className="text-gray-500 text-sm leading-relaxed line-clamp-3">
+                                    <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 mb-4">
                                         {strip(s.description)}
                                     </p>
+
+                                    {s.image && (
+                                        <div className="mt-auto w-full aspect-[16/10] overflow-hidden rounded-xl bg-gray-100 relative shadow-sm group-hover:shadow-md transition-shadow">
+                                            <img
+                                                src={s.image}
+                                                alt={s.title}
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                                onError={(e) => {
+                                                    (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                                }}
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
