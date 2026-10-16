@@ -125,7 +125,10 @@ app.use('/api/', apiLimiter);
 // static files
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/uploads', express.static(UPLOADS_DIR, {
+  maxAge: '30d',
+  immutable: false,
+}));
 
 // multer config
 const VALID_UPLOAD_TYPES = ['products', 'carousel', 'banners', 'services', 'settings'];

@@ -154,6 +154,10 @@ export function ServicesSection() {
                                             <img
                                                 src={s.image}
                                                 alt={s.title}
+                                                loading="lazy"
+                                                decoding="async"
+                                                width={400}
+                                                height={250}
                                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                                 onError={(e) => {
                                                     (e.currentTarget as HTMLImageElement).style.display = 'none';

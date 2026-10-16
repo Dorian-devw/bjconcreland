@@ -97,12 +97,16 @@ export function ProductCard({ product, offer }: ProductCardProps) {
             <img
               src="/out-of-stock.png"
               alt={t('product.coming_soon')}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-contain p-4 opacity-70"
             />
           ) : (
             <img
               src={product.image}
               alt={product.name}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
             />
           )}

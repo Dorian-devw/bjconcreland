@@ -104,6 +104,8 @@ function Slider({
       <img
         src={after}
         alt={`${title} — Después`}
+        loading="lazy"
+        decoding="async"
         draggable={false}
         className="absolute inset-0 w-full h-full object-cover"
       />
@@ -116,6 +118,8 @@ function Slider({
         <img
           src={before}
           alt={`${title} — Antes`}
+          loading="lazy"
+          decoding="async"
           draggable={false}
           className="absolute inset-0 w-full h-full object-cover"
         />

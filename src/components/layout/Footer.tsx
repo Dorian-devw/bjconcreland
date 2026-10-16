@@ -24,6 +24,8 @@ export function Footer() {
                 <img 
                   src={logo} 
                   alt="JJ Construction" 
+                  loading="lazy"
+                  decoding="async"
                   style={logoWidth ? { width: `${logoWidth}px` } : undefined}
                   className={`object-contain ${!logoWidth ? 'h-16 w-auto' : ''}`} 
                 />

@@ -38,11 +38,16 @@ export function Home() {
   const featuredProducts = Array.isArray(products) ? products.slice(0, 8) : [];
   const [heroIndex, setHeroIndex] = useState(0);
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
+  const [loadedHeroSlides, setLoadedHeroSlides] = useState<number[]>([0]);
   const [promoBanners, setPromoBanners] = useState<PromoBannerItem[]>([]);
   const [promoIndex, setPromoIndex] = useState(0);
   const [categories, setCategories] = useState<{ id: string; name: string; icon: string }[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const categoriesEffectId = useRef(0);
+
+  useEffect(() => {
+    setLoadedHeroSlides((prev) => (prev.includes(heroIndex) ? prev : [...prev, heroIndex]));
+  }, [heroIndex]);
 
   useEffect(() => {
     fetchProducts();
@@ -175,7 +180,7 @@ export function Home() {
             key={slide.src + i}
             className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-700 ease-in-out"
             style={{
-              backgroundImage: `url(${slide.src})`,
+              backgroundImage: loadedHeroSlides.includes(i) ? `url(${slide.src})` : 'none',
               opacity: i === heroIndex ? 1 : 0,
               zIndex: i === heroIndex ? 0 : -1,
             }}
@@ -246,6 +251,8 @@ export function Home() {
                     <img
                       src={banner.image}
                       alt={banner.title || 'Promoción'}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex flex-col justify-end p-6">
@@ -367,7 +374,13 @@ export function Home() {
                   className="animate-on-scroll relative group block aspect-square md:aspect-[4/5] overflow-hidden"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                      <span className="bg-white text-[#3a2f2a] font-bold text-xs uppercase tracking-widest px-6 py-3">View Details</span>
                   </div>
