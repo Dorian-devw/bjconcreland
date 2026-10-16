@@ -1,4 +1,4 @@
-import { Building2, Zap, Wrench, HardHat, Factory, Hammer, Trees, Sparkles, Home as HomeIcon } from 'lucide-react';
+import { Building2, Zap, Wrench, HardHat, Factory, Hammer, Trees, Sparkles, Leaf, Home as HomeIcon } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
@@ -42,6 +42,9 @@ const iconFor = (cat: string) => {
         Remodelación: Hammer,
         Remodeling: Hammer,
         Concrete: Sparkles,
+        'Artificial Turf': Leaf,
+        Turf: Leaf,
+        'Césped': Leaf,
     };
     return map[cat] ?? Building2;
 };
@@ -123,14 +126,16 @@ export function ServicesSection() {
                         <p className="text-gray-500">{t('services.no_available')}</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12 gap-y-16 w-full max-w-4xl mx-auto">
+                    <div className={`grid grid-cols-1 ${filtered.length >= 3 ? 'sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl' : 'sm:grid-cols-2 gap-x-12 gap-y-16 max-w-4xl'} w-full mx-auto`}>
                         {filtered.map((s, idx) => {
                             const Icon = s.icon || Building2;
+                            const isLast = idx === filtered.length - 1;
+                            const borderClass = filtered.length >= 3
+                                ? (!isLast ? 'lg:border-r border-gray-100 lg:pr-6' : '')
+                                : (idx % 2 === 0 ? 'sm:border-r border-gray-100 sm:pr-12' : '');
                             return (
                                 <div key={s.id} onClick={() => setSelected(s)}
-                                    className={`group cursor-pointer flex flex-col relative ${
-                                        idx % 2 === 0 ? 'sm:border-r border-gray-100 sm:pr-12' : ''
-                                    }`}>
+                                    className={`group cursor-pointer flex flex-col justify-between relative ${borderClass}`}>
                                     
                                     <div className="text-[#a8876c] mb-5 group-hover:scale-110 transition-transform origin-left">
                                         <Icon strokeWidth={1} className="w-10 h-10" />

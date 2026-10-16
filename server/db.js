@@ -516,6 +516,79 @@ async function ensureServicesTable() {
   } catch (err) {
     console.warn('[db] Seed concrete service:', err.sqlMessage || err.message);
   }
+
+  // Seed / Migración inicial del servicio Artificial Turf
+  try {
+    const turfGalleryImages = JSON.stringify([
+      '/servicio-artificial-turf/artificial-turf-1.webp',
+      '/servicio-artificial-turf/artificial-turf-2.webp',
+      '/servicio-artificial-turf/artificial-turf-3.webp',
+      '/servicio-artificial-turf/artificial-turf-4.webp',
+      '/servicio-artificial-turf/artificial-turf-5.webp',
+    ]);
+
+    const turfDescription = 'Artificial turf is the perfect solution for homeowners who want a lush, green lawn without the high maintenance. It stays green all year, saves water, and holds up to kids, pets, and heavy use. From front yards and backyards to pet areas, play areas, and putting greens, our artificial turf systems are built with premium materials and installed with precision for long-term performance and beauty.';
+
+    const turfContent = [
+      '**Year-Round Green Perfection Without the Hassle**',
+      'Say goodbye to endless mowing, fertilizing, muddy paw prints, and costly water bills. At JJ Construction, we engineer and install premium synthetic grass systems designed specifically for high-traffic Utah homes and commercial properties. Our artificial turf looks and feels remarkably like natural grass while offering superior resilience and unmatched longevity.',
+      '**Custom Turf Applications for Every Space**',
+      '• **Full Residential Lawns**: Transform front yards and expansive backyards into evergreen, zero-maintenance showpieces.',
+      '• **Dedicated Pet Turf & Dog Runs**: Antimicrobial, deodorizing infill with rapid-flow perforated backing that drains pet urine instantly and eliminates brown spots and mud.',
+      '• **Kids Play Areas**: Cushioning underlayment and shock pads that meet critical fall-height safety ratings to keep children safe during playtime.',
+      '• **Custom Putting Greens**: Professional-grade bentgrass putting surfaces engineered with adjustable stimp speeds, custom undulations, and fringe grass for golf enthusiasts.',
+      '• **Commercial Landscapes & Common Areas**: Durable, pristine synthetic grass for HOA common grounds, office plazas, and retail storefronts.',
+      '**Our Multi-Layer Installation Process**',
+      '1. **Excavation & Weed Barrier**: Removal of native grass and soil followed by a heavy-duty geotextile weed barrier that halts weed penetration.',
+      '2. **Engineered Base Compaction**: 3 to 4 inches of crushed aggregate base layered and vibratory-compacted to provide a smooth, solid foundation.',
+      '3. **High-Flow Drainage System**: Multi-tier base design capable of draining over 30 inches of water per hour, preventing pooling and mold.',
+      '4. **Seamless Seaming & Perimeter Anchoring**: Industrial seam tape and non-corrosive galvanized landscape spikes secure the turf permanently in place.',
+      '5. **Silica Sand / Antimicrobial Infill**: Weighted infill brushed deep between blades to keep fibers standing tall, protect backing from UV degradation, and ensure a natural, springy feel underfoot.',
+    ].join('\n\n');
+
+    const [existingTurf] = await db.query('SELECT id FROM services WHERE title = ?', ['Artificial Turf Installation']);
+    if (existingTurf.length === 0) {
+      await db.query(`
+        INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
+      `, [
+        'Artificial Turf Installation',
+        'Artificial Turf',
+        turfDescription,
+        '/servicio-artificial-turf/artificial-turf-6.webp',
+        turfGalleryImages,
+        turfContent,
+        'JJ Construction',
+        'Landscape & Concrete Specialists',
+        3,
+        2,
+      ]);
+      console.log('✅ Servicio inicial "Artificial Turf Installation" insertado con éxito.');
+    } else {
+      await db.query(`
+        UPDATE services 
+        SET category = 'Artificial Turf',
+            description = ?,
+            image = '/servicio-artificial-turf/artificial-turf-6.webp',
+            images = ?,
+            content = ?,
+            image_before = NULL,
+            image_after = NULL,
+            brand_name = 'JJ Construction',
+            brand_tagline = 'Landscape & Concrete Specialists',
+            home_slot = 3,
+            sort_order = 2
+        WHERE title = ?
+      `, [
+        turfDescription,
+        turfGalleryImages,
+        turfContent,
+        'Artificial Turf Installation',
+      ]);
+    }
+  } catch (err) {
+    console.warn('[db] Seed artificial turf service:', err.sqlMessage || err.message);
+  }
 }
 
 async function ensureChatTables() {
