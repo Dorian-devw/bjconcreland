@@ -98,7 +98,10 @@ export function ChatWidget() {
   }, [open]);
 
   useEffect(() => {
-    if (isAdmin) return;
+    if (isAdmin || initialized) return;
+    const hasActiveSession = localStorage.getItem('chat-has-active') === 'true';
+    if (!open && !hasActiveSession) return;
+
     const sid = sessionId.current;
     const storedName = localStorage.getItem('chat-visitor-name');
     if (storedName) setVisitorName(storedName);
@@ -113,7 +116,7 @@ export function ChatWidget() {
         await fetchMessages();
       } catch (_) {}
     })();
-  }, [isAdmin, fetchMessages]);
+  }, [isAdmin, open, initialized, fetchMessages]);
 
   useEffect(() => {
     if (!initialized || isAdmin) return;
@@ -169,6 +172,7 @@ export function ChatWidget() {
     }
 
     try {
+      localStorage.setItem('chat-has-active', 'true');
       await fetch(`${API}/chat/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

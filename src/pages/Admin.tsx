@@ -35,6 +35,9 @@ import {
   Send,
   User,
   RefreshCw,
+  Star,
+  Check,
+  Trash,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -692,13 +695,92 @@ export function Admin() {
   const [servicesLoading, setServicesLoading] = useState(false);
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
-  const [serviceForm, setServiceForm] = useState({ title: '', category: '', description: '', image: '', video: '', content: '', brandName: '', brandTagline: '' });
+  const [serviceForm, setServiceForm] = useState<{
+    title: string;
+    category: string;
+    description: string;
+    image: string;
+    images: string[];
+    video: string;
+    content: string;
+    brandName: string;
+    brandTagline: string;
+  }>({
+    title: '',
+    category: 'Landscaping',
+    description: '',
+    image: '',
+    images: [],
+    video: '',
+    content: '',
+    brandName: '',
+    brandTagline: '',
+  });
+  const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
+  const [uploadGalleryImageError, setUploadGalleryImageError] = useState<string | null>(null);
+  const [galleryUrlInput, setGalleryUrlInput] = useState('');
   const [serviceSaving, setServiceSaving] = useState(false);
   const [serviceError, setServiceError] = useState<string | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<ServiceItem | null>(null);
   const serviceDescRef = useRef<HTMLTextAreaElement | null>(null);
   const serviceContentRef = useRef<HTMLTextAreaElement | null>(null);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+
+  const parseServiceImages = useCallback((imgs: any): string[] => {
+    if (!imgs) return [];
+    if (Array.isArray(imgs)) return imgs.filter((x) => typeof x === 'string' && x.trim().length > 0);
+    try {
+      const p = JSON.parse(imgs);
+      return Array.isArray(p) ? p.filter((x: any) => typeof x === 'string' && x.trim().length > 0) : [];
+    } catch {
+      return String(imgs).split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }, []);
+
+  const removeGalleryImage = (index: number) => {
+    setServiceForm((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }));
+  };
+
+  const moveGalleryImage = (index: number, direction: 'left' | 'right') => {
+    const target = direction === 'left' ? index - 1 : index + 1;
+    if (target < 0 || target >= serviceForm.images.length) return;
+    setServiceForm((prev) => {
+      const copy = [...prev.images];
+      [copy[index], copy[target]] = [copy[target], copy[index]];
+      return { ...prev, images: copy };
+    });
+  };
+
+  const setGalleryImageAsCover = (index: number) => {
+    const chosen = serviceForm.images[index];
+    const oldCover = serviceForm.image;
+    setServiceForm((prev) => {
+      const newImages = [...prev.images];
+      if (oldCover && oldCover.trim()) {
+        newImages[index] = oldCover;
+      } else {
+        newImages.splice(index, 1);
+      }
+      return {
+        ...prev,
+        image: chosen,
+        images: newImages,
+      };
+    });
+    toast.success('Photo set as main Homepage cover');
+  };
+
+  const addGalleryUrl = () => {
+    if (!galleryUrlInput.trim()) return;
+    setServiceForm((prev) => ({
+      ...prev,
+      images: [...prev.images, galleryUrlInput.trim()],
+    }));
+    setGalleryUrlInput('');
+  };
 
   // ── Chat state ──────────────────────────────────────────────────────────────
   interface ChatSession {
@@ -709,6 +791,9 @@ export function Admin() {
     unread_admin: number;
     created_at: string;
     last_message_at: string;
+    message_count?: number;
+    last_message?: string | null;
+    last_sender?: 'user' | 'admin' | null;
   }
   interface ChatMsg {
     id: number;
@@ -723,6 +808,9 @@ export function Admin() {
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatReply, setChatReply] = useState('');
   const [chatReplySending, setChatReplySending] = useState(false);
+  const [chatFilter, setChatFilter] = useState<'unread' | 'active' | 'all'>('unread');
+  const [chatSearch, setChatSearch] = useState('');
+  const [purgingEmpty, setPurgingEmpty] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   const loadChatSessions = useCallback(async () => {
@@ -737,6 +825,36 @@ export function Admin() {
       setChatLoading(false);
     }
   }, [logout, navigate]);
+
+  const cleanEmptyChatSessions = async () => {
+    if (!window.confirm('Are you sure you want to remove all empty visitor sessions with 0 messages? This will leave only real customer inquiries in your inbox.')) return;
+    setPurgingEmpty(true);
+    try {
+      const res = await fetchWithAuth(`${API}/chat/sessions/purge-empty`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error cleaning empty sessions');
+      const data = await res.json().catch(() => ({}));
+      toast.success(`${data.deletedCount ?? 0} empty sessions removed`);
+      await loadChatSessions();
+      setSelectedChatSession(null);
+    } catch {
+      toast.error('Failed to clean empty sessions');
+    } finally {
+      setPurgingEmpty(false);
+    }
+  };
+
+  const deleteSingleChatSession = async (sid: string) => {
+    if (!window.confirm('Delete this conversation and all its messages?')) return;
+    try {
+      const res = await fetchWithAuth(`${API}/chat/sessions/${sid}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error deleting conversation');
+      toast.success('Conversation deleted');
+      if (selectedChatSession === sid) setSelectedChatSession(null);
+      await loadChatSessions();
+    } catch {
+      toast.error('Failed to delete conversation');
+    }
+  };
 
   const loadChatMessages = useCallback(async (sid: string) => {
     try {
@@ -767,14 +885,17 @@ export function Admin() {
         body: JSON.stringify({ message: text }),
       });
       await loadChatMessages(selectedChatSession);
+      await loadChatSessions();
     } catch (_) {} finally {
       setChatReplySending(false);
     }
   };
 
   useEffect(() => {
-    if (section === 'chat') loadChatSessions();
-  }, [section, loadChatSessions]);
+    loadChatSessions();
+    const interval = setInterval(loadChatSessions, 20000);
+    return () => clearInterval(interval);
+  }, [loadChatSessions]);
 
   useEffect(() => {
     if (!selectedChatSession || section !== 'chat') return;
@@ -897,7 +1018,18 @@ export function Admin() {
 
   const openAddService = () => {
     setEditingServiceId(null);
-    setServiceForm({ title: '', category: 'Residencial', description: '', image: '', video: '', content: '', brandName: '', brandTagline: '' });
+    setServiceForm({
+      title: '',
+      category: 'Landscaping',
+      description: '',
+      image: '',
+      images: [],
+      video: '',
+      content: '',
+      brandName: 'JJ Construction',
+      brandTagline: 'Landscape & Concrete Specialists',
+    });
+    setGalleryUrlInput('');
     setServiceError(null);
     setServiceDialogOpen(true);
   };
@@ -908,12 +1040,14 @@ export function Admin() {
       title: service.title,
       category: service.category,
       description: service.description,
-      image: service.image,
+      image: service.image || '',
+      images: parseServiceImages(service.images),
       video: service.video || '',
       content: service.content || '',
       brandName: service.brandName || '',
       brandTagline: service.brandTagline || '',
     });
+    setGalleryUrlInput('');
     setServiceError(null);
     setServiceDialogOpen(true);
   };
@@ -985,7 +1119,10 @@ export function Admin() {
     setServiceError(null);
     try {
       const headers = { 'Content-Type': 'application/json' };
-      const body = JSON.stringify(serviceForm);
+      const body = JSON.stringify({
+        ...serviceForm,
+        images: serviceForm.images,
+      });
       if (editingServiceId) {
         const res = await fetchWithAuth(`${API}/services/${editingServiceId}`, {
           method: 'PUT',
@@ -999,8 +1136,9 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Error updating');
+          throw new Error(err.error || 'Error updating service');
         }
+        toast.success('Service and photos updated successfully');
       } else {
         const res = await fetchWithAuth(`${API}/services`, {
           method: 'POST',
@@ -1014,11 +1152,22 @@ export function Admin() {
         }
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Error creating');
+          throw new Error(err.error || 'Error creating service');
         }
+        toast.success('Service created successfully');
       }
       setServiceDialogOpen(false);
-      setServiceForm({ title: '', category: 'Residencial', description: '', image: '', video: '', content: '', brandName: '', brandTagline: '' });
+      setServiceForm({
+        title: '',
+        category: 'Landscaping',
+        description: '',
+        image: '',
+        images: [],
+        video: '',
+        content: '',
+        brandName: '',
+        brandTagline: '',
+      });
       setEditingServiceId(null);
       await loadServices();
     } catch (e) {
@@ -2065,13 +2214,25 @@ export function Admin() {
               <ExternalLink className="w-3.5 h-3.5" />
               View site
             </Link>
-            {chatUnread > 0 && (
-              <button onClick={() => setSection('chat')}
-                className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
-                <MessageCircle className="w-5 h-5" />
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#e85d04] text-white text-[9px] font-black rounded-full flex items-center justify-center">{chatUnread}</span>
-              </button>
-            )}
+            <button 
+              onClick={() => {
+                setSection('chat');
+                setChatFilter('unread');
+                const firstUnread = chatSessions.find((s) => (s.unread_admin || 0) > 0);
+                if (firstUnread) {
+                  setSelectedChatSession(firstUnread.session_id);
+                }
+              }}
+              className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+              title={chatUnread > 0 ? `${chatUnread} unread messages` : 'Live Chat'}
+            >
+              <MessageCircle className={`w-5 h-5 ${chatUnread > 0 ? 'text-[#e85d04]' : 'text-slate-500'}`} />
+              {chatUnread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#e85d04] text-white text-[9px] font-black rounded-full flex items-center justify-center shadow-sm animate-pulse">
+                  {chatUnread}
+                </span>
+              )}
+            </button>
           </div>
         </header>
 
@@ -2515,12 +2676,22 @@ export function Admin() {
                               </div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
-                                {service.image ? (
-                                  <img src={service.image} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  <ImageIcon className="w-5 h-5 text-gray-400" />
-                                )}
+                              <div className="flex items-center gap-2">
+                                <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 shrink-0">
+                                  {service.image ? (
+                                    <img src={service.image} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <ImageIcon className="w-5 h-5 text-gray-400" />
+                                  )}
+                                </div>
+                                {(() => {
+                                  const imgs = parseServiceImages(service.images);
+                                  return (
+                                    <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full whitespace-nowrap">
+                                      {imgs.length} in carousel
+                                    </span>
+                                  );
+                                })()}
                               </div>
                             </td>
                             <td className="px-6 py-4 font-medium text-[#333]">{service.title}</td>
@@ -3060,152 +3231,379 @@ export function Admin() {
           )}
 
           {/* ========== CHAT ========== */}
-          {section === 'chat' && (
-            <>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold text-[#0f172a]">Live Chat</h1>
-                  <p className="text-slate-500 text-sm mt-1">Reply to visitors in real time.</p>
-                </div>
-                <button
-                  onClick={loadChatSessions}
-                  className="flex items-center gap-2 text-sm font-semibold text-[#1e5631] hover:text-[#164a28] bg-white border border-[#1e5631]/20 hover:border-[#1e5631]/50 px-4 py-2 rounded-xl transition-all shadow-sm"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </button>
-              </div>
+          {section === 'chat' && (() => {
+            const unreadChatCount = chatSessions.filter((s) => (s.unread_admin || 0) > 0).length;
+            const activeChatCount = chatSessions.filter((s) => (s.message_count || 0) > 0 || !!s.last_message).length;
+            const emptyChatCount = Math.max(0, chatSessions.length - activeChatCount);
 
-              <div className="flex gap-4 h-[calc(100vh-13rem)] min-h-[480px]">
-                {/* Sessions list */}
-                <div className="w-72 shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-100 bg-slate-50 shrink-0">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Conversations ({chatSessions.length})</p>
+            const filteredChatSessions = chatSessions.filter((s) => {
+              if (chatFilter === 'unread' && (s.unread_admin || 0) <= 0) return false;
+              if (chatFilter === 'active' && (s.message_count || 0) <= 0 && !s.last_message) return false;
+              if (chatSearch.trim()) {
+                const q = chatSearch.toLowerCase();
+                const matchName = s.visitor_name?.toLowerCase().includes(q);
+                const matchSession = s.session_id?.toLowerCase().includes(q);
+                const matchMsg = s.last_message?.toLowerCase().includes(q);
+                if (!matchName && !matchSession && !matchMsg) return false;
+              }
+              return true;
+            });
+
+            const currentSessionObj = chatSessions.find((s) => s.session_id === selectedChatSession);
+
+            return (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <h1 className="text-2xl font-bold text-[#0f172a]">Live Chat</h1>
+                      {unreadChatCount > 0 && (
+                        <span className="bg-[#e85d04] text-white text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                          <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+                          {unreadChatCount} unread
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-sm mt-1">
+                      Manage and reply to visitor inquiries in real time.
+                    </p>
                   </div>
-                  <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-                    {chatLoading && chatSessions.length === 0 ? (
-                      <div className="p-6 text-center text-gray-400 text-sm">Loading…</div>
-                    ) : chatSessions.length === 0 ? (
-                      <div className="p-8 text-center">
-                        <MessageCircle className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                        <p className="text-gray-400 text-sm">No conversations yet.</p>
-                      </div>
-                    ) : (
-                      chatSessions.map((s) => (
+                  <div className="flex items-center gap-2">
+                    {emptyChatCount > 0 && (
+                      <button
+                        onClick={cleanEmptyChatSessions}
+                        disabled={purgingEmpty}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3.5 py-2 rounded-xl transition-all shadow-sm disabled:opacity-50"
+                        title="Remove empty visitor sessions that never sent any message"
+                      >
+                        <Trash className="w-3.5 h-3.5" />
+                        {purgingEmpty ? 'Cleaning...' : `Clean Empty (${emptyChatCount})`}
+                      </button>
+                    )}
+                    <button
+                      onClick={loadChatSessions}
+                      className="flex items-center gap-2 text-sm font-semibold text-[#1e5631] hover:text-[#164a28] bg-white border border-[#1e5631]/20 hover:border-[#1e5631]/50 px-4 py-2 rounded-xl transition-all shadow-sm"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${chatLoading ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-14rem)] min-h-[540px]">
+                  {/* Sessions list */}
+                  <div className="w-full lg:w-96 shrink-0 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+                    {/* Filter tabs */}
+                    <div className="p-3 border-b border-gray-100 bg-slate-50/70 space-y-2 shrink-0">
+                      <div className="flex p-1 bg-slate-200/70 rounded-xl text-xs font-semibold">
                         <button
-                          key={s.session_id}
-                          onClick={() => setSelectedChatSession(s.session_id)}
-                          className={`w-full text-left px-4 py-3 transition-colors flex gap-3 items-start ${
-                            selectedChatSession === s.session_id ? 'bg-[#1e5631]/5 border-l-2 border-[#1e5631]' : 'hover:bg-slate-50'
+                          onClick={() => setChatFilter('unread')}
+                          className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                            chatFilter === 'unread'
+                              ? 'bg-white text-gray-900 shadow-sm font-bold'
+                              : 'text-gray-600 hover:text-gray-900'
                           }`}
                         >
-                          <div className="w-8 h-8 rounded-full bg-[#1e5631]/10 flex items-center justify-center shrink-0 mt-0.5">
-                            <User className="w-4 h-4 text-[#1e5631]" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <p className="text-sm font-semibold text-[#0f172a] truncate">{s.visitor_name}</p>
-                              {s.unread_admin > 0 && (
-                                <span className="shrink-0 w-4 h-4 bg-[#e85d04] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                                  {s.unread_admin}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-gray-400 mt-0.5">
-                              {new Date(s.last_message_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
+                          Unread
+                          {unreadChatCount > 0 && (
+                            <span className="bg-[#e85d04] text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                              {unreadChatCount}
+                            </span>
+                          )}
                         </button>
-                      ))
+                        <button
+                          onClick={() => setChatFilter('active')}
+                          className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                            chatFilter === 'active'
+                              ? 'bg-white text-gray-900 shadow-sm font-bold'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          With Messages
+                          {activeChatCount > 0 && (
+                            <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                              {activeChatCount}
+                            </span>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setChatFilter('all')}
+                          className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+                            chatFilter === 'all'
+                              ? 'bg-white text-gray-900 shadow-sm font-bold'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          All ({chatSessions.length})
+                        </button>
+                      </div>
+
+                      {/* Search box */}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={chatSearch}
+                          onChange={(e) => setChatSearch(e.target.value)}
+                          placeholder="Search by visitor name or message..."
+                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 focus:border-[#1e5631]"
+                        />
+                        {chatSearch && (
+                          <button
+                            onClick={() => setChatSearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* List */}
+                    <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+                      {chatLoading && chatSessions.length === 0 ? (
+                        <div className="p-8 text-center text-gray-400 text-sm flex flex-col items-center gap-2">
+                          <RefreshCw className="w-6 h-6 animate-spin text-[#1e5631]" />
+                          Loading conversations...
+                        </div>
+                      ) : filteredChatSessions.length === 0 ? (
+                        <div className="p-8 text-center">
+                          <MessageCircle className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                          <p className="text-gray-600 font-medium text-sm">
+                            {chatFilter === 'unread'
+                              ? 'No unread messages right now 🎉'
+                              : chatFilter === 'active'
+                              ? 'No conversations with messages yet'
+                              : 'No conversations found'}
+                          </p>
+                          {chatFilter === 'unread' && activeChatCount > 0 && (
+                            <button
+                              onClick={() => setChatFilter('active')}
+                              className="mt-3 text-xs text-[#1e5631] font-semibold hover:underline"
+                            >
+                              View conversations with messages ({activeChatCount})
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        filteredChatSessions.map((s) => {
+                          const isSelected = selectedChatSession === s.session_id;
+                          const hasUnread = (s.unread_admin || 0) > 0;
+                          return (
+                            <div
+                              key={s.session_id}
+                              onClick={() => setSelectedChatSession(s.session_id)}
+                              className={`group w-full text-left px-4 py-3 cursor-pointer transition-all flex gap-3 items-start relative ${
+                                isSelected
+                                  ? 'bg-[#1e5631]/5 border-l-4 border-[#1e5631]'
+                                  : 'hover:bg-slate-50 border-l-4 border-transparent'
+                              }`}
+                            >
+                              <div className="relative shrink-0 mt-0.5">
+                                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${
+                                  hasUnread ? 'bg-[#e85d04]/10 text-[#e85d04]' : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  <User className="w-4 h-4" />
+                                </div>
+                                {hasUnread && (
+                                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-[#e85d04] rounded-full border-2 border-white" />
+                                )}
+                              </div>
+
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1 mb-0.5">
+                                  <p className={`text-sm truncate ${hasUnread ? 'font-black text-gray-900' : 'font-semibold text-gray-800'}`}>
+                                    {s.visitor_name || 'Visitor'}
+                                  </p>
+                                  <span className="text-[10px] text-gray-400 shrink-0">
+                                    {new Date(s.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+
+                                <p className={`text-xs truncate ${hasUnread ? 'text-[#0f172a] font-medium' : 'text-gray-500'}`}>
+                                  {s.last_message 
+                                    ? (s.last_sender === 'admin' ? `You: ${s.last_message}` : s.last_message)
+                                    : <span className="italic text-gray-400">No messages yet</span>}
+                                </p>
+
+                                <div className="flex items-center justify-between mt-1.5">
+                                  <span className="text-[10px] text-gray-400">
+                                    {new Date(s.last_message_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    {hasUnread && (
+                                      <span className="shrink-0 px-1.5 py-0.2 bg-[#e85d04] text-white text-[10px] font-black rounded-full">
+                                        {s.unread_admin} new
+                                      </span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        deleteSingleChatSession(s.session_id);
+                                      }}
+                                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all"
+                                      title="Delete conversation"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Message thread */}
+                  <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+                    {!selectedChatSession ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        <div className="w-16 h-16 rounded-full bg-emerald-50 text-[#1e5631] flex items-center justify-center mb-4 shadow-sm">
+                          <MessageCircle className="w-8 h-8" />
+                        </div>
+                        <p className="text-gray-800 font-bold text-lg">Select a conversation</p>
+                        <p className="text-gray-500 text-sm max-w-sm mt-1">
+                          Choose a session from the sidebar to read client inquiries and reply in real time.
+                        </p>
+                        {unreadChatCount > 0 && (
+                          <button
+                            onClick={() => {
+                              const firstUnread = chatSessions.find((s) => (s.unread_admin || 0) > 0);
+                              if (firstUnread) setSelectedChatSession(firstUnread.session_id);
+                            }}
+                            className="mt-5 inline-flex items-center gap-2 bg-[#e85d04] hover:bg-[#c44d03] text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                            Open first unread message ({unreadChatCount})
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <>
+                        {/* Thread header */}
+                        <div className="px-5 py-3.5 border-b border-gray-200 bg-slate-50/80 shrink-0 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-[#1e5631]/10 text-[#1e5631] flex items-center justify-center font-bold text-sm shrink-0">
+                              <User className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-bold text-[#0f172a] truncate">
+                                  {currentSessionObj?.visitor_name || 'Visitor'}
+                                </p>
+                                <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                  Active
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-500 truncate">
+                                ID: <span className="font-mono">{selectedChatSession.slice(0, 13)}…</span> • {chatMessages.length} messages
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {currentSessionObj && (currentSessionObj.unread_admin || 0) > 0 && (
+                              <button
+                                onClick={() => markChatRead(selectedChatSession)}
+                                className="flex items-center gap-1 text-xs font-semibold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg transition-colors border border-emerald-200"
+                                title="Mark as read"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Mark as read
+                              </button>
+                            )}
+                            <button
+                              onClick={() => loadChatMessages(selectedChatSession)}
+                              className="p-2 rounded-lg hover:bg-gray-200/70 text-gray-500 transition-colors"
+                              title="Refresh messages"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => deleteSingleChatSession(selectedChatSession)}
+                              className="p-2 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
+                              title="Delete this conversation"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8faf9]">
+                          {chatMessages.length === 0 ? (
+                            <div className="text-center py-16 text-gray-400 text-sm">
+                              <MessageCircle className="w-10 h-10 text-gray-300 mx-auto mb-2 opacity-60" />
+                              This session has no messages yet.
+                            </div>
+                          ) : (
+                            chatMessages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}
+                              >
+                                {msg.sender === 'user' && (
+                                  <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center text-gray-600 text-[10px] font-bold shrink-0 mt-auto mb-1 mr-2 shadow-xs">
+                                    <User className="w-4 h-4" />
+                                  </div>
+                                )}
+                                <div
+                                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words shadow-xs ${
+                                    msg.sender === 'admin'
+                                      ? 'bg-[#1e5631] text-white rounded-br-xs'
+                                      : 'bg-white text-gray-800 border border-gray-200 rounded-bl-xs'
+                                  }`}
+                                >
+                                  <p className="whitespace-pre-wrap">{msg.message}</p>
+                                  <p
+                                    className={`text-[10px] mt-1 font-medium ${
+                                      msg.sender === 'admin' ? 'text-emerald-100 text-right' : 'text-gray-400'
+                                    }`}
+                                  >
+                                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                          <div ref={chatBottomRef} />
+                        </div>
+
+                        {/* Reply input */}
+                        <div className="p-3 border-t border-gray-200 bg-white flex gap-2 items-end shrink-0">
+                          <textarea
+                            value={chatReply}
+                            onChange={(e) => setChatReply(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                sendAdminReply();
+                              }
+                            }}
+                            placeholder="Type a reply for the visitor... (Press Enter to send, Shift+Enter for new line)"
+                            rows={2}
+                            className="flex-1 resize-none rounded-xl border border-gray-200 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e5631]/25 focus:border-[#1e5631] placeholder:text-gray-400 leading-relaxed bg-gray-50/70"
+                            style={{ maxHeight: '110px', overflowY: 'auto' }}
+                          />
+                          <button
+                            onClick={sendAdminReply}
+                            disabled={!chatReply.trim() || chatReplySending}
+                            className="w-11 h-11 bg-[#1e5631] hover:bg-[#164a28] disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-sm"
+                            title="Send reply"
+                          >
+                            <Send className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
-
-                {/* Message thread */}
-                <div className="flex-1 bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col overflow-hidden">
-                  {!selectedChatSession ? (
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        <MessageCircle className="w-14 h-14 text-gray-200 mx-auto mb-3" />
-                        <p className="text-gray-500 font-semibold">Select a conversation</p>
-                        <p className="text-gray-400 text-sm mt-1">Choose a session from the left to start replying.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Thread header */}
-                      <div className="px-5 py-3 border-b border-gray-100 bg-slate-50 shrink-0 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#1e5631]/10 flex items-center justify-center shrink-0">
-                          <User className="w-4 h-4 text-[#1e5631]" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-[#0f172a]">
-                            {chatSessions.find((s) => s.session_id === selectedChatSession)?.visitor_name || 'Visitor'}
-                          </p>
-                          <p className="text-[11px] text-gray-400">Session: {selectedChatSession.slice(0, 8)}…</p>
-                        </div>
-                        <button
-                          onClick={() => loadChatMessages(selectedChatSession)}
-                          className="ml-auto p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
-                          title="Refresh messages"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      {/* Messages */}
-                      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8faf9]">
-                        {chatMessages.length === 0 ? (
-                          <div className="text-center py-12 text-gray-400 text-sm">No messages yet.</div>
-                        ) : (
-                          chatMessages.map((msg) => (
-                            <div key={msg.id} className={`flex ${msg.sender === 'admin' ? 'justify-end' : 'justify-start'}`}>
-                              {msg.sender === 'user' && (
-                                <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-[9px] font-bold shrink-0 mt-auto mb-1 mr-1.5">
-                                  <User className="w-3.5 h-3.5" />
-                                </div>
-                              )}
-                              <div className={`max-w-[70%] px-3 py-2 rounded-2xl text-sm leading-relaxed break-words ${
-                                msg.sender === 'admin'
-                                  ? 'bg-[#1e5631] text-white rounded-br-sm shadow-sm'
-                                  : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-bl-sm'
-                              }`}>
-                                <p>{msg.message}</p>
-                                <p className={`text-[10px] mt-0.5 ${msg.sender === 'admin' ? 'text-white/55 text-right' : 'text-gray-400'}`}>
-                                  {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                        <div ref={chatBottomRef} />
-                      </div>
-
-                      {/* Reply input */}
-                      <div className="p-3 border-t border-gray-100 bg-white flex gap-2 items-end shrink-0">
-                        <textarea
-                          value={chatReply}
-                          onChange={(e) => setChatReply(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdminReply(); } }}
-                          placeholder="Type a reply…"
-                          rows={2}
-                          className="flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e5631]/25 focus:border-[#1e5631]/50 placeholder:text-gray-400 leading-relaxed bg-gray-50/60"
-                          style={{ maxHeight: '100px', overflowY: 'auto' }}
-                        />
-                        <button
-                          onClick={sendAdminReply}
-                          disabled={!chatReply.trim() || chatReplySending}
-                          className="w-10 h-10 bg-[#1e5631] hover:bg-[#164a28] disabled:bg-gray-200 text-white disabled:text-gray-400 rounded-xl flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-sm"
-                        >
-                          <Send className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+              </>
+            );
+          })()}
 
           {/* ========== SETTINGS ========== */}
           {section === 'settings' && (
@@ -4595,20 +4993,200 @@ export function Admin() {
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="service-image">{t('admin.image')} (URL or Upload)</Label>
-              <Input
-                id="service-image"
-                value={serviceForm.image}
-                onChange={(e) => setServiceForm((f) => ({ ...f, image: e.target.value }))}
-                placeholder="https://..."
-              />
-              <div className="flex items-center gap-2">
+            {/* ── MAIN COVER (HOMEPAGE & CARDS) ── */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-[#1e5631] text-white">
+                    <Star className="w-4 h-4 fill-current" />
+                  </span>
+                  <div>
+                    <Label className="text-sm font-bold text-gray-900">
+                      Main Cover Image (Homepage & Cards)
+                    </Label>
+                    <p className="text-xs text-gray-500">
+                      This photo is the primary featured cover displayed on the homepage and main service cards.
+                    </p>
+                  </div>
+                </div>
+                {serviceForm.image && (
+                  <Badge variant="outline" className="bg-emerald-50 text-emerald-800 border-emerald-300 text-xs font-semibold">
+                    ✓ Active cover
+                  </Badge>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4 items-start">
+                {serviceForm.image ? (
+                  <div className="w-full sm:w-48 aspect-[16/10] rounded-xl overflow-hidden bg-gray-100 border-2 border-[#1e5631] relative shadow-sm shrink-0 group">
+                    <img
+                      src={serviceForm.image}
+                      alt="Current cover"
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2 text-center">
+                      <span className="text-[11px] text-white font-bold bg-black/60 px-2 py-1 rounded">
+                        Homepage Cover
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full sm:w-48 aspect-[16/10] rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 bg-white shrink-0">
+                    <ImageIcon className="w-8 h-8 mb-1" />
+                    <span className="text-xs">No cover image</span>
+                  </div>
+                )}
+
+                <div className="flex-1 w-full space-y-2">
+                  <Input
+                    id="service-image"
+                    value={serviceForm.image}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, image: e.target.value }))}
+                    placeholder="Image URL (e.g. /servicio-concrete/concrete-6.webp or https://...)"
+                    className="text-xs bg-white"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label
+                      htmlFor="service-file"
+                      className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#1e5631] hover:bg-[#164a28] text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Cover Photo from PC / Mobile
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="service-file"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        e.target.value = '';
+                        uploadImageToServer(
+                          file,
+                          'services',
+                          setUploadingServiceImage,
+                          setUploadServiceImageError,
+                          (url) => setServiceForm((f) => ({ ...f, image: url })),
+                        );
+                      }}
+                    />
+                    {uploadingServiceImage && (
+                      <span className="text-xs text-emerald-700 flex items-center gap-1 font-medium">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Uploading photo...
+                      </span>
+                    )}
+                    {uploadServiceImageError && (
+                      <span className="text-xs text-rose-600">{uploadServiceImageError}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── CAROUSEL & GALLERY IMAGES ── */}
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm font-bold text-gray-900">
+                      Carousel & Gallery Images
+                    </Label>
+                    <span className="bg-slate-200 text-slate-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                      {serviceForm.images.length} photos
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    These photos appear inside the carousel when visitors view service details.
+                  </p>
+                </div>
+              </div>
+
+              {/* Grid of gallery images */}
+              {serviceForm.images.length === 0 ? (
+                <div className="p-6 border-2 border-dashed border-gray-300 rounded-xl text-center bg-white">
+                  <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">No photos in carousel yet.</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">Upload additional photos to showcase completed work in the service modal carousel.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {serviceForm.images.map((imgUrl, idx) => (
+                    <div
+                      key={idx}
+                      className="group relative rounded-xl overflow-hidden bg-white border border-gray-200 shadow-xs hover:shadow-md transition-all flex flex-col"
+                    >
+                      <div className="aspect-[4/3] w-full bg-gray-100 relative overflow-hidden">
+                        <img
+                          src={imgUrl}
+                          alt={`Photo ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute top-2 left-2 bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                          #{idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryImage(idx)}
+                          className="absolute top-2 right-2 p-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm opacity-90 hover:opacity-100 transition-opacity"
+                          title="Remove this photo from carousel"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div className="p-2 bg-white flex flex-col gap-1.5 border-t border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => setGalleryImageAsCover(idx)}
+                          className="w-full py-1 px-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-colors"
+                          title="Set as main homepage cover photo"
+                        >
+                          <Star className="w-3 h-3 fill-current" />
+                          ★ Set as Home Cover
+                        </button>
+
+                        <div className="flex items-center justify-between gap-1">
+                          <button
+                            type="button"
+                            onClick={() => moveGalleryImage(idx, 'left')}
+                            disabled={idx === 0}
+                            className="flex-1 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 rounded text-[10px] font-bold transition-colors"
+                            title="Move photo left"
+                          >
+                            ← Prev
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveGalleryImage(idx, 'right')}
+                            disabled={idx === serviceForm.images.length - 1}
+                            className="flex-1 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-30 rounded text-[10px] font-bold transition-colors"
+                            title="Move photo right"
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add to gallery controls */}
+              <div className="pt-2 border-t border-slate-200/80 flex flex-col sm:flex-row gap-2 items-center">
+                <label
+                  htmlFor="service-gallery-file"
+                  className="w-full sm:w-auto cursor-pointer inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-gray-300 text-gray-800 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5 text-[#1e5631]" />
+                  Upload photo to carousel
+                </label>
                 <input
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  id="service-file"
+                  id="service-gallery-file"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -4616,26 +5194,46 @@ export function Admin() {
                     uploadImageToServer(
                       file,
                       'services',
-                      setUploadingServiceImage,
-                      setUploadServiceImageError,
-                      (url) => setServiceForm((f) => ({ ...f, image: url })),
+                      setUploadingGalleryImage,
+                      setUploadGalleryImageError,
+                      (url) => setServiceForm((f) => ({ ...f, images: [...f.images, url] })),
                     );
                   }}
                 />
-                <Label
-                  htmlFor="service-file"
-                  className="cursor-pointer text-xs text-[#1e5631] hover:underline"
-                >
-                  Upload image
-                </Label>
-                {uploadingServiceImage && (
-                  <span className="text-xs text-gray-500 flex items-center gap-1">
-                    <span className="w-3 h-3 border-2 border-gray-300 border-t-[#1e5631] rounded-full animate-spin inline-block" />
+
+                <div className="w-full sm:flex-1 flex gap-2">
+                  <Input
+                    value={galleryUrlInput}
+                    onChange={(e) => setGalleryUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addGalleryUrl();
+                      }
+                    }}
+                    placeholder="Or add by URL (/path.webp or https://...)"
+                    className="text-xs bg-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addGalleryUrl}
+                    disabled={!galleryUrlInput.trim()}
+                    className="text-xs shrink-0"
+                  >
+                    Add URL
+                  </Button>
+                </div>
+
+                {uploadingGalleryImage && (
+                  <span className="text-xs text-emerald-700 flex items-center gap-1 font-medium shrink-0">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
                     Uploading...
                   </span>
                 )}
-                {uploadServiceImageError && (
-                  <span className="text-xs text-red-500">{uploadServiceImageError}</span>
+                {uploadGalleryImageError && (
+                  <span className="text-xs text-rose-600 shrink-0">{uploadGalleryImageError}</span>
                 )}
               </div>
             </div>

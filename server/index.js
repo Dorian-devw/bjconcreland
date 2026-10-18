@@ -1525,9 +1525,21 @@ app.post('/api/chat/messages', chatMsgLimiter, async (req, res) => {
 // Admin: list all chat sessions (protected)
 app.get('/api/chat/sessions', authMiddleware, async (req, res) => {
   await ensureChatTables();
-  const [rows] = await db.query(
-    'SELECT id, session_id, visitor_name, status, unread_admin, created_at, last_message_at FROM chat_sessions ORDER BY last_message_at DESC'
-  );
+  const [rows] = await db.query(`
+    SELECT 
+      s.id, 
+      s.session_id, 
+      s.visitor_name, 
+      s.status, 
+      s.unread_admin, 
+      s.created_at, 
+      s.last_message_at,
+      (SELECT COUNT(*) FROM chat_messages WHERE session_id = s.session_id) AS message_count,
+      (SELECT message FROM chat_messages WHERE session_id = s.session_id ORDER BY id DESC LIMIT 1) AS last_message,
+      (SELECT sender FROM chat_messages WHERE session_id = s.session_id ORDER BY id DESC LIMIT 1) AS last_sender
+    FROM chat_sessions s
+    ORDER BY s.last_message_at DESC
+  `);
   res.json(rows);
 });
 
@@ -1551,4 +1563,32 @@ app.put('/api/chat/sessions/:sessionId/read', authMiddleware, async (req, res) =
   res.json({ ok: true });
 });
 
+// Admin: update session status (protected)
+app.put('/api/chat/sessions/:sessionId/status', authMiddleware, async (req, res) => {
+  await ensureChatTables();
+  const { status } = req.body || {};
+  if (!status) return res.status(400).json({ error: 'status required' });
+  await db.query('UPDATE chat_sessions SET status = ? WHERE session_id = ?', [String(status).slice(0, 20), req.params.sessionId]);
+  res.json({ ok: true });
+});
+
+// Admin: purge empty sessions with 0 messages (protected)
+app.delete('/api/chat/sessions/purge-empty', authMiddleware, async (req, res) => {
+  await ensureChatTables();
+  const [result] = await db.query(`
+    DELETE FROM chat_sessions 
+    WHERE session_id NOT IN (SELECT DISTINCT session_id FROM chat_messages)
+  `);
+  res.json({ ok: true, deletedCount: result.affectedRows });
+});
+
+// Admin: delete individual session (protected)
+app.delete('/api/chat/sessions/:sessionId', authMiddleware, async (req, res) => {
+  await ensureChatTables();
+  await db.query('DELETE FROM chat_messages WHERE session_id = ?', [req.params.sessionId]);
+  const [result] = await db.query('DELETE FROM chat_sessions WHERE session_id = ?', [req.params.sessionId]);
+  res.json({ ok: true, deleted: result.affectedRows > 0 });
+});
+
 app.listen(PORT, () => console.log('Servidor API en http://localhost:' + PORT));
+
