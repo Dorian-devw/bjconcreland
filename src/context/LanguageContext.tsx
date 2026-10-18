@@ -141,6 +141,7 @@ export const translations: Translations = {
     'home.main_categories': { es: 'Main Categories', en: 'Main Categories' },
     'home.no_categories': { es: 'No categories yet. Add them from the admin panel.', en: 'No categories yet. Add them from the admin panel.' },
     'home.featured_products': { es: 'Featured Products', en: 'Featured Products' },
+    'home.featured_headline': { es: 'Quality materials & tools for your next build', en: 'Quality materials & tools for your next build' },
     'home.view_all': { es: 'View All', en: 'View All' },
     'home.retry': { es: 'Retry', en: 'Retry' },
     'home.no_featured': { es: 'No featured products at the moment.', en: 'No featured products at the moment.' },

@@ -334,14 +334,14 @@ export function Home() {
         <div className="w-full bg-[#a8876c] px-[5%] py-16 md:py-24 flex items-center">
             <div className="max-w-7xl mx-auto w-full">
                 <span className="text-[#3a2f2a] text-xs font-bold uppercase tracking-widest mb-4 block">
-                    FEATURED PROJECTS
+                    {t('home.featured_products')}
                 </span>
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <h2 className="font-serif text-4xl md:text-6xl text-[#3a2f2a] leading-[1.1] max-w-2xl">
-                        Rest assured your project is done right
+                        {t('home.featured_headline')}
                     </h2>
                     <Link to="/catalog" className="inline-block border-b border-[#3a2f2a] text-[#3a2f2a] font-bold text-sm uppercase tracking-widest pb-1 hover:opacity-70 transition-opacity mb-2">
-                        {t('home.view_all')}
+                        {t('home.view_catalog')}
                     </Link>
                 </div>
             </div>
