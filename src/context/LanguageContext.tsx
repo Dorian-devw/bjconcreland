@@ -185,6 +185,7 @@ export const translations: Translations = {
     'services.interest_desc': { es: 'Contact us and receive a free quote.', en: 'Contact us and receive a free quote.' },
     'services.view_all_btn': { es: 'View all', en: 'View all' },
     'services.get_quote': { es: 'Get Quote', en: 'Get Quote' },
+    'services.no_content': { es: 'Información detallada disponible al solicitar cotización.', en: 'Detailed information available upon request.' },
 
     // Contact
     'contact.title': { es: 'Contact Us', en: 'Contact Us' },

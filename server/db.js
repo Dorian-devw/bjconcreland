@@ -389,205 +389,240 @@ async function ensureServicesTable() {
   try { await db.query('ALTER TABLE services ADD COLUMN image_after TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN images TEXT DEFAULT NULL'); } catch (_) {}
 
-  // Seed / Migración inicial del servicio Landscape
-  try {
-    const allLandscapeImages = JSON.stringify([
-      '/servicio-landscape/landscape-2.webp',
-      '/servicio-landscape/landscape-3.webp',
-      '/servicio-landscape/landscape-4.webp',
-      '/servicio-landscape/landscape5.webp',
-      '/servicio-landscape/landscape-6.webp',
-    ]);
+  // ── Seed / Migración inicial de los 6 Servicios Principales ────────────────
+  const landscapeContent = [
+    '**Custom Outdoor Living Tailored to Utah Climate**',
+    'At JJ Construction, we bring over a decade of design and field expertise to every landscaping project across Utah. We understand how local weather, freeze-thaw cycles, and soil compositions impact plant life and soil retention. From comprehensive master-planned yard designs to precise plant and sod installations, we turn barren or tired yards into lush, functional outdoor extensions of your living space.',
+    '**Our Full-Spectrum Landscaping Solutions**',
+    '• **Custom Landscape Architecture & 3D Planning**: Tailor-made designs optimized for your lot topography, privacy desires, and HOA guidelines.',
+    '• **Native & Drought-Tolerant Planting**: Hand-selected hardy trees, evergreen conifers, ornamental shrubs, and flowering perennials that thrive in Utah semi-arid climate.',
+    '• **Premium Sod & Soil Conditioning**: Thorough ground cultivation, topsoil enrichment, laser grading, and fresh installation of high-density Kentucky Bluegrass and drought-resistant turf blends.',
+    '• **Decorative Rock, Boulders & Mulch**: Architectural garden beds layered with weed-barrier geotextile, river rock, crushed granite, natural specimen boulders, and moisture-preserving dark mulch.',
+    '• **Custom Landscape Edging & Curbing**: Heavy-gauge steel, textured poured concrete curbing, or natural stone curbing that creates sharp separation lines and stops grass intrusion.',
+    '• **Yard Cleanouts & Complete Renovations**: Comprehensive clearing, excavation, weed removal, tree trimming, and re-grading for neglected yards needing a fresh start.',
+    '**Our 5-Step Landscape Installation Process**',
+    '1. **Site Assessment & Elevation Survey**: We analyze sunlight patterns, soil quality, and surface water runoff to establish ideal planting and grading zones.',
+    '2. **Earthwork, Clearing & Grading**: Heavy grading and rough excavation ensure smooth transitions and guarantee water slopes safely away from your home foundation.',
+    '3. **Soil Preparation & Irrigation Coordination**: Rototilling and amending soil with organic nutrients while integrating underground drip and sprinkler coverage.',
+    '4. **Precision Plant & Tree Installation**: Root balls are planted at exact structural depths with root-stimulant fertilizers and soil backfill to guarantee robust rooting.',
+    '5. **Ground Cover, Edging & Final Cleanup**: Installing industrial-grade commercial weed fabric, spreading rocks and mulch to uniform depths, and full property power washing.',
+  ].join('\n\n');
 
-    const [existing] = await db.query('SELECT id FROM services WHERE title = ?', ['Bring Your Outdoor Space to Life']);
-    if (existing.length === 0) {
-      const initialService = {
-        title: 'Bring Your Outdoor Space to Life',
-        category: 'Landscaping',
-        description: "We design and install complete outdoor spaces, including lawns, plants, trees, decorative rock, garden beds, and irrigation. We also handle artificial grass, concrete, hardscapes, drainage and lighting, fencing, and outdoor structures. Whether you're starting from scratch or improving an existing yard, we'll help bring your plans to life.",
-        image: '/servicio-landscape/landscape-1.webp',
-        images: allLandscapeImages,
-        brandName: 'JJ Construction',
-        brandTagline: 'Landscape & Concrete Specialists',
-        homeSlot: 1,
-        sortOrder: 0,
-      };
+  const concreteContent = [
+    '**Enduring Strength & Precision Craftsmanship**',
+    'At JJ Construction, we specialize in high-durability residential and commercial concrete solutions engineered to withstand heavy load demands and harsh freeze-thaw climate cycles. Whether you are upgrading your home curb appeal with a modern driveway or pouring a structural foundation, our experienced team delivers clean, long-lasting results.',
+    '**Comprehensive Concrete Services**',
+    '• **Driveways & Approaches**: High-load capacity concrete driveways engineered with reinforced sub-bases to eliminate premature cracking and settling.',
+    '• **Custom Patios & Walkways**: Beautiful, functional outdoor living surfaces tailored to your landscape with seamless transitions.',
+    '• **Structural Slabs & Foundations**: Precision-formed slabs for garages, workshops, sheds, and home additions adhering strictly to building codes.',
+    '• **Pool Decks & Coping**: Slip-resistant, weather-sealed pool surrounds designed for luxury aesthetics and family safety.',
+    '• **Steps, Stairs & Retaining Curbs**: Custom formed entries, multi-tier steps, and landscape curbing built for stability and clean aesthetics.',
+    '• **Demolition, Removal & Haul-Off**: Safe, efficient break-out and removal of old, cracked, or sunken concrete with full site cleanup.',
+    '**Our Proven Process**',
+    '1. **Site Evaluation & Laser Grading**: We establish proper elevation and drainage slopes so water always flows safely away from your structures.',
+    '2. **Sub-Base Compaction**: Solid ground preparation with compacted gravel base prevents future settling and voids.',
+    '3. **Steel Reinforcement**: Heavy rebar grids and fiber reinforcement ensure maximum tensile strength across extreme seasonal changes.',
+    '4. **Premium Mix & Professional Finishing**: High PSI commercial-grade concrete poured and finished with precision brooming or smooth architectural edges.',
+    '5. **Curing & Protection**: Proper curing techniques that lock in moisture for optimal hydration, preventing surface scaling and ensuring decades of performance.',
+  ].join('\n\n');
 
-      await db.query(`
-        INSERT INTO services (title, category, description, image, images, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
-        VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
-      `, [
-        initialService.title,
-        initialService.category,
-        initialService.description,
-        initialService.image,
-        initialService.images,
-        initialService.brandName,
-        initialService.brandTagline,
-        initialService.homeSlot,
-        initialService.sortOrder,
-      ]);
-      console.log('✅ Servicio inicial "Bring Your Outdoor Space to Life" insertado con éxito.');
-    } else {
-      // Actualizar por si se había insertado con antes/después o con landscape-1 en la galería
-      await db.query(`
-        UPDATE services 
-        SET image = '/servicio-landscape/landscape-1.webp',
-            image_before = NULL, 
-            image_after = NULL, 
-            images = ?,
-            home_slot = 1,
-            sort_order = 0
-        WHERE title = ?
-      `, [allLandscapeImages, 'Bring Your Outdoor Space to Life']);
+  const turfContent = [
+    '**Year-Round Green Perfection Without the Hassle**',
+    'Say goodbye to endless mowing, fertilizing, muddy paw prints, and costly water bills. At JJ Construction, we engineer and install premium synthetic grass systems designed specifically for high-traffic Utah homes and commercial properties. Our artificial turf looks and feels remarkably like natural grass while offering superior resilience and unmatched longevity.',
+    '**Custom Turf Applications for Every Space**',
+    '• **Full Residential Lawns**: Transform front yards and expansive backyards into evergreen, zero-maintenance showpieces.',
+    '• **Dedicated Pet Turf & Dog Runs**: Antimicrobial, deodorizing infill with rapid-flow perforated backing that drains pet urine instantly and eliminates brown spots and mud.',
+    '• **Kids Play Areas**: Cushioning underlayment and shock pads that meet critical fall-height safety ratings to keep children safe during playtime.',
+    '• **Custom Putting Greens**: Professional-grade bentgrass putting surfaces engineered with adjustable stimp speeds, custom undulations, and fringe grass for golf enthusiasts.',
+    '• **Commercial Landscapes & Common Areas**: Durable, pristine synthetic grass for HOA common grounds, office plazas, and retail storefronts.',
+    '**Our Multi-Layer Installation Process**',
+    '1. **Excavation & Weed Barrier**: Removal of native grass and soil followed by a heavy-duty geotextile weed barrier that halts weed penetration.',
+    '2. **Engineered Base Compaction**: 3 to 4 inches of crushed aggregate base layered and vibratory-compacted to provide a smooth, solid foundation.',
+    '3. **High-Flow Drainage System**: Multi-tier base design capable of draining over 30 inches of water per hour, preventing pooling and mold.',
+    '4. **Seamless Seaming & Perimeter Anchoring**: Industrial seam tape and non-corrosive galvanized landscape spikes secure the turf permanently in place.',
+    '5. **Silica Sand / Antimicrobial Infill**: Weighted infill brushed deep between blades to keep fibers standing tall, protect backing from UV degradation, and ensure a natural, springy feel underfoot.',
+  ].join('\n\n');
+
+  const stampedConcreteContent = [
+    '**Architectural Elegance Meets High-Strength Concrete**',
+    'Elevate your property curb appeal with decorative stamped and colored concrete from JJ Construction. We combine structural concrete integrity with artistic detailing, creating realistic surfaces that mimic imported natural stone, European cobblestone, Italian slate, or rustic wood planks at a fraction of the cost.',
+    '**Custom Decorative Concrete Solutions**',
+    '• **Stamped Patios & Pool Decks**: Slip-resistant, weather-sealed stamped surfaces tailored for outdoor entertaining and pool coping.',
+    '• **Decorative Driveways & Entradas**: Heavy-duty structural stamped driveways engineered with reinforced sub-bases to resist heavy vehicles and winter salt.',
+    '• **Integral Coloring & Antique Accent Releases**: Multi-tone coloring techniques where base color is blended throughout the concrete batch and antique powders create dramatic surface contrast.',
+    '• **Seamless Texture Skins & Slate Stamps**: Hand-stamped Ashlar slate, Roman cobblestone, wood plank, and seamless granite textures.',
+    '• **Stamped Borders & Contrasting Bands**: Elegant perimeter framing combining broom-finish slabs with rich decorative stamped borders.',
+    '• **Commercial Acrylic Sealing**: UV-resistant, non-yellowing high-solids sealers infused with slip-resistant polymer grit for lasting sheen and protection.',
+    '**Our Decorative Process**',
+    '1. **Forming & High-Density Rebar Grid**: Rigid perimeter forming and tied rebar reinforcement prevent settling and crack migration.',
+    '2. **High-PSI Integral Color Pour**: Commercial-grade 4000+ PSI concrete with pure mineral oxide pigments mixed uniformly.',
+    '3. **Color Hardener & Release Application**: Specialized release agents prevent stamp adhesion while imparting rich antique shadows in deep grout lines.',
+    '4. **Precision Hand Stamping**: Systematic stamping with calibrated tools while concrete is at optimal plasticity for crisp, deep impressions.',
+    '5. **Wash, Cut & Premium Seal**: Pressure washing excess release, saw-cutting expansion control joints, and applying dual coats of wet-look protective sealer.',
+  ].join('\n\n');
+
+  const retainingWallsContent = [
+    '**Engineered Soil Retention & Outdoor Living Spaces**',
+    'Transform steep, unusable slopes into breathtaking multi-tier terraces with retaining walls and hardscaping from JJ Construction. Built with structural engineering principles and premium materials, our walls and paver systems resist heavy hydrostatic soil pressures while expanding your yard usable footprint.',
+    '**Specialized Hardscape & Retaining Services**',
+    '• **Engineered Block Retaining Walls**: Heavy segmental interlocking concrete blocks designed for tall hillside retention, terraced gardens, and driveway support.',
+    '• **Natural Stone & Boulder Walls**: Massive quarry boulders and hand-stacked natural flagstone providing an authentic, rugged mountain aesthetic.',
+    '• **Interlocking Paver Patios & Walkways**: High-compressive-strength pavers installed over multi-layer gravel bases that eliminate surface cracking and joint shifting.',
+    '• **Custom Fire Pits & Built-in Seating**: Circular or rectangular stone fire features (wood-burning or gas) flanked by integrated radius seat walls.',
+    '• **Multi-Tier Terrace Systems**: Converting steep backyards into functional multi-level yards for gardens, turf play zones, and entertaining decks.',
+    '• **Outdoor Kitchens & Grilling Stations**: Custom masonry BBQ islands and outdoor countertops crafted for luxury outdoor cooking.',
+    '**Our Engineered Installation Standards**',
+    '1. **Excavation & Deep Base Trenching**: Trenching below native grade to establish an immovable foundation below the frost line.',
+    '2. **Crushed Aggregate Base Compaction**: Heavy road-base stone vibratory-compacted to 98% Proctor density to eliminate settling.',
+    '3. **First-Course Laser Leveling**: The critical bottom row is laser-aligned and leveled to fraction-of-an-inch tolerances.',
+    '4. **Geogrid Soil Reinforcement & Backfill Drainage**: Heavy structural geogrid fabric anchored into backfill soil with perforated drain pipe and clean drainage gravel behind the wall.',
+    '5. **Capping & High-Strength Adhesive Bonding**: Wall caps secured with polyurethane structural masonry adhesive for decades of durability.',
+  ].join('\n\n');
+
+  const irrigationDrainageContent = [
+    '**Smart Water Management & Architectural Night Lighting**',
+    'A healthy landscape requires intelligent water delivery and effective storm runoff control. At JJ Construction, we design and install high-efficiency automated irrigation systems, structural storm drainage, and low-voltage architectural lighting that protect your property and bring your yard to life after dark.',
+    '**Comprehensive Water & Lighting Systems**',
+    '• **Smart Automated Sprinkler Systems**: Wi-Fi enabled smart controllers (Hunter, Rain Bird) that automatically adjust watering schedules based on local satellite weather forecasts.',
+    '• **High-Efficiency Micro-Drip Irrigation**: Targeted low-volume drip lines for shrubs, trees, flower beds, and hanging pots that reduce water waste by up to 50%.',
+    '• **French Drains & Foundation Protection**: Heavy-duty perforated pipe enclosed in non-woven filter fabric and drainage rock to capture and redirect groundwater away from basements.',
+    '• **Catch Basins & Downspout Direct Lines**: Underground solid PVC piping connecting roof gutters directly to pop-up emitters or dry wells, eliminating soggy lawns and foundation pooling.',
+    '• **Swales & Surface Slope Corrections**: Re-shaping property elevations to ensure rainwater flows naturally towards designated drainage easements.',
+    '• **Low-Voltage LED Landscape Lighting**: Solid brass and cast aluminum path lights, tree uplights, wall wash fixtures, and step lights creating safety and breathtaking nighttime curb appeal.',
+    '**Our Installation Standards**',
+    '1. **Hydraulic Flow & Pressure Calculation**: Calculating static water pressure and GPM to map balanced zones without dry patches or pressure drops.',
+    '2. **Trenching with Minimal Turf Disturbance**: Laser-guided pipe trenching positioned safely away from underground utilities.',
+    '3. **Commercial Schedule 40 Fittings & Valves**: Heavy-duty PVC manifolds, brass backflow preventers, and commercial-grade solenoid valves.',
+    '4. **Precision Head Calibration**: Aligning rotary and spray nozzles to provide uniform head-to-head coverage with zero overspray on concrete or buildings.',
+    '5. **System Commissioning & Mobile App Handover**: Full zone pressure testing, smart app configuration on your smartphone, and complete client walkthrough.',
+  ].join('\n\n');
+
+  const defaultServices = [
+    {
+      title: 'Bring Your Outdoor Space to Life',
+      category: 'Landscaping',
+      description: "We design and install complete outdoor spaces, including lawns, plants, trees, decorative rock, garden beds, and irrigation. We also handle artificial grass, concrete, hardscapes, drainage and lighting, fencing, and outdoor structures. Whether you're starting from scratch or improving an existing yard, we'll help bring your plans to life.",
+      image: '/servicio-landscape/landscape-1.webp',
+      images: JSON.stringify([
+        '/servicio-landscape/landscape-2.webp',
+        '/servicio-landscape/landscape-3.webp',
+        '/servicio-landscape/landscape-4.webp',
+        '/servicio-landscape/landscape5.webp',
+        '/servicio-landscape/landscape-6.webp',
+      ]),
+      content: landscapeContent,
+      homeSlot: 1,
+      sortOrder: 0,
+    },
+    {
+      title: 'Concrete Built Right From the Ground Up',
+      category: 'Concrete',
+      description: 'We build driveways, patios, walkways, slabs, foundations, pool decks, steps, and curbs, and remove old concrete. Each job starts with proper site prep, grading, and reinforcement so it finishes clean and lasts.',
+      image: '/servicio-concrete/concrete-6.webp',
+      images: JSON.stringify([
+        '/servicio-concrete/concrete-1.webp',
+        '/servicio-concrete/concrete-2.webp',
+        '/servicio-concrete/concrete-3.webp',
+        '/servicio-concrete/concrete-4.webp',
+        '/servicio-concrete/concrete-5.webp',
+      ]),
+      content: concreteContent,
+      homeSlot: 2,
+      sortOrder: 1,
+    },
+    {
+      title: 'Artificial Turf Installation',
+      category: 'Artificial Turf',
+      description: 'Artificial turf is the perfect solution for homeowners who want a lush, green lawn without the high maintenance. It stays green all year, saves water, and holds up to kids, pets, and heavy use. From front yards and backyards to pet areas, play areas, and putting greens, our artificial turf systems are built with premium materials and installed with precision for long-term performance and beauty.',
+      image: '/servicio-artificial-turf/artificial-turf-6.webp',
+      images: JSON.stringify([
+        '/servicio-artificial-turf/artificial-turf-1.webp',
+        '/servicio-artificial-turf/artificial-turf-2.webp',
+        '/servicio-artificial-turf/artificial-turf-3.webp',
+        '/servicio-artificial-turf/artificial-turf-4.webp',
+        '/servicio-artificial-turf/artificial-turf-5.webp',
+      ]),
+      content: turfContent,
+      homeSlot: 3,
+      sortOrder: 2,
+    },
+    {
+      title: 'Decorative & Stamped Concrete',
+      category: 'Concrete',
+      description: 'Elevate your property curb appeal with custom stamped patterns and integral colors replicating slate, flagstone, cobblestone, and rustic wood planks. Designed for durable patios, pool surrounds, walkways, and decorative borders that endure Utah freeze-thaw cycles.',
+      image: '/servicio-stamped-concrete/stamped-concrete-6.webp',
+      images: JSON.stringify([
+        '/servicio-stamped-concrete/stamped-concrete-1.webp',
+        '/servicio-stamped-concrete/stamped-concrete-2.webp',
+        '/servicio-stamped-concrete/stamped-concrete-3.webp',
+        '/servicio-stamped-concrete/stamped-concrete-4.webp',
+        '/servicio-stamped-concrete/stamped-concrete-5.webp',
+      ]),
+      content: stampedConcreteContent,
+      homeSlot: 4,
+      sortOrder: 3,
+    },
+    {
+      title: 'Retaining Walls & Hardscaping',
+      category: 'Hardscapes',
+      description: 'Maximize your yard usable space and stop soil erosion with structural retaining walls, interlocking paver patios, stone fire pits, and custom outdoor seating. Engineered for heavy soil loads and built to stand strong for decades.',
+      image: '/servicio-retaining-walls/retaining-walls-6.webp',
+      images: JSON.stringify([
+        '/servicio-retaining-walls/retaining-walls-1.webp',
+        '/servicio-retaining-walls/retaining-walls-2.webp',
+        '/servicio-retaining-walls/retaining-walls-3.webp',
+        '/servicio-retaining-walls/retaining-walls-4.webp',
+        '/servicio-retaining-walls/retaining-walls-5.webp',
+      ]),
+      content: retainingWallsContent,
+      homeSlot: 5,
+      sortOrder: 4,
+    },
+    {
+      title: 'Irrigation, Drainage & Lighting',
+      category: 'Irrigation & Drainage',
+      description: 'Protect your property and landscaping investment with automated smart sprinkler systems, commercial-grade French drains, and low-voltage architectural LED landscape lighting. Save water, prevent basement flooding, and illuminate your home at night.',
+      image: '/servicio-irrigation-drainage/irrigation-drainage-6.webp',
+      images: JSON.stringify([
+        '/servicio-irrigation-drainage/irrigation-drainage-1.webp',
+        '/servicio-irrigation-drainage/irrigation-drainage-2.webp',
+        '/servicio-irrigation-drainage/irrigation-drainage-3.webp',
+        '/servicio-irrigation-drainage/irrigation-drainage-4.webp',
+        '/servicio-irrigation-drainage/irrigation-drainage-5.webp',
+      ]),
+      content: irrigationDrainageContent,
+      homeSlot: 6,
+      sortOrder: 5,
+    },
+  ];
+
+  for (const s of defaultServices) {
+    try {
+      const [existing] = await db.query('SELECT id FROM services WHERE title = ?', [s.title]);
+      if (existing.length === 0) {
+        await db.query(`
+          INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
+          VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'JJ Construction', 'Landscape & Concrete Specialists', ?, ?)
+        `, [s.title, s.category, s.description, s.image, s.images, s.content, s.homeSlot, s.sortOrder]);
+        console.log(`✅ Servicio inicial "${s.title}" insertado con éxito.`);
+      } else {
+        await db.query(`
+          UPDATE services 
+          SET category = ?,
+              description = ?,
+              image = ?,
+              images = ?,
+              content = ?,
+              brand_name = 'JJ Construction',
+              brand_tagline = 'Landscape & Concrete Specialists',
+              home_slot = ?,
+              sort_order = ?
+          WHERE title = ?
+        `, [s.category, s.description, s.image, s.images, s.content, s.homeSlot, s.sortOrder, s.title]);
+      }
+    } catch (err) {
+      console.warn(`[db] Seed service "${s.title}":`, err.sqlMessage || err.message);
     }
-  } catch (err) {
-    console.warn('[db] Seed landscape service:', err.sqlMessage || err.message);
-  }
-
-  // Seed / Migración inicial del servicio Concrete
-  try {
-    const concreteGalleryImages = JSON.stringify([
-      '/servicio-concrete/concrete-1.webp',
-      '/servicio-concrete/concrete-2.webp',
-      '/servicio-concrete/concrete-3.webp',
-      '/servicio-concrete/concrete-4.webp',
-      '/servicio-concrete/concrete-5.webp',
-    ]);
-
-    const concreteContent = [
-      '**Enduring Strength & Precision Craftsmanship**',
-      'At JJ Construction, we specialize in high-durability residential and commercial concrete solutions engineered to withstand heavy load demands and harsh freeze-thaw climate cycles. Whether you are upgrading your home curb appeal with a modern driveway or pouring a structural foundation, our experienced team delivers clean, long-lasting results.',
-      '**Comprehensive Concrete Services**',
-      '• **Driveways & Approaches**: High-load capacity concrete driveways engineered with reinforced sub-bases to eliminate premature cracking and settling.',
-      '• **Custom Patios & Walkways**: Beautiful, functional outdoor living surfaces tailored to your landscape with seamless transitions.',
-      '• **Structural Slabs & Foundations**: Precision-formed slabs for garages, workshops, sheds, and home additions adhering strictly to building codes.',
-      '• **Pool Decks & Coping**: Slip-resistant, weather-sealed pool surrounds designed for luxury aesthetics and family safety.',
-      '• **Steps, Stairs & Retaining Curbs**: Custom formed entries, multi-tier steps, and landscape curbing built for stability and clean aesthetics.',
-      '• **Demolition, Removal & Haul-Off**: Safe, efficient break-out and removal of old, cracked, or sunken concrete with full site cleanup.',
-      '**Our Proven Process**',
-      '1. **Site Evaluation & Laser Grading**: We establish proper elevation and drainage slopes so water always flows safely away from your structures.',
-      '2. **Sub-Base Compaction**: Solid ground preparation with compacted gravel base prevents future settling and voids.',
-      '3. **Steel Reinforcement**: Heavy rebar grids and fiber reinforcement ensure maximum tensile strength across extreme seasonal changes.',
-      '4. **Premium Mix & Professional Finishing**: High PSI commercial-grade concrete poured and finished with precision brooming or smooth architectural edges.',
-      '5. **Curing & Protection**: Proper curing techniques that lock in moisture for optimal hydration, preventing surface scaling and ensuring decades of performance.',
-    ].join('\n\n');
-
-    const [existingConcrete] = await db.query('SELECT id FROM services WHERE title = ?', ['Concrete Built Right From the Ground Up']);
-    if (existingConcrete.length === 0) {
-      await db.query(`
-        INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
-      `, [
-        'Concrete Built Right From the Ground Up',
-        'Concrete',
-        'We build driveways, patios, walkways, slabs, foundations, pool decks, steps, and curbs, and remove old concrete. Each job starts with proper site prep, grading, and reinforcement so it finishes clean and lasts.',
-        '/servicio-concrete/concrete-6.webp',
-        concreteGalleryImages,
-        concreteContent,
-        'JJ Construction',
-        'Landscape & Concrete Specialists',
-        2,
-        1,
-      ]);
-      console.log('✅ Servicio inicial "Concrete Built Right From the Ground Up" insertado con éxito.');
-    } else {
-      await db.query(`
-        UPDATE services 
-        SET category = 'Concrete',
-            description = ?,
-            image = '/servicio-concrete/concrete-6.webp',
-            images = ?,
-            content = ?,
-            image_before = NULL,
-            image_after = NULL,
-            brand_name = 'JJ Construction',
-            brand_tagline = 'Landscape & Concrete Specialists',
-            home_slot = 2,
-            sort_order = 1
-        WHERE title = ?
-      `, [
-        'We build driveways, patios, walkways, slabs, foundations, pool decks, steps, and curbs, and remove old concrete. Each job starts with proper site prep, grading, and reinforcement so it finishes clean and lasts.',
-        concreteGalleryImages,
-        concreteContent,
-        'Concrete Built Right From the Ground Up',
-      ]);
-    }
-  } catch (err) {
-    console.warn('[db] Seed concrete service:', err.sqlMessage || err.message);
-  }
-
-  // Seed / Migración inicial del servicio Artificial Turf
-  try {
-    const turfGalleryImages = JSON.stringify([
-      '/servicio-artificial-turf/artificial-turf-1.webp',
-      '/servicio-artificial-turf/artificial-turf-2.webp',
-      '/servicio-artificial-turf/artificial-turf-3.webp',
-      '/servicio-artificial-turf/artificial-turf-4.webp',
-      '/servicio-artificial-turf/artificial-turf-5.webp',
-    ]);
-
-    const turfDescription = 'Artificial turf is the perfect solution for homeowners who want a lush, green lawn without the high maintenance. It stays green all year, saves water, and holds up to kids, pets, and heavy use. From front yards and backyards to pet areas, play areas, and putting greens, our artificial turf systems are built with premium materials and installed with precision for long-term performance and beauty.';
-
-    const turfContent = [
-      '**Year-Round Green Perfection Without the Hassle**',
-      'Say goodbye to endless mowing, fertilizing, muddy paw prints, and costly water bills. At JJ Construction, we engineer and install premium synthetic grass systems designed specifically for high-traffic Utah homes and commercial properties. Our artificial turf looks and feels remarkably like natural grass while offering superior resilience and unmatched longevity.',
-      '**Custom Turf Applications for Every Space**',
-      '• **Full Residential Lawns**: Transform front yards and expansive backyards into evergreen, zero-maintenance showpieces.',
-      '• **Dedicated Pet Turf & Dog Runs**: Antimicrobial, deodorizing infill with rapid-flow perforated backing that drains pet urine instantly and eliminates brown spots and mud.',
-      '• **Kids Play Areas**: Cushioning underlayment and shock pads that meet critical fall-height safety ratings to keep children safe during playtime.',
-      '• **Custom Putting Greens**: Professional-grade bentgrass putting surfaces engineered with adjustable stimp speeds, custom undulations, and fringe grass for golf enthusiasts.',
-      '• **Commercial Landscapes & Common Areas**: Durable, pristine synthetic grass for HOA common grounds, office plazas, and retail storefronts.',
-      '**Our Multi-Layer Installation Process**',
-      '1. **Excavation & Weed Barrier**: Removal of native grass and soil followed by a heavy-duty geotextile weed barrier that halts weed penetration.',
-      '2. **Engineered Base Compaction**: 3 to 4 inches of crushed aggregate base layered and vibratory-compacted to provide a smooth, solid foundation.',
-      '3. **High-Flow Drainage System**: Multi-tier base design capable of draining over 30 inches of water per hour, preventing pooling and mold.',
-      '4. **Seamless Seaming & Perimeter Anchoring**: Industrial seam tape and non-corrosive galvanized landscape spikes secure the turf permanently in place.',
-      '5. **Silica Sand / Antimicrobial Infill**: Weighted infill brushed deep between blades to keep fibers standing tall, protect backing from UV degradation, and ensure a natural, springy feel underfoot.',
-    ].join('\n\n');
-
-    const [existingTurf] = await db.query('SELECT id FROM services WHERE title = ?', ['Artificial Turf Installation']);
-    if (existingTurf.length === 0) {
-      await db.query(`
-        INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
-        VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)
-      `, [
-        'Artificial Turf Installation',
-        'Artificial Turf',
-        turfDescription,
-        '/servicio-artificial-turf/artificial-turf-6.webp',
-        turfGalleryImages,
-        turfContent,
-        'JJ Construction',
-        'Landscape & Concrete Specialists',
-        3,
-        2,
-      ]);
-      console.log('✅ Servicio inicial "Artificial Turf Installation" insertado con éxito.');
-    } else {
-      await db.query(`
-        UPDATE services 
-        SET category = 'Artificial Turf',
-            description = ?,
-            image = '/servicio-artificial-turf/artificial-turf-6.webp',
-            images = ?,
-            content = ?,
-            image_before = NULL,
-            image_after = NULL,
-            brand_name = 'JJ Construction',
-            brand_tagline = 'Landscape & Concrete Specialists',
-            home_slot = 3,
-            sort_order = 2
-        WHERE title = ?
-      `, [
-        turfDescription,
-        turfGalleryImages,
-        turfContent,
-        'Artificial Turf Installation',
-      ]);
-    }
-  } catch (err) {
-    console.warn('[db] Seed artificial turf service:', err.sqlMessage || err.message);
   }
 }
 

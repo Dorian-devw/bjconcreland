@@ -1,4 +1,4 @@
-import { Building2, Zap, Wrench, HardHat, Factory, Hammer, Trees, Sparkles, Leaf, Home as HomeIcon } from 'lucide-react';
+import { Building2, Zap, Wrench, HardHat, Factory, Hammer, Trees, Sparkles, Leaf, Home as HomeIcon, Layers, Droplets } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
@@ -45,6 +45,12 @@ const iconFor = (cat: string) => {
         'Artificial Turf': Leaf,
         Turf: Leaf,
         'Césped': Leaf,
+        Hardscapes: Layers,
+        Hardscaping: Layers,
+        'Retaining Walls': Layers,
+        'Irrigation & Drainage': Droplets,
+        Irrigation: Droplets,
+        Drainage: Droplets,
     };
     return map[cat] ?? Building2;
 };
