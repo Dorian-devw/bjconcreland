@@ -1187,7 +1187,6 @@ app.delete('/api/offers/:id', authMiddleware, async (req, res) => {
   res.status(204).send();
 });
 
-const dns = require('node:dns');
 const https = require('node:https');
 const net = require('node:net');
 const Stripe = require('stripe');
