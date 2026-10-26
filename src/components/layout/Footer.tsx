@@ -107,25 +107,34 @@ export function Footer() {
                 href={footer?.facebookUrl || "https://www.facebook.com/share/14Wq4uekiZY/?mibextid=wwXIfr"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110"
+                aria-label="Visit BJ Concreland on Facebook"
+                title="Facebook"
+                className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110 text-white"
               >
-                <Facebook className="w-5 h-5" />
+                <Facebook className="w-5 h-5" aria-hidden="true" />
+                <span className="sr-only">Facebook</span>
               </a>
               <a
                 href={footer?.instagramUrl || "https://www.instagram.com/bj_concrete?igsh=MXZ6NXZvamRicnA3dg%3D%3D&utm_source=qr"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110"
+                aria-label="Visit BJ Concreland on Instagram"
+                title="Instagram"
+                className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110 text-white"
               >
-                <Instagram className="w-5 h-5" />
+                <Instagram className="w-5 h-5" aria-hidden="true" />
+                <span className="sr-only">Instagram</span>
               </a>
               <a
                 href={footer?.twitterUrl || "#"}
                 target={footer?.twitterUrl && footer.twitterUrl !== "#" ? "_blank" : undefined}
                 rel={footer?.twitterUrl && footer.twitterUrl !== "#" ? "noopener noreferrer" : undefined}
-                className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110"
+                aria-label="Visit BJ Concreland on Twitter / X"
+                title="Twitter / X"
+                className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110 text-white"
               >
-                <Twitter className="w-5 h-5" />
+                <Twitter className="w-5 h-5" aria-hidden="true" />
+                <span className="sr-only">Twitter</span>
               </a>
             </div>
           </div>

@@ -11,6 +11,12 @@ const nodemailer = require('nodemailer');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const dns = require('dns');
+
+// Forzar resolución IPv4 primero para evitar ENETUNREACH en contenedores Docker/VPS sin IPv6
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable, ensureChatTables } = require('./db.js');
 const { seed } = require('./seed.js');
 
@@ -57,17 +63,37 @@ app.set('trust proxy', 1);
 
 
 
-// ── CORS — solo localhost en desarrollo ─────────────────────────────────────
-const allowedOrigins = IS_PROD
-  ? ['https://bjconcreland.com', 'https://www.bjconcreland.com']
-  : ['https://bjconcreland.com', 'https://www.bjconcreland.com', 'http://localhost:5173', 'http://localhost:3000'];
+// ── CORS — dominios permitidos ─────────────────────────────────────────────
+const customAllowed = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const defaultAllowedOrigins = [
+  'https://bjconcreland.com',
+  'https://www.bjconcreland.com',
+  'https://api.bjconcreland.com',
+  ...(IS_PROD ? [] : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:3002']),
+  ...customAllowed,
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir requests sin origin (apps móviles, Postman en dev)
-    if (!origin && !IS_PROD) return callback(null, true);
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS bloqueado: ${origin}`));
+    // Permitir requests sin origin (server-to-server, curl, Postman, health checks)
+    if (!origin) return callback(null, true);
+
+    // Permitir dominios explícitos o subdominios válidos de bjconcreland.com
+    const isExplicit = defaultAllowedOrigins.includes(origin);
+    const isDomainMatch = /^https:\/\/(.*\.)?bjconcreland\.com(:\d+)?$/.test(origin);
+    const isLocalDev = !IS_PROD && /^http:\/\/localhost(:\d+)?$/.test(origin);
+
+    if (isExplicit || isDomainMatch || isLocalDev) {
+      return callback(null, true);
+    }
+
+    // No lanzar error con Error (evita llenar logs de Coolify con stack traces 500)
+    console.warn(`[CORS] Origen no permitido ignorado: ${origin}`);
+    return callback(null, false);
   },
   credentials: true,
 }));
@@ -186,6 +212,53 @@ app.post('/api/upload/:type', authMiddleware, (req, res) => {
 });
 
 
+// ── AI Discovery (ARD specification & llmstxt.org) ───────────────────────────
+const aiCatalog = {
+  specVersion: "1.0",
+  host: {
+    displayName: "BJ Concreland",
+    identifier: "did:web:bjconcreland.com",
+    url: "https://bjconcreland.com",
+    description: "Premier concrete and landscaping contractor in Utah specializing in residential and commercial concrete, stamped concrete, artificial turf, and retaining walls."
+  },
+  entries: [
+    {
+      identifier: "urn:air:bjconcreland.com:services:catalog",
+      displayName: "BJ Concreland Services & Products",
+      type: "application/json",
+      url: "https://api.bjconcreland.com/api/services",
+      description: "Catalog of concrete, landscaping, stamped concrete, turf, and retaining wall services and estimates.",
+      representativeQueries: [
+        "concrete contractor in Utah",
+        "stamped concrete driveway estimate",
+        "artificial turf installation Salt Lake City",
+        "retaining wall construction Utah"
+      ]
+    },
+    {
+      identifier: "urn:air:bjconcreland.com:contact:inquiry",
+      displayName: "Request an Estimate / Contact",
+      type: "application/json",
+      url: "https://api.bjconcreland.com/api/contact/email",
+      description: "Submit a request for a free project estimate or contact inquiry.",
+      representativeQueries: [
+        "contact BJ Concreland",
+        "get free estimate concrete landscaping"
+      ]
+    }
+  ]
+};
+
+app.get(['/ai-catalog.json', '/.well-known/ai-catalog.json'], (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.json(aiCatalog);
+});
+
+app.get('/llms.txt', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.send(`# BJ Concreland\n\n> Concrete and Landscaping Contractor in Utah (Salt Lake City, West Jordan, Sandy, Draper, South Jordan).\n\nBJ Concreland specializes in residential and commercial concrete, stamped concrete, artificial turf, retaining walls, and landscaping construction.\n\n## Services\n- Concrete Services: https://bjconcreland.com/services\n- Stamped Concrete: https://bjconcreland.com/services\n- Landscaping: https://bjconcreland.com/services\n- Artificial Turf: https://bjconcreland.com/services\n- Retaining Walls: https://bjconcreland.com/services\n\n## Contact\n- Phone: +1 (801) 347-2165\n- Email: jose.zevallos@bjconcreland.com\n- Estimates: https://bjconcreland.com/contact\n`);
+});
+
 app.post('/api/contact/sms', async (req, res) => {
   const { fullName, email, phone, subject, message } = req.body || {};
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
@@ -203,11 +276,17 @@ app.post('/api/contact/sms', async (req, res) => {
 
 // ========== NODEMAILER CONFIG ==========
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: process.env.SMTP_HOST ? undefined : 'gmail',
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT) || 465,
+  secure: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) === 465 : true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
 });
 
 function escHtml(str) {

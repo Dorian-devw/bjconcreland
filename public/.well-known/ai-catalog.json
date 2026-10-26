@@ -1,0 +1,35 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "BJ Concreland",
+    "identifier": "did:web:bjconcreland.com",
+    "url": "https://bjconcreland.com",
+    "description": "Premier concrete and landscaping contractor in Utah specializing in residential and commercial concrete, stamped concrete, artificial turf, and retaining walls."
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:bjconcreland.com:services:catalog",
+      "displayName": "BJ Concreland Services & Products",
+      "type": "application/json",
+      "url": "https://api.bjconcreland.com/api/services",
+      "description": "Catalog of concrete, landscaping, stamped concrete, turf, and retaining wall services and estimates.",
+      "representativeQueries": [
+        "concrete contractor in Utah",
+        "stamped concrete driveway estimate",
+        "artificial turf installation Salt Lake City",
+        "retaining wall construction Utah"
+      ]
+    },
+    {
+      "identifier": "urn:air:bjconcreland.com:contact:inquiry",
+      "displayName": "Request an Estimate / Contact",
+      "type": "application/json",
+      "url": "https://api.bjconcreland.com/api/contact/email",
+      "description": "Submit a request for a free project estimate or contact inquiry.",
+      "representativeQueries": [
+        "contact BJ Concreland",
+        "get free estimate concrete landscaping"
+      ]
+    }
+  ]
+}
