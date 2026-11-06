@@ -189,7 +189,8 @@ const upload = multer({
 });
 
 // upload endpoint
-const SERVER_BASE_URL = process.env.SERVER_BASE_URL || 'https://api.bjconcreland.com';
+const defaultBaseUrl = IS_PROD ? 'https://api.bjconcreland.com' : `http://localhost:${PORT}`;
+const SERVER_BASE_URL = process.env.SERVER_BASE_URL || defaultBaseUrl;
 
 app.post('/api/upload/:type', authMiddleware, (req, res) => {
   const { type } = req.params;
@@ -275,19 +276,22 @@ app.post('/api/contact/sms', async (req, res) => {
 });
 
 // ========== NODEMAILER CONFIG ==========
-const transporter = nodemailer.createTransport({
-  service: process.env.SMTP_HOST ? undefined : 'gmail',
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 465,
-  secure: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) === 465 : true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-});
+const hasEmailAuth = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+
+const transporter = hasEmailAuth
+  ? nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) === 465 : true,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+    })
+  : null;
 
 function escHtml(str) {
   return String(str ?? '')
@@ -302,6 +306,11 @@ app.post('/api/contact/email', async (req, res) => {
 
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
   if (String(message).length > 5000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
+
+  if (!transporter) {
+    console.warn('[email] Envío omitido: EMAIL_USER y EMAIL_PASS no están configurados en .env.');
+    return res.json({ success: true, message: 'Mensaje recibido correctamente (modo sin SMTP configurado)' });
+  }
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
@@ -1242,13 +1251,11 @@ app.get('/api/auth/verify-token', authMiddleware, (req, res) => {
 });
 
 app.get('/api/services', async (req, res) => {
-  await ensureServicesTable();
   const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, images, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
 });
 
 app.post('/api/services', authMiddleware, async (req, res) => {
-  await ensureServicesTable();
   const { title, category, description, image, video, content, brandName, brandTagline, homeSlot, imageBefore, imageAfter, images } = req.body || {};
   if (!title || !category || !description) return res.status(400).json({ error: 'Faltan campos' });
   const [countRows] = await db.query('SELECT COUNT(*) as n FROM services');
@@ -1275,7 +1282,6 @@ app.post('/api/services', authMiddleware, async (req, res) => {
 });
 
 app.put('/api/services/:id', authMiddleware, async (req, res) => {
-  await ensureServicesTable();
   const { title, category, description, image, video, content, sortOrder, brandName, brandTagline, homeSlot, imageBefore, imageAfter, images } = req.body || {};
   const [existingRows] = await db.query('SELECT * FROM services WHERE id = ?', [req.params.id]);
   if (!existingRows.length) return res.status(404).json({ error: 'No encontrado' });
@@ -1303,7 +1309,6 @@ app.put('/api/services/:id', authMiddleware, async (req, res) => {
 });
 
 app.delete('/api/services/:id', authMiddleware, async (req, res) => {
-  await ensureServicesTable();
   const [result] = await db.query('DELETE FROM services WHERE id = ?', [req.params.id]);
   if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
   const [rows] = await db.query('SELECT id, sort_order FROM services ORDER BY sort_order ASC');
@@ -1314,13 +1319,12 @@ app.delete('/api/services/:id', authMiddleware, async (req, res) => {
 });
 
 app.patch('/api/services/reorder', authMiddleware, async (req, res) => {
-  await ensureServicesTable();
   const { order } = req.body || {};
   if (!Array.isArray(order)) return res.status(400).json({ error: 'order array requerido' });
   for (let i = 0; i < order.length; i++) {
     await db.query('UPDATE services SET sort_order = ? WHERE id = ?', [i, order[i]]);
   }
-  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
+  const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, images, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
 });
 

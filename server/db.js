@@ -596,33 +596,22 @@ async function ensureServicesTable() {
     },
   ];
 
-  for (const s of defaultServices) {
-    try {
-      const [existing] = await db.query('SELECT id FROM services WHERE title = ?', [s.title]);
-      if (existing.length === 0) {
-        await db.query(`
-          INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
-          VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'JJ Construction', 'Landscape & Concrete Specialists', ?, ?)
-        `, [s.title, s.category, s.description, s.image, s.images, s.content, s.homeSlot, s.sortOrder]);
-        console.log(`✅ Servicio inicial "${s.title}" insertado con éxito.`);
-      } else {
-        await db.query(`
-          UPDATE services 
-          SET category = ?,
-              description = ?,
-              image = ?,
-              images = ?,
-              content = ?,
-              brand_name = 'JJ Construction',
-              brand_tagline = 'Landscape & Concrete Specialists',
-              home_slot = ?,
-              sort_order = ?
-          WHERE title = ?
-        `, [s.category, s.description, s.image, s.images, s.content, s.homeSlot, s.sortOrder, s.title]);
+  if (!(await isSeeded('services_seeded'))) {
+    for (const s of defaultServices) {
+      try {
+        const [existing] = await db.query('SELECT id FROM services WHERE title = ?', [s.title]);
+        if (existing.length === 0) {
+          await db.query(`
+            INSERT INTO services (title, category, description, image, images, content, image_before, image_after, brand_name, brand_tagline, home_slot, sort_order)
+            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, 'JJ Construction', 'Landscape & Concrete Specialists', ?, ?)
+          `, [s.title, s.category, s.description, s.image, s.images, s.content, s.homeSlot, s.sortOrder]);
+          console.log(`✅ Servicio inicial "${s.title}" insertado con éxito.`);
+        }
+      } catch (err) {
+        console.warn(`[db] Seed service "${s.title}":`, err.sqlMessage || err.message);
       }
-    } catch (err) {
-      console.warn(`[db] Seed service "${s.title}":`, err.sqlMessage || err.message);
     }
+    await markSeeded('services_seeded');
   }
 }
 
