@@ -372,6 +372,7 @@ async function ensureServicesTable() {
       content TEXT,
       brand_name VARCHAR(255),
       brand_tagline VARCHAR(255),
+      brand_logo TEXT DEFAULT NULL,
       home_slot INT DEFAULT NULL,
       sort_order INT NOT NULL DEFAULT 0,
       image_before TEXT DEFAULT NULL,
@@ -384,6 +385,7 @@ async function ensureServicesTable() {
   try { await db.query('ALTER TABLE services ADD COLUMN sort_order INT NOT NULL DEFAULT 0'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN brand_name VARCHAR(255) DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN brand_tagline VARCHAR(255) DEFAULT NULL'); } catch (_) {}
+  try { await db.query('ALTER TABLE services ADD COLUMN brand_logo TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN home_slot INT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN image_before TEXT DEFAULT NULL'); } catch (_) {}
   try { await db.query('ALTER TABLE services ADD COLUMN image_after TEXT DEFAULT NULL'); } catch (_) {}

@@ -38,6 +38,7 @@ import {
   Star,
   Check,
   Trash,
+  Sliders,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -140,6 +141,7 @@ export interface ServiceItem {
   sortOrder?: number;
   brandName?: string | null;
   brandTagline?: string | null;
+  brandLogo?: string | null;
   homeSlot?: number | null;
   imageBefore?: string | null;
   imageAfter?: string | null;
@@ -319,16 +321,27 @@ export function Admin() {
     }
   }, [privacyPolicy, fetchPrivacyPolicy]);
 
-  const [servicesHeaderForm, setServicesHeaderForm] = useState({ title: '', highlight: '', description: '' });
+  const [servicesHeaderForm, setServicesHeaderForm] = useState({
+    badge: '',
+    title: '',
+    highlight: '',
+    description: '',
+    defaultBrandLogo: '',
+  });
   const [servicesHeaderSaving, setServicesHeaderSaving] = useState(false);
   const [servicesHeaderError, setServicesHeaderError] = useState<string | null>(null);
+  const [servicesHeaderOpen, setServicesHeaderOpen] = useState(false);
+  const [uploadingDefaultBrandLogo, setUploadingDefaultBrandLogo] = useState(false);
+  const [uploadDefaultBrandLogoError, setUploadDefaultBrandLogoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (servicesHeader === null) fetchServicesHeader();
     else setServicesHeaderForm({
+      badge: servicesHeader.badge || '',
       title: servicesHeader.title || '',
       highlight: servicesHeader.highlight || '',
-      description: servicesHeader.description || ''
+      description: servicesHeader.description || '',
+      defaultBrandLogo: servicesHeader.defaultBrandLogo || '',
     });
   }, [servicesHeader, fetchServicesHeader]);
 
@@ -409,11 +422,11 @@ export function Admin() {
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error al guardar título de pestaña');
+      if (!res.ok) throw new Error('Error saving tab title');
       setTabTitle(tabTitleForm);
-      toast.success('Título de pestaña actualizado');
+      toast.success('Browser tab title updated');
     } catch (e) {
-      setTabTitleError(e instanceof Error ? e.message : 'Error al guardar título de pestaña');
+      setTabTitleError(e instanceof Error ? e.message : 'Error saving tab title');
     } finally {
       setTabTitleSaving(false);
     }
@@ -705,6 +718,7 @@ export function Admin() {
     content: string;
     brandName: string;
     brandTagline: string;
+    brandLogo: string;
   }>({
     title: '',
     category: 'Landscaping',
@@ -715,7 +729,10 @@ export function Admin() {
     content: '',
     brandName: '',
     brandTagline: '',
+    brandLogo: '',
   });
+  const [uploadingBrandLogo, setUploadingBrandLogo] = useState(false);
+  const [uploadBrandLogoError, setUploadBrandLogoError] = useState<string | null>(null);
   const [uploadingGalleryImage, setUploadingGalleryImage] = useState(false);
   const [uploadGalleryImageError, setUploadGalleryImageError] = useState<string | null>(null);
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
@@ -1028,9 +1045,11 @@ export function Admin() {
       content: '',
       brandName: 'JJ Construction',
       brandTagline: 'Landscape & Concrete Specialists',
+      brandLogo: '',
     });
     setGalleryUrlInput('');
     setServiceError(null);
+    setUploadBrandLogoError(null);
     setServiceDialogOpen(true);
   };
 
@@ -1046,9 +1065,11 @@ export function Admin() {
       content: service.content || '',
       brandName: service.brandName || '',
       brandTagline: service.brandTagline || '',
+      brandLogo: service.brandLogo || '',
     });
     setGalleryUrlInput('');
     setServiceError(null);
+    setUploadBrandLogoError(null);
     setServiceDialogOpen(true);
   };
 
@@ -1167,6 +1188,7 @@ export function Admin() {
         content: '',
         brandName: '',
         brandTagline: '',
+        brandLogo: '',
       });
       setEditingServiceId(null);
       await loadServices();
@@ -2561,14 +2583,205 @@ export function Admin() {
                   <h1 className="text-2xl font-bold text-[#0f172a]">{t('admin.services')}</h1>
                   <p className="text-slate-500 text-sm mt-1">Manage articles and services</p>
                 </div>
-                <Button
-                  onClick={openAddService}
-                  className="bg-[#1e5631] hover:bg-[#164a28] text-white"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('admin.add_service')}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setServicesHeaderOpen(prev => !prev)}
+                    className="border-slate-300 hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold shadow-xs"
+                  >
+                    <Sliders className="w-4 h-4 mr-2 text-[#1e5631]" />
+                    {servicesHeaderOpen ? 'Hide Header Editor' : 'Edit Services Header & Logo'}
+                  </Button>
+                  <Button
+                    onClick={openAddService}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {t('admin.add_service')}
+                  </Button>
+                </div>
               </div>
+
+              {/* Collapsible Services Header & Brand Editor */}
+              {servicesHeaderOpen && (
+                <div className="bg-white rounded-2xl shadow-sm border border-emerald-200/80 p-6 mb-6 animate-in fade-in-50 duration-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4 mb-5">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <Sliders className="w-5 h-5 text-[#1e5631]" />
+                        Services Page Header &amp; Default Brand
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Customize the hero banner of the Services page (/services) and the default logo shown in the modal.
+                      </p>
+                    </div>
+                    <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200 w-fit">
+                      Live on /services &amp; Modals
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <Label className="text-xs font-semibold">Eyebrow / Badge Text</Label>
+                      <Input
+                        className="mt-1 text-xs"
+                        value={servicesHeaderForm.badge}
+                        onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, badge: e.target.value })}
+                        placeholder="e.g. 4 SERVICES (leave empty for count)"
+                      />
+                      <span className="text-[10px] text-gray-400">Shows above title with orange dash</span>
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">Main Title (White)</Label>
+                      <Input
+                        className="mt-1 text-xs"
+                        value={servicesHeaderForm.title}
+                        onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, title: e.target.value })}
+                        placeholder="e.g. Our Specialized"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold">Highlighted Word (Green + Underline)</Label>
+                      <Input
+                        className="mt-1 text-xs"
+                        value={servicesHeaderForm.highlight}
+                        onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, highlight: e.target.value })}
+                        placeholder="e.g. Services"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-5">
+                    <Label className="text-xs font-semibold">Description Paragraph</Label>
+                    <textarea
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-xs outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[70px]"
+                      value={servicesHeaderForm.description}
+                      onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, description: e.target.value })}
+                      placeholder="At JJ CONSTRUCTION we combine technical expertise, high-quality materials, and an unwavering commitment to safety to transform visions into enduring structural realities."
+                    />
+                  </div>
+
+                  {/* Default Modal Brand Logo */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 mb-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#1e5631]/40 bg-white flex items-center justify-center shrink-0 shadow-xs">
+                          {servicesHeaderForm.defaultBrandLogo ? (
+                            <img src={servicesHeaderForm.defaultBrandLogo} alt="Brand Logo" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-[#1e5631] text-white flex items-center justify-center text-xs font-bold">
+                              JJ
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs font-bold text-gray-900">Default Service Modal Brand Logo (Replaces &quot;JJ&quot;)</Label>
+                          <p className="text-[11px] text-gray-500">
+                            Upload your company logo here. It will replace the green JJ circle in every service modal by default.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label
+                          htmlFor="default-brand-logo-file"
+                          className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold shadow-xs transition-colors shrink-0"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-[#1e5631]" />
+                          Upload Logo
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="default-brand-logo-file"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            e.target.value = '';
+                            uploadImageToServer(
+                              file,
+                              'services',
+                              setUploadingDefaultBrandLogo,
+                              setUploadDefaultBrandLogoError,
+                              (url) => setServicesHeaderForm(f => ({ ...f, defaultBrandLogo: url }))
+                            );
+                          }}
+                        />
+                        {servicesHeaderForm.defaultBrandLogo && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setServicesHeaderForm(f => ({ ...f, defaultBrandLogo: '' }))}
+                            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-8 px-2 shrink-0"
+                          >
+                            Remove
+                          </Button>
+                        )}
+                        {uploadingDefaultBrandLogo && (
+                          <span className="text-xs text-emerald-700 flex items-center gap-1 font-medium shrink-0">
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            Uploading...
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {uploadDefaultBrandLogoError && (
+                      <p className="text-xs text-rose-600 mt-2">{uploadDefaultBrandLogoError}</p>
+                    )}
+                  </div>
+
+                  {/* Live preview banner */}
+                  <div className="rounded-xl bg-[#07140d] p-4 text-white relative overflow-hidden mb-4 border border-white/10">
+                    <div className="text-[10px] uppercase font-bold text-white/40 tracking-wider mb-2">Live Header Preview (/services)</div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-block w-4 h-[2px] bg-[#e85d04]" />
+                      <span className="text-[#e85d04] text-[9px] font-black uppercase tracking-[0.25em]">
+                        {servicesHeaderForm.badge || `${services.length} Services`}
+                      </span>
+                    </div>
+                    <div className="text-xl sm:text-2xl font-black mb-1 leading-tight">
+                      {servicesHeaderForm.title || 'Our Specialized'}{' '}
+                      <span className="text-[#1e5631] relative inline-block">
+                        {servicesHeaderForm.highlight || 'Services'}
+                        <span className="absolute -bottom-0.5 left-0 w-full h-[2px] bg-[#e85d04] rounded-full" />
+                      </span>
+                    </div>
+                    <p className="text-white/50 text-xs line-clamp-2 max-w-xl">
+                      {servicesHeaderForm.description || 'At JJ CONSTRUCTION we combine technical expertise, high-quality materials, and an unwavering commitment to safety to transform visions into enduring structural realities.'}
+                    </p>
+                  </div>
+
+                  {servicesHeaderError && (
+                    <div className="p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-xs mb-4">
+                      {servicesHeaderError}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setServicesHeaderOpen(false)}
+                      className="text-xs"
+                    >
+                      Close
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveServicesHeader}
+                      disabled={servicesHeaderSaving}
+                      className="bg-[#1e5631] hover:bg-[#164a28] text-white text-xs font-semibold"
+                    >
+                      {servicesHeaderSaving && <Loader className="w-3.5 h-3.5 mr-2 animate-spin" />}
+                      Save Header &amp; Brand
+                    </Button>
+                  </div>
+                </div>
+              )}
               {services.length > 0 && services.length <= 3 && (
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
                   <div className="flex items-center justify-between mb-3">
@@ -3623,7 +3836,7 @@ export function Admin() {
                       className="mt-1" 
                       value={tabTitleForm} 
                       onChange={(e) => setTabTitleForm(e.target.value)} 
-                      placeholder="E.g. JJ Construction" 
+                      placeholder="e.g. BJ Concreland | Concrete, Turf &amp; Landscaping" 
                     />
                     {tabTitleError && <p className="text-sm text-red-500 mt-2">{tabTitleError}</p>}
                   </div>
@@ -3998,15 +4211,24 @@ export function Admin() {
 
               {/* header settings*/}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Services Header (Home)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h3 className="text-lg font-semibold text-[#333] mb-4">Services Page Header &amp; Modal Brand</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label>Eyebrow / Badge</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={servicesHeaderForm.badge} 
+                      onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, badge: e.target.value })} 
+                      placeholder="e.g. 4 SERVICES" 
+                    />
+                  </div>
                   <div>
                     <Label>Main Title</Label>
                     <Input 
                       className="mt-1" 
                       value={servicesHeaderForm.title} 
                       onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, title: e.target.value })} 
-                      placeholder="Our Specialized Services" 
+                      placeholder="Our Specialized" 
                     />
                   </div>
                   <div>
@@ -4015,17 +4237,74 @@ export function Admin() {
                       className="mt-1" 
                       value={servicesHeaderForm.highlight} 
                       onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, highlight: e.target.value })} 
-                      placeholder="" 
+                      placeholder="Services" 
                     />
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-3">
                     <Label>Description</Label>
                     <textarea 
-                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[90px]"
                       value={servicesHeaderForm.description}
                       onChange={(e) => setServicesHeaderForm({ ...servicesHeaderForm, description: e.target.value })}
-                      placeholder=""
+                      placeholder="At JJ CONSTRUCTION we combine technical expertise..."
                     />
+                  </div>
+                  <div className="md:col-span-3 pt-2 border-t border-gray-100">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-200 bg-white flex items-center justify-center shrink-0">
+                          {servicesHeaderForm.defaultBrandLogo ? (
+                            <img src={servicesHeaderForm.defaultBrandLogo} alt="Brand Logo" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-[#1e5631] text-white flex items-center justify-center text-xs font-bold">
+                              JJ
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Label className="text-xs font-bold text-gray-900">Default Service Modal Logo (Replaces &quot;JJ&quot;)</Label>
+                          <p className="text-[11px] text-gray-500">Global logo icon used in service details modal</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label
+                          htmlFor="settings-default-brand-logo-file"
+                          className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold shadow-xs transition-colors shrink-0"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-[#1e5631]" />
+                          Upload Logo
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          id="settings-default-brand-logo-file"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            e.target.value = '';
+                            uploadImageToServer(
+                              file,
+                              'services',
+                              setUploadingDefaultBrandLogo,
+                              setUploadDefaultBrandLogoError,
+                              (url) => setServicesHeaderForm(f => ({ ...f, defaultBrandLogo: url }))
+                            );
+                          }}
+                        />
+                        {servicesHeaderForm.defaultBrandLogo && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setServicesHeaderForm(f => ({ ...f, defaultBrandLogo: '' }))}
+                            className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-8 px-2"
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 {servicesHeaderError && (
@@ -4036,7 +4315,7 @@ export function Admin() {
                 <div className="mt-6 flex justify-end">
                   <Button onClick={handleSaveServicesHeader} disabled={servicesHeaderSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
                     {servicesHeaderSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Save Services
+                    Save Services Header
                   </Button>
                 </div>
               </div>
@@ -5237,24 +5516,103 @@ export function Admin() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="service-brand-name">Brand name (modal)</Label>
-                <Input
-                  id="service-brand-name"
-                  value={serviceForm.brandName}
-                  onChange={(e) => setServiceForm((f) => ({ ...f, brandName: e.target.value }))}
-                  placeholder="JJ Construction"
-                />
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div>
+                <Label className="text-sm font-bold text-gray-900">Modal Header &amp; Brand</Label>
+                <p className="text-xs text-gray-500 mt-0.5">Customize company name, tagline, and logo icon shown at the top of the service details modal (replaces the &quot;JJ&quot; circle).</p>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="service-brand-tagline">Brand tagline (modal)</Label>
-                <Input
-                  id="service-brand-tagline"
-                  value={serviceForm.brandTagline}
-                  onChange={(e) => setServiceForm((f) => ({ ...f, brandTagline: e.target.value }))}
-                  placeholder="Best Concrete Services"
-                />
+
+              <div className="flex items-center gap-4 pt-1">
+                {/* Avatar preview */}
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-[#1e5631]/30 bg-white flex items-center justify-center shrink-0 shadow-xs">
+                  {serviceForm.brandLogo ? (
+                    <img src={serviceForm.brandLogo} alt="Brand Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-[#1e5631] text-white flex items-center justify-center text-sm font-bold">
+                      {serviceForm.brandName ? serviceForm.brandName.slice(0, 2).toUpperCase() : 'JJ'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload logo button & input */}
+                <div className="flex-1 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="service-brand-logo-file"
+                      className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-100 border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-[#1e5631]" />
+                      Upload Logo (Replaces &quot;JJ&quot;)
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="service-brand-logo-file"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        e.target.value = '';
+                        uploadImageToServer(
+                          file,
+                          'services',
+                          setUploadingBrandLogo,
+                          setUploadBrandLogoError,
+                          (url) => setServiceForm((f) => ({ ...f, brandLogo: url }))
+                        );
+                      }}
+                    />
+                    {serviceForm.brandLogo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setServiceForm((f) => ({ ...f, brandLogo: '' }))}
+                        className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7 px-2"
+                      >
+                        Remove
+                      </Button>
+                    )}
+                    {uploadingBrandLogo && (
+                      <span className="text-xs text-emerald-700 flex items-center gap-1 font-medium">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Uploading...
+                      </span>
+                    )}
+                  </div>
+                  {uploadBrandLogoError && (
+                    <p className="text-xs text-rose-600">{uploadBrandLogoError}</p>
+                  )}
+                  <Input
+                    value={serviceForm.brandLogo}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, brandLogo: e.target.value }))}
+                    placeholder="Or paste image URL (https://... or /logo.png)"
+                    className="text-xs bg-white h-8"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid gap-1.5">
+                  <Label htmlFor="service-brand-name" className="text-xs">Brand name (modal)</Label>
+                  <Input
+                    id="service-brand-name"
+                    value={serviceForm.brandName}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, brandName: e.target.value }))}
+                    placeholder="B&amp;J CONCRETE LLC"
+                    className="bg-white text-xs"
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="service-brand-tagline" className="text-xs">Brand tagline (modal)</Label>
+                  <Input
+                    id="service-brand-tagline"
+                    value={serviceForm.brandTagline}
+                    onChange={(e) => setServiceForm((f) => ({ ...f, brandTagline: e.target.value }))}
+                    placeholder="CONCRETE SPECIALISTS"
+                    className="bg-white text-xs"
+                  />
+                </div>
               </div>
             </div>
             <div className="grid gap-2">

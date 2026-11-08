@@ -2,6 +2,7 @@ import { ArrowRight, ChevronRight, Phone, Building2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
+import { useSettingsStore } from '@/store/settingsStore';
 import { ServiceDetailModal } from '@/components/ServiceDetailModal';
 import { API } from '@/lib/api';
 
@@ -16,6 +17,7 @@ interface Service {
     created_at?: string;
     brandName?: string | null;
     brandTagline?: string | null;
+    brandLogo?: string | null;
     imageBefore?: string | null;
     imageAfter?: string | null;
     images?: string[] | string | null;
@@ -26,10 +28,17 @@ const strip = (t: string) =>
 
 export function Services() {
     const { t } = useLanguage();
+    const { servicesHeader, fetchServicesHeader } = useSettingsStore();
     const [activeFilter, setActiveFilter] = useState('all');
     const [services, setServices] = useState<Service[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedService, setSelectedService] = useState<Service | null>(null);
+
+    useEffect(() => {
+        if (servicesHeader === null) {
+            fetchServicesHeader();
+        }
+    }, [servicesHeader, fetchServicesHeader]);
 
     useEffect(() => {
         fetch(`${API}/services`)
@@ -64,23 +73,23 @@ export function Services() {
                     <div className="flex items-center gap-3 mb-8">
                         <span className="inline-block w-8 h-[2px] bg-[#e85d04]" />
                         <span className="text-[#e85d04] text-[11px] font-black uppercase tracking-[0.3em]">
-                            {!loading && services.length > 0 ? `${services.length} Services` : 'What We Do'}
+                            {servicesHeader?.badge || (!loading && services.length > 0 ? `${services.length} Services` : 'What We Do')}
                         </span>
                     </div>
 
                     {/* Title */}
                     <h1 className="font-black text-white leading-[0.92] mb-10"
                         style={{ fontSize: 'clamp(3rem, 8vw, 6.5rem)' }}>
-                        {t('services.title')}{' '}
+                        {servicesHeader?.title || t('services.title')}{' '}
                         <span className="relative inline-block text-[#1e5631]">
-                            {t('services.title_highlight')}
+                            {servicesHeader?.highlight ?? t('services.title_highlight')}
                             <span className="absolute -bottom-1 left-0 w-full h-[3px] bg-[#e85d04] rounded-full" />
                         </span>
                     </h1>
 
                     {/* Description */}
                     <p className="text-white/40 max-w-md text-base leading-relaxed mb-12">
-                        {t('services.description')}
+                        {servicesHeader?.description || t('services.description')}
                     </p>
 
                     {/* Filters */}

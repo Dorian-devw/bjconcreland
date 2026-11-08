@@ -2,6 +2,7 @@ import { X, Calendar, ArrowRight, ChevronLeft, ChevronRight, Images, SplitSquare
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface Service {
     id: string | number;
@@ -15,6 +16,7 @@ interface Service {
     created_at?: string;
     brandName?: string | null;
     brandTagline?: string | null;
+    brandLogo?: string | null;
     imageBefore?: string | null;
     imageAfter?: string | null;
 }
@@ -130,6 +132,7 @@ function BeforeAfterSlider({ before, after, title }: { before: string; after: st
 
 export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailModalProps) {
     const { t } = useLanguage();
+    const { logo: siteLogo, servicesHeader } = useSettingsStore();
     const [currentSlide, setCurrentSlide] = useState(0);
     const [activeTab, setActiveTab] = useState<'gallery' | 'beforeafter'>('gallery');
 
@@ -351,19 +354,43 @@ export function ServiceDetailModal({ service, isOpen, onClose }: ServiceDetailMo
                 <div className="w-full lg:w-[35%] flex flex-col bg-white border-l border-gray-100 h-full">
                     {/* Header */}
                     <div className="px-6 lg:px-8 py-6 border-b border-gray-100 shrink-0">
-                        <div className="flex items-center gap-2 mb-2">
-                            <div className="w-8 h-8 rounded-full bg-[#1e5631] flex items-center justify-center text-white text-xs font-bold shrink-0">
-                                JJ
-                            </div>
-                            <div className="flex flex-col min-w-0">
-                                <span className="text-sm font-bold text-gray-900 leading-none truncate">
-                                    {service.brandName || t('brand.name')}
-                                </span>
-                                <span className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">
-                                    {service.brandTagline || t('brand.tagline')}
-                                </span>
-                            </div>
-                        </div>
+                        {(() => {
+                            const avatarLogo = service.brandLogo || servicesHeader?.defaultBrandLogo || siteLogo;
+                            const brandDisplayName = service.brandName || t('brand.name') || 'JJ Construction';
+                            const brandInitials = (() => {
+                                const cleaned = brandDisplayName.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+                                const parts = cleaned.split(/\s+/).filter(Boolean);
+                                if (parts.length === 0) return 'JJ';
+                                if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+                                return (parts[0][0] + parts[1][0]).toUpperCase();
+                            })();
+
+                            return (
+                                <div className="flex items-center gap-2 mb-2">
+                                    {avatarLogo ? (
+                                        <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200 shrink-0 bg-white shadow-xs flex items-center justify-center">
+                                            <img
+                                                src={avatarLogo}
+                                                alt={brandDisplayName}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-[#1e5631] flex items-center justify-center text-white text-xs font-bold shrink-0">
+                                            {brandInitials}
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-sm font-bold text-gray-900 leading-none truncate">
+                                            {brandDisplayName}
+                                        </span>
+                                        <span className="text-[10px] uppercase tracking-wide text-gray-500 font-medium">
+                                            {service.brandTagline || t('brand.tagline')}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         <span className="inline-block bg-[#1e5631]/10 text-[#1e5631] text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-widest mt-1">
                             {service.category}
                         </span>

@@ -15,9 +15,11 @@ export interface FooterSettings {
 }
 
 export interface ServicesHeaderSettings {
+  badge?: string;
   title: string;
   highlight: string;
   description: string;
+  defaultBrandLogo?: string;
 }
 
 export interface ContactInfoSettings {

@@ -48,7 +48,7 @@ function AppContent() {
     if (tabTitle) {
       document.title = tabTitle;
     }
-  }, [tabTitle]);
+  }, [tabTitle, location.pathname]);
 
   useEffect(() => {
     if (logo) {
