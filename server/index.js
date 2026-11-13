@@ -295,28 +295,75 @@ function cleanEnv(val) {
 function getEmailCredentials() {
   const user = cleanEnv(process.env.EMAIL_USER);
   const pass = cleanEnv(process.env.EMAIL_PASS);
-  const defaultHost = (user.includes('@bjconcreland.com') || user.includes('@ionos.'))
-    ? 'smtp.ionos.com'
-    : 'smtp.gmail.com';
+  const isIonos = user.includes('@bjconcreland.com') || user.includes('@ionos.') || cleanEnv(process.env.SMTP_HOST).includes('ionos');
+  const defaultHost = isIonos ? 'smtp.ionos.com' : 'smtp.gmail.com';
+  // En IONOS, el puerto 587 (STARTTLS) es el estándar y evita que los firewalls de VPS bloqueen el puerto 465
+  const defaultPort = isIonos ? 587 : 465;
   const host = cleanEnv(process.env.SMTP_HOST) || defaultHost;
-  const port = Number(cleanEnv(process.env.SMTP_PORT)) || 465;
+  const envPort = cleanEnv(process.env.SMTP_PORT);
+  const port = envPort ? Number(envPort) : defaultPort;
   const to = cleanEnv(process.env.CONTACT_EMAIL) || 'josezevallos@bjconcreland.com';
   return { user, pass, host, port, to, hasAuth: Boolean(user && pass) };
+}
+
+function createTransporterFor(host, port, user, pass) {
+  const isSecure = Number(port) === 465;
+  return nodemailer.createTransport({
+    host,
+    port: Number(port),
+    secure: isSecure, // true para 465 (SSL directo), false para 587 (STARTTLS)
+    requireTLS: !isSecure, // Para 587 exige STARTTLS cifrado
+    auth: { user, pass },
+    family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    tls: {
+      rejectUnauthorized: false, // Evita fallos por certificados intermedios en VPS/Docker
+    },
+  });
 }
 
 function createTransporter() {
   const { user, pass, host, port, hasAuth } = getEmailCredentials();
   if (!hasAuth) return null;
+  return createTransporterFor(host, port, user, pass);
+}
 
-  return nodemailer.createTransport({
-    host,
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-    family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-  });
+async function sendMailWithFallback(mailOptions) {
+  const creds = getEmailCredentials();
+  if (!creds.hasAuth) {
+    return { skipped: true, reason: 'Falta EMAIL_USER o EMAIL_PASS' };
+  }
+
+  const opts = {
+    ...mailOptions,
+    from: mailOptions.from || process.env.EMAIL_FROM || `"BJ Concreland Web" <${creds.user}>`,
+  };
+
+  const primaryPort = creds.port;
+  const alternatePort = primaryPort === 587 ? 465 : 587;
+
+  // 1er intento: puerto configurado (587 recomendado en IONOS)
+  const primary = createTransporterFor(creds.host, primaryPort, creds.user, creds.pass);
+  try {
+    console.log(`[email] Intentando envío vía ${creds.host}:${primaryPort} (secure=${primaryPort === 465})...`);
+    const info = await primary.sendMail(opts);
+    console.log(`[email] ✅ Correo enviado exitosamente vía ${creds.host}:${primaryPort}`);
+    return { success: true, info, port: primaryPort };
+  } catch (err) {
+    const isConnTimeout = err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.code === 'ESOCKET' || err.command === 'CONN';
+    if (!isConnTimeout) {
+      // Error de autenticación u otro error que no se arregla cambiando de puerto
+      throw err;
+    }
+
+    console.warn(`[email] ⚠️ Falló conexión por ${creds.host}:${primaryPort} (${err.code}). Reintentando automáticamente por puerto alterno ${alternatePort}...`);
+    const fallback = createTransporterFor(creds.host, alternatePort, creds.user, creds.pass);
+    const info = await fallback.sendMail(opts);
+    console.log(`[email] ✅ Correo enviado exitosamente vía fallback ${creds.host}:${alternatePort}`);
+    return { success: true, info, port: alternatePort };
+  }
 }
 
 // Diagnóstico al arranque
@@ -342,9 +389,8 @@ app.post('/api/contact/email', async (req, res) => {
   if (String(message).length > 5000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
 
   const creds = getEmailCredentials();
-  const transporter = createTransporter();
 
-  if (!transporter) {
+  if (!creds.hasAuth) {
     console.warn(`[email] Envío omitido: Falta ${!creds.user ? 'EMAIL_USER ' : ''}${!creds.pass ? 'EMAIL_PASS' : ''} en las variables de entorno.`);
     return res.json({ success: true, message: 'Mensaje recibido correctamente (modo sin SMTP configurado)' });
   }
@@ -393,9 +439,8 @@ ${escHtml(message)}
   };
 
   try {
-    console.log(`[email] Enviando correo de ${escHtml(fullName)} a ${creds.to} vía ${creds.host}...`);
-    await transporter.sendMail(mailOptions);
-    console.log(`[email] ✅ Correo enviado exitosamente a ${creds.to}`);
+    console.log(`[email] Enviando correo de ${escHtml(fullName)} a ${creds.to}...`);
+    await sendMailWithFallback(mailOptions);
     res.json({ success: true, message: 'Correo enviado exitosamente' });
   } catch (error) {
     console.error('[email] ❌ Error enviando correo:', error);
@@ -1041,8 +1086,7 @@ app.post('/api/orders', async (req, res) => {
         }
       }
 
-      const orderTransporter = createTransporter();
-      if (customerEmail && orderTransporter) {
+      if (customerEmail) {
         const itemsListHTML = items.map((i) => `
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #ddd;">${i.product.name}</td>
@@ -1093,7 +1137,7 @@ app.post('/api/orders', async (req, res) => {
           `
         };
 
-        orderTransporter.sendMail(mailOptions).catch(err => {
+        sendMailWithFallback(mailOptions).catch(err => {
           console.error('Error enviando correo de recibo:', err);
         });
       }
@@ -1454,10 +1498,9 @@ async function sendChatNotification(visitorName, firstMessage) {
   }
 
   // Email via Nodemailer
-  const chatTransporter = createTransporter();
-  if (NOTIFY_EMAIL && chatTransporter) {
+  if (NOTIFY_EMAIL) {
     try {
-      await chatTransporter.sendMail({
+      await sendMailWithFallback({
         from: process.env.EMAIL_USER,
         to:   NOTIFY_EMAIL,
         subject: `💬 Nuevo mensaje en el chat — ${visitorName}`,
