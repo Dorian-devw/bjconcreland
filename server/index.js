@@ -1,5 +1,13 @@
 'use strict';
-require('dotenv/config');
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Cargar variables de entorno desde todas las ubicaciones posibles (local, Coolify subcarpeta, Docker root)
+dotenv.config();
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,7 +17,6 @@ const jwt = require('jsonwebtoken');
 const twilio = require('twilio');
 const nodemailer = require('nodemailer');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
 const dns = require('dns');
 
@@ -276,28 +283,49 @@ app.post('/api/contact/sms', async (req, res) => {
 });
 
 // ========== NODEMAILER CONFIG ==========
-const hasEmailAuth = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+function cleanEnv(val) {
+  if (!val) return '';
+  let str = String(val).trim();
+  if (str.includes('=')) {
+    str = str.split('=').slice(1).join('=').trim();
+  }
+  return str.replace(/^["']|["']$/g, '').trim();
+}
 
-const defaultSmtpHost = (process.env.EMAIL_USER && (process.env.EMAIL_USER.includes('@bjconcreland.com') || process.env.EMAIL_USER.includes('@ionos.')))
-  ? 'smtp.ionos.com'
-  : 'smtp.gmail.com';
+function getEmailCredentials() {
+  const user = cleanEnv(process.env.EMAIL_USER);
+  const pass = cleanEnv(process.env.EMAIL_PASS);
+  const defaultHost = (user.includes('@bjconcreland.com') || user.includes('@ionos.'))
+    ? 'smtp.ionos.com'
+    : 'smtp.gmail.com';
+  const host = cleanEnv(process.env.SMTP_HOST) || defaultHost;
+  const port = Number(cleanEnv(process.env.SMTP_PORT)) || 465;
+  const to = cleanEnv(process.env.CONTACT_EMAIL) || 'josezevallos@bjconcreland.com';
+  return { user, pass, host, port, to, hasAuth: Boolean(user && pass) };
+}
 
-const smtpPort = Number(process.env.SMTP_PORT) || 465;
+function createTransporter() {
+  const { user, pass, host, port, hasAuth } = getEmailCredentials();
+  if (!hasAuth) return null;
 
-const transporter = hasEmailAuth
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST || defaultSmtpHost,
-      port: smtpPort,
-      secure: smtpPort === 465,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-      family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-    })
-  : null;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    family: 4, // Fuerza conexión IPv4 para evitar ENETUNREACH en Docker/VPS sin IPv6
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+  });
+}
+
+// Diagnóstico al arranque
+const initCreds = getEmailCredentials();
+if (initCreds.hasAuth) {
+  console.log(`✅ [email] SMTP listo para enviar: ${initCreds.user} vía ${initCreds.host}:${initCreds.port} -> destino: ${initCreds.to}`);
+} else {
+  console.warn(`⚠️ [email] SMTP sin credenciales completas: EMAIL_USER=${initCreds.user ? `"${initCreds.user}"` : 'VACÍO'}, EMAIL_PASS=${initCreds.pass ? 'SÍ (' + initCreds.pass.length + ' chars)' : 'VACÍO'}`);
+}
 
 function escHtml(str) {
   return String(str ?? '')
@@ -313,14 +341,17 @@ app.post('/api/contact/email', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
   if (String(message).length > 5000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
 
+  const creds = getEmailCredentials();
+  const transporter = createTransporter();
+
   if (!transporter) {
-    console.warn('[email] Envío omitido: EMAIL_USER y EMAIL_PASS no están configurados en .env.');
+    console.warn(`[email] Envío omitido: Falta ${!creds.user ? 'EMAIL_USER ' : ''}${!creds.pass ? 'EMAIL_PASS' : ''} en las variables de entorno.`);
     return res.json({ success: true, message: 'Mensaje recibido correctamente (modo sin SMTP configurado)' });
   }
 
   const mailOptions = {
-    from: process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"BJ Concreland Web" <${process.env.EMAIL_USER}>` : undefined),
-    to: process.env.CONTACT_EMAIL || 'josezevallos@bjconcreland.com',
+    from: process.env.EMAIL_FROM || `"BJ Concreland Web" <${creds.user}>`,
+    to: creds.to,
     replyTo: email ? `${fullName ? `${fullName} ` : ''}<${email}>` : undefined,
     subject: `Nueva Consulta Web: ${escHtml(subject) || 'Contacto General'} - ${escHtml(fullName) || 'Cliente'}`,
     html: `
@@ -362,11 +393,13 @@ ${escHtml(message)}
   };
 
   try {
+    console.log(`[email] Enviando correo de ${escHtml(fullName)} a ${creds.to} vía ${creds.host}...`);
     await transporter.sendMail(mailOptions);
+    console.log(`[email] ✅ Correo enviado exitosamente a ${creds.to}`);
     res.json({ success: true, message: 'Correo enviado exitosamente' });
   } catch (error) {
-    console.error('Error enviando correo:', error);
-    res.status(500).json({ error: 'Error enviando el correo' });
+    console.error('[email] ❌ Error enviando correo:', error);
+    res.status(500).json({ error: 'Error enviando el correo', details: error.message });
   }
 });
 
@@ -1008,7 +1041,8 @@ app.post('/api/orders', async (req, res) => {
         }
       }
 
-      if (customerEmail && transporter) {
+      const orderTransporter = createTransporter();
+      if (customerEmail && orderTransporter) {
         const itemsListHTML = items.map((i) => `
           <tr>
             <td style="padding: 8px; border-bottom: 1px solid #ddd;">${i.product.name}</td>
@@ -1059,7 +1093,7 @@ app.post('/api/orders', async (req, res) => {
           `
         };
 
-        transporter.sendMail(mailOptions).catch(err => {
+        orderTransporter.sendMail(mailOptions).catch(err => {
           console.error('Error enviando correo de recibo:', err);
         });
       }
@@ -1420,9 +1454,10 @@ async function sendChatNotification(visitorName, firstMessage) {
   }
 
   // Email via Nodemailer
-  if (NOTIFY_EMAIL && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  const chatTransporter = createTransporter();
+  if (NOTIFY_EMAIL && chatTransporter) {
     try {
-      await transporter.sendMail({
+      await chatTransporter.sendMail({
         from: process.env.EMAIL_USER,
         to:   NOTIFY_EMAIL,
         subject: `💬 Nuevo mensaje en el chat — ${visitorName}`,
