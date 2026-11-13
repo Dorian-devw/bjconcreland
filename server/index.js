@@ -257,7 +257,7 @@ app.get(['/ai-catalog.json', '/.well-known/ai-catalog.json'], (req, res) => {
 
 app.get('/llms.txt', (req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.send(`# BJ Concreland\n\n> Concrete and Landscaping Contractor in Utah (Salt Lake City, West Jordan, Sandy, Draper, South Jordan).\n\nBJ Concreland specializes in residential and commercial concrete, stamped concrete, artificial turf, retaining walls, and landscaping construction.\n\n## Services\n- Concrete Services: https://bjconcreland.com/services\n- Stamped Concrete: https://bjconcreland.com/services\n- Landscaping: https://bjconcreland.com/services\n- Artificial Turf: https://bjconcreland.com/services\n- Retaining Walls: https://bjconcreland.com/services\n\n## Contact\n- Phone: +1 (801) 347-2165\n- Email: jose.zevallos@bjconcreland.com\n- Estimates: https://bjconcreland.com/contact\n`);
+  res.send(`# BJ Concreland\n\n> Concrete and Landscaping Contractor in Utah (Salt Lake City, West Jordan, Sandy, Draper, South Jordan).\n\nBJ Concreland specializes in residential and commercial concrete, stamped concrete, artificial turf, retaining walls, and landscaping construction.\n\n## Services\n- Concrete Services: https://bjconcreland.com/services\n- Stamped Concrete: https://bjconcreland.com/services\n- Landscaping: https://bjconcreland.com/services\n- Artificial Turf: https://bjconcreland.com/services\n- Retaining Walls: https://bjconcreland.com/services\n\n## Contact\n- Phone: +1 (801) 347-2165\n- Email: josezevallos@bjconcreland.com\n- Estimates: https://bjconcreland.com/contact\n`);
 });
 
 app.post('/api/contact/sms', async (req, res) => {
@@ -278,11 +278,17 @@ app.post('/api/contact/sms', async (req, res) => {
 // ========== NODEMAILER CONFIG ==========
 const hasEmailAuth = Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
+const defaultSmtpHost = (process.env.EMAIL_USER && (process.env.EMAIL_USER.includes('@bjconcreland.com') || process.env.EMAIL_USER.includes('@ionos.')))
+  ? 'smtp.ionos.com'
+  : 'smtp.gmail.com';
+
+const smtpPort = Number(process.env.SMTP_PORT) || 465;
+
 const transporter = hasEmailAuth
   ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: Number(process.env.SMTP_PORT) || 465,
-      secure: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) === 465 : true,
+      host: process.env.SMTP_HOST || defaultSmtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -314,7 +320,7 @@ app.post('/api/contact/email', async (req, res) => {
 
   const mailOptions = {
     from: process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"BJ Concreland Web" <${process.env.EMAIL_USER}>` : undefined),
-    to: process.env.CONTACT_EMAIL || 'jose.zevallos@bjconcreland.com',
+    to: process.env.CONTACT_EMAIL || 'josezevallos@bjconcreland.com',
     replyTo: email ? `${fullName ? `${fullName} ` : ''}<${email}>` : undefined,
     subject: `Nueva Consulta Web: ${escHtml(subject) || 'Contacto General'} - ${escHtml(fullName) || 'Cliente'}`,
     html: `
@@ -1475,7 +1481,7 @@ ${servicesListText}
 
 Contact & Orders:
 - WhatsApp / Human Assistant: **+1 (801) 347-2165** (Link: **https://wa.me/18013472165**)
-- Phone: **+1 (801) 347-2165** | Email: **jose.zevallos@bjconcreland.com**
+- Phone: **+1 (801) 347-2165** | Email: **josezevallos@bjconcreland.com**
 
 INTELLIGENT QUERY ANALYSIS RULES:
 1. GREETINGS ONLY (e.g., "hi", "hola", "buenos días", "hello"):

@@ -152,7 +152,7 @@ export function Contact() {
                   </a>
 
                   <a
-                    href={`mailto:${contactInfo?.email || 'jose.zevallos@bjconcreland.com'}`}
+                    href={`mailto:${contactInfo?.email || 'josezevallos@bjconcreland.com'}`}
                     className="group flex items-start gap-4 text-[#3a2f2a] hover:text-[#a8876c] transition-colors"
                   >
                     <div className="w-12 h-12 bg-white border border-gray-200 flex items-center justify-center shrink-0 group-hover:border-[#a8876c] transition-colors">
@@ -160,7 +160,7 @@ export function Contact() {
                     </div>
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-0.5">Email Address</p>
-                      <p className="font-serif text-lg font-bold break-all">{contactInfo?.email || 'jose.zevallos@bjconcreland.com'}</p>
+                      <p className="font-serif text-lg font-bold break-all">{contactInfo?.email || 'josezevallos@bjconcreland.com'}</p>
                     </div>
                   </a>
                 </div>

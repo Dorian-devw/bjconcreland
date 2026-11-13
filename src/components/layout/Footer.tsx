@@ -75,7 +75,7 @@ export function Footer() {
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-[#e85d04]" />
-                <a href={`mailto:${footer?.email || 'jose.zevallos@bjconcreland.com'}`} className="text-gray-400 text-sm hover:text-[#2d9d5f] transition-colors">{footer?.email || 'jose.zevallos@bjconcreland.com'}</a>
+                <a href={`mailto:${footer?.email || 'josezevallos@bjconcreland.com'}`} className="text-gray-400 text-sm hover:text-[#2d9d5f] transition-colors">{footer?.email || 'josezevallos@bjconcreland.com'}</a>
               </li>
               <li className="flex items-start gap-3">
                 <Clock className="w-5 h-5 text-[#e85d04] mt-0.5" />
