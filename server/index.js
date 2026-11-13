@@ -313,17 +313,45 @@ app.post('/api/contact/email', async (req, res) => {
   }
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
-    to: 'jose.zevallos@bjconcreland.com',
-    subject: `Nueva Consulta Web: ${escHtml(subject) || 'Contacto General'}`,
+    from: process.env.EMAIL_FROM || (process.env.EMAIL_USER ? `"BJ Concreland Web" <${process.env.EMAIL_USER}>` : undefined),
+    to: process.env.CONTACT_EMAIL || 'jose.zevallos@bjconcreland.com',
+    replyTo: email ? `${fullName ? `${fullName} ` : ''}<${email}>` : undefined,
+    subject: `Nueva Consulta Web: ${escHtml(subject) || 'Contacto General'} - ${escHtml(fullName) || 'Cliente'}`,
     html: `
-      <h2>Nuevo mensaje de contacto desde la web</h2>
-      <p><strong>Nombre:</strong> ${escHtml(fullName) || 'No especificado'}</p>
-      <p><strong>Email:</strong> ${escHtml(email) || 'No especificado'}</p>
-      <p><strong>Teléfono:</strong> ${escHtml(phone) || 'No especificado'}</p>
-      <p><strong>Asunto:</strong> ${escHtml(subject) || 'No especificado'}</p>
-      <h3>Mensaje:</h3>
-      <p style="white-space: pre-wrap;">${escHtml(message)}</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #1e5631; padding: 20px; color: #ffffff;">
+          <h2 style="margin: 0; font-size: 20px;">Nueva Consulta desde la Web</h2>
+          <p style="margin: 5px 0 0; font-size: 13px; opacity: 0.9;">Formulario de Contacto — BJ Concreland</p>
+        </div>
+        <div style="padding: 24px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280; width: 100px;"><strong>Nombre:</strong></td>
+              <td style="padding: 8px 0; font-weight: 600; color: #111827;">${escHtml(fullName) || 'No especificado'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;"><strong>Email:</strong></td>
+              <td style="padding: 8px 0;"><a href="mailto:${escHtml(email)}" style="color: #1e5631; font-weight: 600;">${escHtml(email) || 'No especificado'}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;"><strong>Teléfono:</strong></td>
+              <td style="padding: 8px 0;"><a href="tel:${escHtml(phone)}" style="color: #1e5631; font-weight: 600;">${escHtml(phone) || 'No especificado'}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;"><strong>Asunto:</strong></td>
+              <td style="padding: 8px 0; color: #111827; font-weight: 600;">${escHtml(subject) || 'Contacto General'}</td>
+            </tr>
+          </table>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+          <h3 style="margin: 0 0 10px; font-size: 15px; color: #111827;">Mensaje del cliente:</h3>
+          <div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; color: #374151; border-left: 4px solid #1e5631;">
+${escHtml(message)}
+          </div>
+          <p style="margin-top: 20px; font-size: 12px; color: #9ca3af;">
+            * Al presionar &quot;Responder&quot; en tu correo, le responderás directamente al cliente (${escHtml(email)}).
+          </p>
+        </div>
+      </div>
     `,
   };
 
@@ -1447,7 +1475,7 @@ ${servicesListText}
 
 Contact & Orders:
 - WhatsApp / Human Assistant: **+1 (801) 347-2165** (Link: **https://wa.me/18013472165**)
-- Phone: **+1 (801) 347-2165** | Email: **josarzc@hotmail.com**
+- Phone: **+1 (801) 347-2165** | Email: **jose.zevallos@bjconcreland.com**
 
 INTELLIGENT QUERY ANALYSIS RULES:
 1. GREETINGS ONLY (e.g., "hi", "hola", "buenos días", "hello"):
