@@ -29,6 +29,7 @@ const FALLBACK_DDL = {
   services: `CREATE TABLE services (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL, category VARCHAR(255) NOT NULL, description TEXT NOT NULL, image TEXT, video TEXT, content TEXT, brand_name VARCHAR(255), brand_tagline VARCHAR(255), home_slot INT DEFAULT NULL, sort_order INT NOT NULL DEFAULT 0, image_before TEXT DEFAULT NULL, image_after TEXT DEFAULT NULL, images TEXT DEFAULT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   chat_sessions: `CREATE TABLE chat_sessions (id INT AUTO_INCREMENT PRIMARY KEY, session_id VARCHAR(36) NOT NULL UNIQUE, visitor_name VARCHAR(255) NOT NULL DEFAULT 'Visitor', status VARCHAR(20) NOT NULL DEFAULT 'open', unread_admin INT NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   chat_messages: `CREATE TABLE chat_messages (id INT AUTO_INCREMENT PRIMARY KEY, session_id VARCHAR(36) NOT NULL, sender VARCHAR(10) NOT NULL DEFAULT 'user', message TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
+  contact_messages: `CREATE TABLE contact_messages (id INT AUTO_INCREMENT PRIMARY KEY, full_name VARCHAR(255), email VARCHAR(255), phone VARCHAR(50), subject VARCHAR(255), message TEXT NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'unread', email_delivered TINYINT(1) NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
 };
 
 // Repairs tables that exist in MySQL's data dictionary but are missing their InnoDB engine files (errno 1932).
@@ -644,6 +645,22 @@ async function ensureChatTables() {
   } catch (_) {}
 }
 
+async function ensureContactMessagesTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS contact_messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      full_name VARCHAR(255),
+      email VARCHAR(255),
+      phone VARCHAR(50),
+      subject VARCHAR(255),
+      message TEXT NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'unread',
+      email_delivered TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB;
+  `);
+}
+
 module.exports = {
   db,
   initDb,
@@ -655,4 +672,5 @@ module.exports = {
   ensureFilterItemsTable,
   ensureServicesTable,
   ensureChatTables,
+  ensureContactMessagesTable,
 };

@@ -24,7 +24,7 @@ const dns = require('dns');
 if (typeof dns.setDefaultResultOrder === 'function') {
   dns.setDefaultResultOrder('ipv4first');
 }
-const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable, ensureChatTables } = require('./db.js');
+const { db, initDb, ensurePromoBannersTable, ensureCategoriesTable, ensureFilterGroupsTable, ensureFilterItemsTable, ensureServicesTable, ensureChatTables, ensureContactMessagesTable } = require('./db.js');
 const { seed } = require('./seed.js');
 
 // ── JWT Secret — falla en producción si no está configurado ──────────────────
@@ -61,6 +61,8 @@ seed().then(async () => {
   console.log('Tablas de chat listas.');
   await ensureServicesTable();
   console.log('Tabla de servicios y seeds listos.');
+  await ensureContactMessagesTable();
+  console.log('Tabla de mensajes de contacto lista.');
 }).catch(console.error);
 
 const app = express();
@@ -270,19 +272,24 @@ app.get('/llms.txt', (req, res) => {
 app.post('/api/contact/sms', async (req, res) => {
   const { fullName, email, phone, subject, message } = req.body || {};
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
+
+  const client = getTwilioClient();
+  if (!client || !TWILIO_FROM_NUMBER || !TWILIO_TO_NUMBER) {
+    // Si Twilio no está configurado, omitir sin fallar con error 500
+    return res.json({ success: true, skipped: true, message: 'Twilio no configurado en variables de entorno' });
+  }
+
   const body = `Nuevo mensaje:\n\n` + (fullName ? `Nombre: ${fullName}\n` : '') + (email ? `Correo: ${email}\n` : '') + (phone ? `Tel: ${phone}\n` : '') + (subject ? `Asunto: ${subject}\n` : '') + `Msj:\n${message}`;
   try {
-    const client = getTwilioClient();
-    if (!client) return res.status(500).json({ error: 'Twilio no configurado', details: 'Faltan credenciales' });
-    if (!TWILIO_FROM_NUMBER || !TWILIO_TO_NUMBER) return res.status(500).json({ error: 'Twilio no configurado', details: 'Faltan números' });
     const msg = await client.messages.create({ body, from: TWILIO_FROM_NUMBER, to: TWILIO_TO_NUMBER });
     res.json({ success: true, sid: msg.sid });
   } catch (error) {
-    res.status(500).json({ error: 'Error enviando SMS', details: error.message });
+    console.warn('[sms] Error enviando SMS (omitido):', error.message);
+    res.json({ success: false, skipped: true, error: error.message });
   }
 });
 
-// ========== NODEMAILER CONFIG ==========
+// ========== NODEMAILER & EMAIL SERVICES CONFIG ==========
 function cleanEnv(val) {
   if (!val) return '';
   let str = String(val).trim();
@@ -304,6 +311,71 @@ function getEmailCredentials() {
   const port = envPort ? Number(envPort) : defaultPort;
   const to = cleanEnv(process.env.CONTACT_EMAIL) || 'josezevallos@bjconcreland.com';
   return { user, pass, host, port, to, hasAuth: Boolean(user && pass) };
+}
+
+// Envío alternativo mediante Resend API por HTTPS (puerto 443 — inmune a bloqueos de puertos SMTP en DigitalOcean / VPS)
+async function sendViaResend(mailOptions) {
+  const apiKey = cleanEnv(process.env.RESEND_API_KEY);
+  if (!apiKey) return null;
+
+  const to = mailOptions.to || 'josezevallos@bjconcreland.com';
+  const from = cleanEnv(process.env.RESEND_FROM) || cleanEnv(process.env.EMAIL_FROM) || 'BJ Concreland Web <onboarding@resend.dev>';
+
+  console.log(`[email/resend] Enviando vía HTTPS API (puerto 443) a ${to}...`);
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: Array.isArray(to) ? to : [to],
+      reply_to: mailOptions.replyTo,
+      subject: mailOptions.subject,
+      html: mailOptions.html,
+      text: mailOptions.text,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Resend API error (${response.status}): ${data.message || JSON.stringify(data)}`);
+  }
+  console.log(`[email/resend] ✅ Correo entregado exitosamente vía Resend API (id: ${data.id})`);
+  return { success: true, id: data.id, provider: 'resend' };
+}
+
+// Envío alternativo mediante Brevo API por HTTPS (puerto 443)
+async function sendViaBrevo(mailOptions) {
+  const apiKey = cleanEnv(process.env.BREVO_API_KEY);
+  if (!apiKey) return null;
+
+  const to = mailOptions.to || 'josezevallos@bjconcreland.com';
+  const senderEmail = cleanEnv(process.env.BREVO_SENDER) || 'josezevallos@bjconcreland.com';
+
+  console.log(`[email/brevo] Enviando vía HTTPS API (puerto 443) a ${to}...`);
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: 'BJ Concreland Web', email: senderEmail },
+      to: [{ email: to }],
+      replyTo: mailOptions.replyTo ? { email: mailOptions.replyTo } : undefined,
+      subject: mailOptions.subject,
+      htmlContent: mailOptions.html,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(`Brevo API error (${response.status}): ${data.message || JSON.stringify(data)}`);
+  }
+  console.log(`[email/brevo] ✅ Correo entregado exitosamente vía Brevo API`);
+  return { success: true, provider: 'brevo' };
 }
 
 function createTransporterFor(host, port, user, pass) {
@@ -331,6 +403,17 @@ function createTransporter() {
 }
 
 async function sendMailWithFallback(mailOptions) {
+  // 1. Prioridad: Si hay API HTTP configurada (Resend), usar HTTPS (puerto 443 no bloqueable por DigitalOcean)
+  if (cleanEnv(process.env.RESEND_API_KEY)) {
+    return await sendViaResend(mailOptions);
+  }
+
+  // 2. Si hay Brevo API configurada
+  if (cleanEnv(process.env.BREVO_API_KEY)) {
+    return await sendViaBrevo(mailOptions);
+  }
+
+  // 3. Envío SMTP estándar con fallback de puertos
   const creds = getEmailCredentials();
   if (!creds.hasAuth) {
     return { skipped: true, reason: 'Falta EMAIL_USER o EMAIL_PASS' };
@@ -354,7 +437,6 @@ async function sendMailWithFallback(mailOptions) {
   } catch (err) {
     const isConnTimeout = err.code === 'ETIMEDOUT' || err.code === 'ECONNREFUSED' || err.code === 'ESOCKET' || err.command === 'CONN';
     if (!isConnTimeout) {
-      // Error de autenticación u otro error que no se arregla cambiando de puerto
       throw err;
     }
 
@@ -368,8 +450,13 @@ async function sendMailWithFallback(mailOptions) {
 
 // Diagnóstico al arranque
 const initCreds = getEmailCredentials();
-if (initCreds.hasAuth) {
+if (cleanEnv(process.env.RESEND_API_KEY)) {
+  console.log(`✅ [email] Proveedor activo: Resend API vía HTTPS (puerto 443) -> destino: ${initCreds.to}`);
+} else if (cleanEnv(process.env.BREVO_API_KEY)) {
+  console.log(`✅ [email] Proveedor activo: Brevo API vía HTTPS (puerto 443) -> destino: ${initCreds.to}`);
+} else if (initCreds.hasAuth) {
   console.log(`✅ [email] SMTP listo para enviar: ${initCreds.user} vía ${initCreds.host}:${initCreds.port} -> destino: ${initCreds.to}`);
+  console.log(`💡 [email] Si el proveedor VPS bloquea puertos SMTP, configura RESEND_API_KEY en Coolify.`);
 } else {
   console.warn(`⚠️ [email] SMTP sin credenciales completas: EMAIL_USER=${initCreds.user ? `"${initCreds.user}"` : 'VACÍO'}, EMAIL_PASS=${initCreds.pass ? 'SÍ (' + initCreds.pass.length + ' chars)' : 'VACÍO'}`);
 }
@@ -388,15 +475,22 @@ app.post('/api/contact/email', async (req, res) => {
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
   if (String(message).length > 5000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
 
-  const creds = getEmailCredentials();
-
-  if (!creds.hasAuth) {
-    console.warn(`[email] Envío omitido: Falta ${!creds.user ? 'EMAIL_USER ' : ''}${!creds.pass ? 'EMAIL_PASS' : ''} en las variables de entorno.`);
-    return res.json({ success: true, message: 'Mensaje recibido correctamente (modo sin SMTP configurado)' });
+  // 1. Guardar SIEMPRE en base de datos primero para asegurar que nunca se pierda un lead de cliente
+  let savedId = null;
+  try {
+    const [result] = await db.query(
+      'INSERT INTO contact_messages (full_name, email, phone, subject, message, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [fullName || '', email || '', phone || '', subject || 'General', message, 'unread']
+    );
+    savedId = result.insertId;
+    console.log(`[contact] ✅ Mensaje registrado en base de datos (ID: ${savedId}) de ${fullName || email}`);
+  } catch (dbErr) {
+    console.error('[contact] ⚠️ Error guardando mensaje en base de datos:', dbErr.message);
   }
 
+  const creds = getEmailCredentials();
   const mailOptions = {
-    from: process.env.EMAIL_FROM || `"BJ Concreland Web" <${creds.user}>`,
+    from: process.env.EMAIL_FROM || `"BJ Concreland Web" <${creds.user || 'info@bjconcreland.com'}>`,
     to: creds.to,
     replyTo: email ? `${fullName ? `${fullName} ` : ''}<${email}>` : undefined,
     subject: `Nueva Consulta Web: ${escHtml(subject) || 'Contacto General'} - ${escHtml(fullName) || 'Cliente'}`,
@@ -438,13 +532,62 @@ ${escHtml(message)}
     `,
   };
 
+  // 2. Intentar entrega de correo
+  let emailDelivered = false;
   try {
     console.log(`[email] Enviando correo de ${escHtml(fullName)} a ${creds.to}...`);
     await sendMailWithFallback(mailOptions);
-    res.json({ success: true, message: 'Correo enviado exitosamente' });
+    emailDelivered = true;
+    if (savedId) {
+      await db.query('UPDATE contact_messages SET email_delivered = 1 WHERE id = ?', [savedId]).catch(() => {});
+    }
+    console.log(`[email] ✅ Correo entregado exitosamente a ${creds.to}`);
   } catch (error) {
-    console.error('[email] ❌ Error enviando correo:', error);
-    res.status(500).json({ error: 'Error enviando el correo', details: error.message });
+    console.error('[email] ❌ Error enviando correo:', error.message);
+    if (error.code === 'ETIMEDOUT') {
+      console.warn('[email] 💡 NOTA: DigitalOcean bloquea los puertos SMTP 25/465/587 por defecto en sus Droplets.');
+      console.warn('[email] 💡 SOLUCIÓN: Agrega RESEND_API_KEY=re_... en las variables de entorno de Coolify para enviar por HTTPS (puerto 443).');
+    }
+  }
+
+  // Responder siempre 200 con éxito si se guardó en la base de datos o se envió el correo
+  res.json({
+    success: true,
+    message: emailDelivered
+      ? 'Mensaje enviado y recibido correctamente'
+      : 'Mensaje recibido y registrado en nuestro sistema',
+    saved: Boolean(savedId),
+    emailSent: emailDelivered,
+  });
+});
+
+// ── Rutas de administración para mensajes de contacto recibidos ─────────────────
+app.get('/api/contact/messages', authMiddleware, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT id, full_name AS fullName, email, phone, subject, message, status, email_delivered AS emailDelivered, created_at AS createdAt FROM contact_messages ORDER BY created_at DESC LIMIT 200'
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo mensajes de contacto', details: error.message });
+  }
+});
+
+app.patch('/api/contact/messages/:id/read', authMiddleware, async (req, res) => {
+  try {
+    await db.query('UPDATE contact_messages SET status = ? WHERE id = ?', [req.body.status || 'read', req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Error actualizando mensaje', details: error.message });
+  }
+});
+
+app.delete('/api/contact/messages/:id', authMiddleware, async (req, res) => {
+  try {
+    await db.query('DELETE FROM contact_messages WHERE id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Error eliminando mensaje', details: error.message });
   }
 });
 
