@@ -340,6 +340,10 @@ async function sendViaResend(mailOptions) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 403 && data.message && data.message.includes('verify a domain')) {
+      console.warn(`[email/resend] ⚠️ AVISO: ${data.message}`);
+      console.warn(`[email/resend] 💡 Para enviar a ${to}, verifica el dominio bjconcreland.com en resend.com/domains y define RESEND_FROM.`);
+    }
     throw new Error(`Resend API error (${response.status}): ${data.message || JSON.stringify(data)}`);
   }
   console.log(`[email/resend] ✅ Correo entregado exitosamente vía Resend API (id: ${data.id})`);
