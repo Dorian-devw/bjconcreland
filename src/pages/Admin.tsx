@@ -4315,7 +4315,7 @@ export function Admin() {
                       type="email" 
                       value={footerForm.email} 
                       onChange={(e) => setFooterForm({ ...footerForm, email: e.target.value })} 
-                      placeholder="josezevallos@bjconcreland.com" 
+                      placeholder="jose.zevallos@bjconcreland.com" 
                     />
                   </div>
                   <div>
@@ -4703,7 +4703,7 @@ export function Admin() {
                       type="email"
                       value={contactInfoForm.email} 
                       onChange={(e) => setContactInfoForm({ ...contactInfoForm, email: e.target.value })} 
-                      placeholder="josezevallos@bjconcreland.com" 
+                      placeholder="jose.zevallos@bjconcreland.com" 
                     />
                   </div>
                 </div>

@@ -63,7 +63,7 @@ export function TermsConditions() {
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">5. Support</h2>
                             <p className="mb-2">For support, contact:</p>
-                            <p className="font-medium text-gray-900">Email: josezevallos@bjconcreland.com</p>
+                            <p className="font-medium text-gray-900">Email: jose.zevallos@bjconcreland.com</p>
                         </section>
 
                         <section>

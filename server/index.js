@@ -266,7 +266,7 @@ app.get(['/ai-catalog.json', '/.well-known/ai-catalog.json'], (req, res) => {
 
 app.get('/llms.txt', (req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.send(`# BJ Concreland\n\n> Concrete and Landscaping Contractor in Utah (Salt Lake City, West Jordan, Sandy, Draper, South Jordan).\n\nBJ Concreland specializes in residential and commercial concrete, stamped concrete, artificial turf, retaining walls, and landscaping construction.\n\n## Services\n- Concrete Services: https://bjconcreland.com/services\n- Stamped Concrete: https://bjconcreland.com/services\n- Landscaping: https://bjconcreland.com/services\n- Artificial Turf: https://bjconcreland.com/services\n- Retaining Walls: https://bjconcreland.com/services\n\n## Contact\n- Phone: +1 (801) 347-2165\n- Email: josezevallos@bjconcreland.com\n- Estimates: https://bjconcreland.com/contact\n`);
+  res.send(`# BJ Concreland\n\n> Concrete and Landscaping Contractor in Utah (Salt Lake City, West Jordan, Sandy, Draper, South Jordan).\n\nBJ Concreland specializes in residential and commercial concrete, stamped concrete, artificial turf, retaining walls, and landscaping construction.\n\n## Services\n- Concrete Services: https://bjconcreland.com/services\n- Stamped Concrete: https://bjconcreland.com/services\n- Landscaping: https://bjconcreland.com/services\n- Artificial Turf: https://bjconcreland.com/services\n- Retaining Walls: https://bjconcreland.com/services\n\n## Contact\n- Phone: +1 (801) 347-2165\n- Email: jose.zevallos@bjconcreland.com\n- Estimates: https://bjconcreland.com/contact\n`);
 });
 
 app.post('/api/contact/sms', async (req, res) => {
@@ -302,14 +302,14 @@ function cleanEnv(val) {
 function getEmailCredentials() {
   const user = cleanEnv(process.env.EMAIL_USER);
   const pass = cleanEnv(process.env.EMAIL_PASS);
-  const isIonos = user.includes('@bjconcreland.com') || user.includes('@ionos.') || cleanEnv(process.env.SMTP_HOST).includes('ionos');
+  const isIonos = user.includes('@ionos.') || cleanEnv(process.env.SMTP_HOST).includes('ionos');
   const defaultHost = isIonos ? 'smtp.ionos.com' : 'smtp.gmail.com';
-  // En IONOS, el puerto 587 (STARTTLS) es el estándar y evita que los firewalls de VPS bloqueen el puerto 465
-  const defaultPort = isIonos ? 587 : 465;
+  // Puerto 587 (STARTTLS) es estándar en IONOS y Gmail
+  const defaultPort = 587;
   const host = cleanEnv(process.env.SMTP_HOST) || defaultHost;
   const envPort = cleanEnv(process.env.SMTP_PORT);
   const port = envPort ? Number(envPort) : defaultPort;
-  const to = cleanEnv(process.env.CONTACT_EMAIL) || 'josezevallos@bjconcreland.com';
+  const to = cleanEnv(process.env.CONTACT_EMAIL) || 'jose.zevallos@bjconcreland.com';
   return { user, pass, host, port, to, hasAuth: Boolean(user && pass) };
 }
 
@@ -318,7 +318,7 @@ async function sendViaResend(mailOptions) {
   const apiKey = cleanEnv(process.env.RESEND_API_KEY);
   if (!apiKey) return null;
 
-  const to = mailOptions.to || 'josezevallos@bjconcreland.com';
+  const to = mailOptions.to || 'jose.zevallos@bjconcreland.com';
   const from = cleanEnv(process.env.RESEND_FROM) || cleanEnv(process.env.EMAIL_FROM) || 'BJ Concreland Web <onboarding@resend.dev>';
 
   console.log(`[email/resend] Enviando vía HTTPS API (puerto 443) a ${to}...`);
@@ -355,8 +355,8 @@ async function sendViaBrevo(mailOptions) {
   const apiKey = cleanEnv(process.env.BREVO_API_KEY);
   if (!apiKey) return null;
 
-  const to = mailOptions.to || 'josezevallos@bjconcreland.com';
-  const senderEmail = cleanEnv(process.env.BREVO_SENDER) || 'josezevallos@bjconcreland.com';
+  const to = mailOptions.to || 'jose.zevallos@bjconcreland.com';
+  const senderEmail = cleanEnv(process.env.BREVO_SENDER) || 'jose.zevallos@bjconcreland.com';
 
   console.log(`[email/brevo] Enviando vía HTTPS API (puerto 443) a ${to}...`);
   const response = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -1706,7 +1706,7 @@ ${servicesListText}
 
 Contact & Orders:
 - WhatsApp / Human Assistant: **+1 (801) 347-2165** (Link: **https://wa.me/18013472165**)
-- Phone: **+1 (801) 347-2165** | Email: **josezevallos@bjconcreland.com**
+- Phone: **+1 (801) 347-2165** | Email: **jose.zevallos@bjconcreland.com**
 
 INTELLIGENT QUERY ANALYSIS RULES:
 1. GREETINGS ONLY (e.g., "hi", "hola", "buenos días", "hello"):
