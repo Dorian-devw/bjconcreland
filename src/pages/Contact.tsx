@@ -22,6 +22,7 @@ export function Contact() {
     fullName: '',
     email: '',
     phone: '',
+    address: '',
     subject: '',
     message: '',
     agreeSms: false,
@@ -95,7 +96,7 @@ export function Contact() {
 
       // At least one succeeded
       setSubmitStatus({ type: 'success', text: t('contact.success') });
-      setForm({ fullName: '', email: '', phone: '', subject: '', message: '', agreeSms: false });
+      setForm({ fullName: '', email: '', phone: '', address: '', subject: '', message: '', agreeSms: false });
     } catch (error) {
       console.error('Error submitting form:', error);
       setSubmitStatus({ type: 'error', text: t('contact.error') });
@@ -329,6 +330,23 @@ export function Contact() {
                       ))}
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="address" className="text-xs font-bold uppercase tracking-wider text-[#3a2f2a]">
+                    Project Address / Property Location
+                  </Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    placeholder="e.g. 1234 S Main St, Salt Lake City, UT 84101"
+                    value={form.address}
+                    onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                    className="mt-2 bg-[#fdfbf9] border-gray-200 rounded-none h-11 text-xs text-[#3a2f2a] focus:border-[#a8876c]"
+                  />
+                  <span className="text-[11px] text-gray-500 mt-1 block">
+                    Address where the concrete or landscaping work is needed (helps us provide an accurate estimate).
+                  </span>
                 </div>
 
                 <div>

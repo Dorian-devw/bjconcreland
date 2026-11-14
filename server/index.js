@@ -272,7 +272,7 @@ app.get('/llms.txt', (req, res) => {
 });
 
 app.post('/api/contact/sms', async (req, res) => {
-  const { fullName, email, phone, subject, message } = req.body || {};
+  const { fullName, email, phone, address, subject, message } = req.body || {};
   if (!message) return res.status(400).json({ error: 'Message is required' });
 
   const client = getTwilioClient();
@@ -281,7 +281,13 @@ app.post('/api/contact/sms', async (req, res) => {
     return res.json({ success: true, skipped: true, message: 'Twilio not configured in environment' });
   }
 
-  const body = `New contact inquiry:\n\n` + (fullName ? `Name: ${fullName}\n` : '') + (email ? `Email: ${email}\n` : '') + (phone ? `Phone: ${phone}\n` : '') + (subject ? `Subject: ${subject}\n` : '') + `Message:\n${message}`;
+  const body = `New contact inquiry:\n\n` + 
+    (fullName ? `Name: ${fullName}\n` : '') + 
+    (email ? `Email: ${email}\n` : '') + 
+    (phone ? `Phone: ${phone}\n` : '') + 
+    (address ? `Project Address: ${address}\n` : '') +
+    (subject ? `Subject: ${subject}\n` : '') + 
+    `Message:\n${message}`;
   try {
     const msg = await client.messages.create({ body, from: TWILIO_FROM_NUMBER, to: TWILIO_TO_NUMBER });
     res.json({ success: true, sid: msg.sid });
@@ -476,7 +482,7 @@ function escHtml(str) {
 }
 
 app.post('/api/contact/email', async (req, res) => {
-  const { fullName, email, phone, subject, message } = req.body || {};
+  const { fullName, email, phone, address, subject, message } = req.body || {};
 
   if (!message) return res.status(400).json({ error: 'El mensaje es obligatorio' });
   if (String(message).length > 5000) return res.status(400).json({ error: 'Mensaje demasiado largo' });
@@ -485,8 +491,8 @@ app.post('/api/contact/email', async (req, res) => {
   let savedId = null;
   try {
     const [result] = await db.query(
-      'INSERT INTO contact_messages (full_name, email, phone, subject, message, status) VALUES (?, ?, ?, ?, ?, ?)',
-      [fullName || '', email || '', phone || '', subject || 'General', message, 'unread']
+      'INSERT INTO contact_messages (full_name, email, phone, address, subject, message, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [fullName || '', email || '', phone || '', address || '', subject || 'General', message, 'unread']
     );
     savedId = result.insertId;
     console.log(`[contact] ✅ Mensaje registrado en base de datos (ID: ${savedId}) de ${fullName || email}`);
@@ -509,7 +515,7 @@ app.post('/api/contact/email', async (req, res) => {
         <div style="padding: 24px;">
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr>
-              <td style="padding: 8px 0; color: #6b7280; width: 100px;"><strong>Name:</strong></td>
+              <td style="padding: 8px 0; color: #6b7280; width: 120px;"><strong>Name:</strong></td>
               <td style="padding: 8px 0; font-weight: 600; color: #111827;">${escHtml(fullName) || 'Not specified'}</td>
             </tr>
             <tr>
@@ -519,6 +525,12 @@ app.post('/api/contact/email', async (req, res) => {
             <tr>
               <td style="padding: 8px 0; color: #6b7280;"><strong>Phone:</strong></td>
               <td style="padding: 8px 0;"><a href="tel:${escHtml(phone)}" style="color: #1e5631; font-weight: 600;">${escHtml(phone) || 'Not specified'}</a></td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #6b7280;"><strong>Project Address:</strong></td>
+              <td style="padding: 8px 0; color: #111827; font-weight: 600;">
+                ${address ? `<a href="https://maps.google.com/?q=${encodeURIComponent(address)}" target="_blank" style="color: #1e5631; text-decoration: underline;">${escHtml(address)}</a>` : 'Not specified'}
+              </td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #6b7280;"><strong>Subject:</strong></td>
@@ -571,7 +583,7 @@ ${escHtml(message)}
 app.get('/api/contact/messages', authMiddleware, async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, full_name AS fullName, email, phone, subject, message, status, email_delivered AS emailDelivered, created_at AS createdAt FROM contact_messages ORDER BY created_at DESC LIMIT 200'
+      'SELECT id, full_name AS fullName, email, phone, address, subject, message, status, email_delivered AS emailDelivered, created_at AS createdAt FROM contact_messages ORDER BY created_at DESC LIMIT 200'
     );
     res.json(rows);
   } catch (error) {

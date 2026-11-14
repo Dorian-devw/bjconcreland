@@ -42,6 +42,7 @@ import {
   Trash,
   Sliders,
   Images,
+  MapPin,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -82,6 +83,7 @@ export interface ContactMessage {
   fullName: string;
   email: string;
   phone: string;
+  address?: string;
   subject: string;
   message: string;
   status: string;
@@ -4421,6 +4423,20 @@ export function Admin() {
                             <span className="text-slate-400 uppercase font-bold tracking-wider block text-[10px]">Subject</span>
                             <span className="font-semibold text-slate-800">{selectedMessage.subject || 'General'}</span>
                           </div>
+                          {selectedMessage.address && (
+                            <div className="col-span-2">
+                              <span className="text-slate-400 uppercase font-bold tracking-wider block text-[10px]">Project Address</span>
+                              <a
+                                href={`https://maps.google.com/?q=${encodeURIComponent(selectedMessage.address)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-semibold text-slate-800 hover:text-emerald-700 hover:underline inline-flex items-center gap-1.5 mt-0.5"
+                              >
+                                <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>{selectedMessage.address}</span>
+                              </a>
+                            </div>
+                          )}
                           <div className="col-span-2 text-slate-400 text-[11px]">
                             Sent: {selectedMessage.createdAt ? new Date(selectedMessage.createdAt).toLocaleString() : '-'}
                           </div>
