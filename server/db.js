@@ -30,6 +30,7 @@ const FALLBACK_DDL = {
   chat_sessions: `CREATE TABLE chat_sessions (id INT AUTO_INCREMENT PRIMARY KEY, session_id VARCHAR(36) NOT NULL UNIQUE, visitor_name VARCHAR(255) NOT NULL DEFAULT 'Visitor', status VARCHAR(20) NOT NULL DEFAULT 'open', unread_admin INT NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_message_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   chat_messages: `CREATE TABLE chat_messages (id INT AUTO_INCREMENT PRIMARY KEY, session_id VARCHAR(36) NOT NULL, sender VARCHAR(10) NOT NULL DEFAULT 'user', message TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
   contact_messages: `CREATE TABLE contact_messages (id INT AUTO_INCREMENT PRIMARY KEY, full_name VARCHAR(255), email VARCHAR(255), phone VARCHAR(50), subject VARCHAR(255), message TEXT NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'unread', email_delivered TINYINT(1) NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
+  gallery_items: `CREATE TABLE gallery_items (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL DEFAULT '', category VARCHAR(100) NOT NULL DEFAULT 'All', image TEXT NOT NULL, description TEXT, sort_order INT NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB`,
 };
 
 // Repairs tables that exist in MySQL's data dictionary but are missing their InnoDB engine files (errno 1932).
@@ -661,6 +662,89 @@ async function ensureContactMessagesTable() {
   `);
 }
 
+async function ensureGalleryTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS gallery_items (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL DEFAULT '',
+      category VARCHAR(100) NOT NULL DEFAULT 'All',
+      image TEXT NOT NULL,
+      description TEXT,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB;
+  `);
+
+  const [rows] = await db.query('SELECT COUNT(*) as n FROM gallery_items');
+  if (rows[0].n === 0) {
+    const seedGallery = [
+      {
+        title: 'Decorative Stamped Concrete Patio',
+        category: 'Concrete',
+        image: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&w=1200&q=80',
+        description: 'Custom stamped concrete with decorative borders and rich earth-toned sealant.',
+        sort_order: 0,
+      },
+      {
+        title: 'Commercial Concrete Foundation & Slab',
+        category: 'Concrete',
+        image: 'https://images.unsplash.com/photo-1541888946425-d0fbb18615f3?auto=format&fit=crop&w=1200&q=80',
+        description: 'Engineered high-strength concrete foundation built for long-term load bearing.',
+        sort_order: 1,
+      },
+      {
+        title: 'Modern Front Yard Landscaping',
+        category: 'Landscaping',
+        image: 'https://images.unsplash.com/photo-1558904541-efa8c4a08931?auto=format&fit=crop&w=1200&q=80',
+        description: 'Drought-tolerant plants, river rock accents, and automated drip irrigation.',
+        sort_order: 2,
+      },
+      {
+        title: 'Premium Artificial Turf Installation',
+        category: 'Artificial Turf',
+        image: 'https://images.unsplash.com/photo-1592417817098-8f3d69103a5e?auto=format&fit=crop&w=1200&q=80',
+        description: 'Lush 4-season synthetic lawn with silica infill and advanced drainage.',
+        sort_order: 3,
+      },
+      {
+        title: 'Multi-Tier Stone Retaining Wall',
+        category: 'Hardscapes',
+        image: 'https://images.unsplash.com/photo-1584467746872-9599d073998b?auto=format&fit=crop&w=1200&q=80',
+        description: 'Structural retaining wall with geogrid reinforcement and integrated steps.',
+        sort_order: 4,
+      },
+      {
+        title: 'Outdoor Living Space & Paver Walkway',
+        category: 'Hardscapes',
+        image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80',
+        description: 'Custom concrete pavers leading to an outdoor entertainment patio.',
+        sort_order: 5,
+      },
+      {
+        title: 'Concrete Driveway with Modern Finish',
+        category: 'Concrete',
+        image: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1200&q=80',
+        description: 'Durable broom-finish driveway engineered for heavy vehicular traffic.',
+        sort_order: 6,
+      },
+      {
+        title: 'Backyard Putting Green & Turf',
+        category: 'Artificial Turf',
+        image: 'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=1200&q=80',
+        description: 'Custom golf putting green surrounded by lush residential turf.',
+        sort_order: 7,
+      },
+    ];
+
+    for (const item of seedGallery) {
+      await db.query(
+        'INSERT INTO gallery_items (title, category, image, description, sort_order) VALUES (?, ?, ?, ?, ?)',
+        [item.title, item.category, item.image, item.description, item.sort_order]
+      );
+    }
+  }
+}
+
 module.exports = {
   db,
   initDb,
@@ -673,4 +757,5 @@ module.exports = {
   ensureServicesTable,
   ensureChatTables,
   ensureContactMessagesTable,
+  ensureGalleryTable,
 };

@@ -27,6 +27,10 @@ export interface ContactInfoSettings {
   description: string;
   phone: string;
   email: string;
+  address?: string;
+  schedule?: string;
+  mapUrl?: string;
+  directionsUrl?: string;
 }
 
 export interface HeavyEquipmentSettings {

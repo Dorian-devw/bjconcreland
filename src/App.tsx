@@ -23,6 +23,7 @@ const ProductDetail = lazy(() => import('@/pages/ProductDetail').then(m => ({ de
 const Ofertas = lazy(() => import('@/pages/Ofertas').then(m => ({ default: m.Ofertas })));
 const EquipoPesado = lazy(() => import('@/pages/EquipoPesado').then(m => ({ default: m.EquipoPesado })));
 const Services = lazy(() => import('@/pages/Services').then(m => ({ default: m.Services })));
+const Gallery = lazy(() => import('@/pages/Gallery').then(m => ({ default: m.Gallery })));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
 const TermsConditions = lazy(() => import('@/pages/TermsConditions').then(m => ({ default: m.TermsConditions })));
 
@@ -71,6 +72,8 @@ function AppContent() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/services" element={<Services />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/galeria" element={<Gallery />} />
             <Route path="/catalog" element={<Catalog />} />
             <Route path="/offers" element={<Ofertas />} />
             <Route path="/heavy-equipment" element={<EquipoPesado />} />

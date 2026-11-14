@@ -27,6 +27,7 @@ export const translations: Translations = {
     // Navbar
     'nav.home': { es: 'Home', en: 'Home' },
     'nav.services': { es: 'Services', en: 'Services' },
+    'nav.gallery': { es: 'Gallery', en: 'Gallery' },
     'nav.catalog': { es: 'Store', en: 'Store' },
     'nav.offers': { es: 'Offers', en: 'Offers' },
     'nav.heavy_equipment': { es: 'Heavy Equipment', en: 'Heavy Equipment' },

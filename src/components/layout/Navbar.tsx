@@ -64,6 +64,7 @@ export function Navbar() {
   const navLinks = [
     { path: '/', label: t('nav.home') },
     { path: '/services', label: t('nav.services') },
+    { path: '/gallery', label: t('nav.gallery') || 'Gallery' },
     { path: '/catalog', label: t('nav.catalog') },
     { path: '/contact', label: t('nav.contact') },
   ];

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Phone, Mail, Send, Facebook, Instagram } from 'lucide-react';
+import { Phone, Mail, Send, Facebook, Instagram, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -163,6 +163,38 @@ export function Contact() {
                       <p className="font-serif text-lg font-bold break-all">{contactInfo?.email || 'jose.zevallos@bjconcreland.com'}</p>
                     </div>
                   </a>
+
+                  <a
+                    href={contactInfo?.directionsUrl || 'https://maps.google.com/?q=6873+South+Heather+way,+West+Jordan,+Utah+84084'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-start gap-4 text-[#3a2f2a] hover:text-[#a8876c] transition-colors"
+                  >
+                    <div className="w-12 h-12 bg-white border border-gray-200 flex items-center justify-center shrink-0 group-hover:border-[#a8876c] transition-colors">
+                      <MapPin className="w-5 h-5 text-[#a8876c]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-0.5">Office Address</p>
+                      <p className="font-serif text-base font-bold leading-snug">
+                        {contactInfo?.address || '6873 South Heather way, West Jordan, Utah 84084'}
+                      </p>
+                      <span className="text-[11px] text-[#a8876c] font-semibold underline mt-0.5 inline-block">
+                        Get Directions &rarr;
+                      </span>
+                    </div>
+                  </a>
+
+                  <div className="flex items-start gap-4 text-[#3a2f2a]">
+                    <div className="w-12 h-12 bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                      <Clock className="w-5 h-5 text-[#a8876c]" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-0.5">Business Hours</p>
+                      <p className="font-serif text-sm font-bold">
+                        {contactInfo?.schedule || 'Monday – Friday: 8:00 AM – 5:00 PM'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -172,7 +204,7 @@ export function Contact() {
                 <div className="overflow-hidden border border-gray-200 h-64 bg-white shadow-sm">
                   <iframe
                     title="Location Map"
-                    src="https://maps.google.com/maps?q=6873%20S%20Heather%20way%2C%20West%20Jordan%20UT%2084084&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                    src={contactInfo?.mapUrl || 'https://maps.google.com/maps?q=6873%20South%20Heather%20way%2C%20West%20Jordan%2C%20Utah%2084084&t=&z=15&ie=UTF8&iwloc=&output=embed'}
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}

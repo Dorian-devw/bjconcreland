@@ -41,6 +41,7 @@ import {
   Check,
   Trash,
   Sliders,
+  Images,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -74,7 +75,7 @@ import {
 import type { Order, Product, ProductTag } from '@/types';
 import { translations } from '@/context/LanguageContext';
 
-type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'settings' | 'chat' | 'messages';
+type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'gallery' | 'settings' | 'chat' | 'messages';
 
 export interface ContactMessage {
   id: number;
@@ -160,6 +161,16 @@ export interface ServiceItem {
   imageBefore?: string | null;
   imageAfter?: string | null;
   images?: string[] | string | null;
+}
+
+export interface GalleryItem {
+  id: number;
+  title: string;
+  category: string;
+  image_url: string;
+  description: string;
+  sort_order: number;
+  created_at?: string;
 }
 
 const PRODUCT_TAGS: ProductTag[] = ['IN STOCK', 'SALE', 'TOOLS', 'BULK PRICING'];
@@ -421,7 +432,16 @@ export function Admin() {
     });
   }, [servicesHeader, fetchServicesHeader]);
 
-  const [contactInfoForm, setContactInfoForm] = useState({ title: '', description: '', phone: '', email: '' });
+  const [contactInfoForm, setContactInfoForm] = useState({
+    title: '',
+    description: '',
+    phone: '',
+    email: '',
+    address: '6873 South Heather way, West Jordan, Utah 84084',
+    schedule: 'Monday – Friday: 8:00 AM – 5:00 PM',
+    mapUrl: '',
+    directionsUrl: '',
+  });
   const [contactInfoSaving, setContactInfoSaving] = useState(false);
   const [contactInfoError, setContactInfoError] = useState<string | null>(null);
 
@@ -431,7 +451,11 @@ export function Admin() {
       title: contactInfo.title || '',
       description: contactInfo.description || '',
       phone: contactInfo.phone || '',
-      email: contactInfo.email || ''
+      email: contactInfo.email || '',
+      address: contactInfo.address || '6873 South Heather way, West Jordan, Utah 84084',
+      schedule: contactInfo.schedule || 'Monday – Friday: 8:00 AM – 5:00 PM',
+      mapUrl: contactInfo.mapUrl || '',
+      directionsUrl: contactInfo.directionsUrl || '',
     });
   }, [contactInfo, fetchContactInfo]);
 
@@ -752,7 +776,7 @@ export function Admin() {
   // Imagen al server via Multer ----
   const uploadImageToServer = async (
     file: File,
-    type: 'products' | 'carousel' | 'banners' | 'services' | 'settings',
+    type: 'products' | 'carousel' | 'banners' | 'services' | 'settings' | 'gallery',
     setUploading: (v: boolean) => void,
     setError: (v: string | null) => void,
     onSuccess: (url: string) => void,
@@ -873,6 +897,129 @@ export function Admin() {
       images: [...prev.images, galleryUrlInput.trim()],
     }));
     setGalleryUrlInput('');
+  };
+
+  // ── Gallery state & handlers ────────────────────────────────────────────────
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+  const [editingGalleryItem, setEditingGalleryItem] = useState<GalleryItem | null>(null);
+  const [galleryForm, setGalleryForm] = useState({
+    title: '',
+    category: 'Concrete',
+    image_url: '',
+    description: '',
+    sort_order: 0,
+  });
+  const [uploadingGalleryPhoto, setUploadingGalleryPhoto] = useState(false);
+  const [uploadGalleryPhotoError, setUploadGalleryPhotoError] = useState<string | null>(null);
+  const [gallerySaving, setGallerySaving] = useState(false);
+  const [galleryError, setGalleryError] = useState<string | null>(null);
+  const [galleryToDelete, setGalleryToDelete] = useState<GalleryItem | null>(null);
+  const [galleryDeleting, setGalleryDeleting] = useState(false);
+  const [galleryCategoryFilter, setGalleryCategoryFilter] = useState('All');
+
+  const loadGallery = useCallback(async () => {
+    setGalleryLoading(true);
+    try {
+      const res = await fetch(`${API}/gallery`);
+      if (!res.ok) throw new Error('Error loading gallery');
+      const data = await res.json();
+      setGalleryItems(Array.isArray(data) ? data : []);
+    } catch {
+      setGalleryItems([]);
+    } finally {
+      setGalleryLoading(false);
+    }
+  }, []);
+
+  const openAddGalleryItem = () => {
+    setEditingGalleryItem(null);
+    setGalleryForm({
+      title: '',
+      category: 'Concrete',
+      image_url: '',
+      description: '',
+      sort_order: galleryItems.length,
+    });
+    setUploadGalleryPhotoError(null);
+    setGalleryError(null);
+    setGalleryModalOpen(true);
+  };
+
+  const openEditGalleryItem = (item: GalleryItem) => {
+    setEditingGalleryItem(item);
+    setGalleryForm({
+      title: item.title,
+      category: item.category || 'Concrete',
+      image_url: item.image_url,
+      description: item.description || '',
+      sort_order: item.sort_order || 0,
+    });
+    setUploadGalleryPhotoError(null);
+    setGalleryError(null);
+    setGalleryModalOpen(true);
+  };
+
+  const handleSaveGalleryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!galleryForm.title.trim()) {
+      setGalleryError('Title is required');
+      return;
+    }
+    if (!galleryForm.image_url.trim()) {
+      setGalleryError('Image URL is required');
+      return;
+    }
+
+    setGallerySaving(true);
+    setGalleryError(null);
+    try {
+      const method = editingGalleryItem ? 'PUT' : 'POST';
+      const url = editingGalleryItem
+        ? `${API}/gallery/${editingGalleryItem.id}`
+        : `${API}/gallery`;
+
+      const res = await fetchWithAuth(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(galleryForm),
+      });
+
+      if (res.status === 401) return logoutAndRedirect();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to save photo');
+      }
+
+      toast.success(editingGalleryItem ? 'Photo updated successfully' : 'Photo added to gallery');
+      setGalleryModalOpen(false);
+      await loadGallery();
+    } catch (err) {
+      setGalleryError(err instanceof Error ? err.message : 'Error saving photo');
+    } finally {
+      setGallerySaving(false);
+    }
+  };
+
+  const confirmDeleteGalleryItem = async () => {
+    if (!galleryToDelete) return;
+    setGalleryDeleting(true);
+    try {
+      const res = await fetchWithAuth(`${API}/gallery/${galleryToDelete.id}`, {
+        method: 'DELETE',
+      });
+      if (res.status === 401) return logoutAndRedirect();
+      if (!res.ok) throw new Error('Failed to delete photo');
+
+      toast.success('Photo removed from gallery');
+      setGalleryToDelete(null);
+      await loadGallery();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error deleting photo');
+    } finally {
+      setGalleryDeleting(false);
+    }
   };
 
   // ── Chat state ──────────────────────────────────────────────────────────────
@@ -1355,7 +1502,8 @@ export function Admin() {
   useEffect(() => {
     if (section === 'carousel') loadCarousel();
     if (section === 'services') loadServices();
-  }, [section, loadCarousel, loadServices]);
+    if (section === 'gallery') loadGallery();
+  }, [section, loadCarousel, loadServices, loadGallery]);
 
   const loadPromoBanners = useCallback(async () => {
     setPromoBannersLoading(true);
@@ -2217,6 +2365,7 @@ export function Admin() {
     dashboard: 'Dashboard', orders: 'Orders', products: 'Products',
     categories: 'Home Categories', filterGroups: 'Store Filters', carousel: 'Carousel',
     promoBanners: 'Promo Banners', offers: 'Offers', services: 'Services / Blog',
+    gallery: 'Photo Gallery',
     settings: 'Settings', chat: 'Live Chat', messages: 'Inquiries',
   };
 
@@ -2256,6 +2405,7 @@ export function Admin() {
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Content</p>
           {navItem('products', <Package className="w-4 h-4" />, t('admin.products'))}
           {navItem('services', <BookOpen className="w-4 h-4" />, t('admin.services'))}
+          {navItem('gallery', <Images className="w-4 h-4" />, 'Gallery')}
           {navItem('categories', <Layers className="w-4 h-4" />, t('admin.categories'))}
           {navItem('filterGroups', <Filter className="w-4 h-4" />, t('admin.filterGroups'))}
 
@@ -3021,6 +3171,148 @@ export function Admin() {
                   </table>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* ========== GALLERY (Photo Showcase) ========== */}
+          {section === 'gallery' && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a] flex items-center gap-2">
+                    <Images className="w-7 h-7 text-[#1e5631]" />
+                    Photo Gallery
+                  </h1>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Manage showcase photos, categories, and descriptions displayed on the public Gallery page (/gallery)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/gallery"
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Preview Gallery
+                  </Link>
+                  <Button
+                    onClick={openAddGalleryItem}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Photo
+                  </Button>
+                </div>
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                {['All', 'Concrete', 'Landscaping', 'Artificial Turf', 'Hardscapes'].map((cat) => {
+                  const count = cat === 'All'
+                    ? galleryItems.length
+                    : galleryItems.filter((i) => i.category?.toLowerCase() === cat.toLowerCase()).length;
+                  const active = galleryCategoryFilter === cat;
+                  return (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setGalleryCategoryFilter(cat)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                        active
+                          ? 'bg-[#1e5631] text-white shadow-sm'
+                          : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span>{cat}</span>
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        active ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Gallery Grid */}
+              {galleryLoading ? (
+                <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center shadow-xs">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-3 border-[#1e5631] border-t-transparent mb-3" />
+                  <p className="text-xs text-slate-500 font-medium">Loading gallery photos...</p>
+                </div>
+              ) : galleryItems.filter((item) => galleryCategoryFilter === 'All' || item.category?.toLowerCase() === galleryCategoryFilter.toLowerCase()).length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 p-16 text-center shadow-xs">
+                  <Images className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-base font-bold text-slate-800">No photos found</h3>
+                  <p className="text-xs text-slate-400 mt-1 mb-5">
+                    {galleryCategoryFilter === 'All'
+                      ? 'No photos have been added to the gallery yet.'
+                      : `No photos under category "${galleryCategoryFilter}".`}
+                  </p>
+                  <Button onClick={openAddGalleryItem} className="bg-[#1e5631] hover:bg-[#164a28] text-white text-xs">
+                    <Plus className="w-4 h-4 mr-1.5" />
+                    Add First Photo
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                  {galleryItems
+                    .filter((item) => galleryCategoryFilter === 'All' || item.category?.toLowerCase() === galleryCategoryFilter.toLowerCase())
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col"
+                      >
+                        <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+                          <img
+                            src={item.image_url}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute top-2.5 left-2.5 bg-black/75 backdrop-blur-xs text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                            {item.category || 'Concrete'}
+                          </span>
+                          <span className="absolute top-2.5 right-2.5 bg-white/90 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded shadow-xs">
+                            #{item.sort_order ?? 0}
+                          </span>
+                        </div>
+                        <div className="p-4 flex-1 flex flex-col justify-between">
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{item.title}</h3>
+                            {item.description ? (
+                              <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                                {item.description}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-slate-400 italic mt-1">No description</p>
+                            )}
+                          </div>
+                          <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-end gap-1.5">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditGalleryItem(item)}
+                              className="h-8 px-2.5 text-xs text-slate-700 hover:text-[#1e5631] border-slate-200"
+                            >
+                              <Pencil className="w-3.5 h-3.5 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setGalleryToDelete(item)}
+                              className="h-8 px-2.5 text-xs text-rose-600 hover:text-white hover:bg-rose-600 border-rose-200"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
             </>
           )}
 
@@ -4667,7 +4959,15 @@ export function Admin() {
 
               {/* contact settings*/}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Contact Page</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#333]">Contact Page &amp; Address</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Customize company address, phone, email, business hours, and Google Maps</p>
+                  </div>
+                  <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+                    Live on /contact
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
                     <Label>Title</Label>
@@ -4675,16 +4975,16 @@ export function Admin() {
                       className="mt-1" 
                       value={contactInfoForm.title} 
                       onChange={(e) => setContactInfoForm({ ...contactInfoForm, title: e.target.value })} 
-                      placeholder="Contact Us" 
+                      placeholder="Get in Touch with Us" 
                     />
                   </div>
                   <div className="md:col-span-2">
                     <Label>Description</Label>
                     <textarea 
-                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[100px]"
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[90px]"
                       value={contactInfoForm.description}
                       onChange={(e) => setContactInfoForm({ ...contactInfoForm, description: e.target.value })}
-                      placeholder="We are here to help you build your dreams. Get in touch with our team of experts."
+                      placeholder="Ready to bring your concrete and landscaping visions to reality? Contact us for a free estimate or any questions."
                     />
                   </div>
                   <div>
@@ -4704,6 +5004,43 @@ export function Admin() {
                       value={contactInfoForm.email} 
                       onChange={(e) => setContactInfoForm({ ...contactInfoForm, email: e.target.value })} 
                       placeholder="jose.zevallos@bjconcreland.com" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Physical Office Address</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={contactInfoForm.address} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, address: e.target.value })} 
+                      placeholder="6873 South Heather way, West Jordan, Utah 84084" 
+                    />
+                    <span className="text-[11px] text-gray-400 mt-0.5 block">Shown prominently on the Contact Us page and used for map routing.</span>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Business Hours / Schedule</Label>
+                    <Input 
+                      className="mt-1" 
+                      value={contactInfoForm.schedule} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, schedule: e.target.value })} 
+                      placeholder="Monday – Friday: 8:00 AM – 5:00 PM" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Google Maps Embed URL (Optional override)</Label>
+                    <Input 
+                      className="mt-1 text-xs" 
+                      value={contactInfoForm.mapUrl} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, mapUrl: e.target.value })} 
+                      placeholder="https://maps.google.com/maps?q=...&output=embed (Leave blank to use address automatically)" 
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Get Directions Link (Optional override)</Label>
+                    <Input 
+                      className="mt-1 text-xs" 
+                      value={contactInfoForm.directionsUrl} 
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, directionsUrl: e.target.value })} 
+                      placeholder="https://maps.google.com/?q=... (Leave blank to open address automatically)" 
                     />
                   </div>
                 </div>
@@ -6116,6 +6453,173 @@ export function Admin() {
               {t('delete')}
             </AlertDialogAction>
           </DialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ── Add / Edit Gallery Item Dialog ── */}
+      <Dialog open={galleryModalOpen} onOpenChange={(open) => { setGalleryModalOpen(open); if (!open) setGalleryError(null); }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Images className="w-5 h-5 text-[#1e5631]" />
+              {editingGalleryItem ? 'Edit Gallery Photo' : 'Add New Gallery Photo'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveGalleryItem} className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-semibold">Project Title *</Label>
+              <Input
+                className="mt-1"
+                value={galleryForm.title}
+                onChange={(e) => setGalleryForm({ ...galleryForm, title: e.target.value })}
+                placeholder="e.g. Modern Stamped Patio & Firepit"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs font-semibold">Category *</Label>
+                <select
+                  value={galleryForm.category}
+                  onChange={(e) => setGalleryForm({ ...galleryForm, category: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] bg-white"
+                >
+                  <option value="Concrete">Concrete</option>
+                  <option value="Landscaping">Landscaping</option>
+                  <option value="Artificial Turf">Artificial Turf</option>
+                  <option value="Hardscapes">Hardscapes</option>
+                </select>
+              </div>
+
+              <div>
+                <Label className="text-xs font-semibold">Display Order</Label>
+                <Input
+                  type="number"
+                  className="mt-1"
+                  value={galleryForm.sort_order}
+                  onChange={(e) => setGalleryForm({ ...galleryForm, sort_order: parseInt(e.target.value) || 0 })}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Photo Upload & Preview */}
+            <div>
+              <Label className="text-xs font-semibold">Photo Image *</Label>
+              <div className="mt-1.5 flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    className="text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-[#1e5631] hover:file:bg-emerald-100"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      e.target.value = '';
+                      uploadImageToServer(
+                        file,
+                        'gallery',
+                        setUploadingGalleryPhoto,
+                        setUploadGalleryPhotoError,
+                        (url) => setGalleryForm((f) => ({ ...f, image_url: url }))
+                      );
+                    }}
+                  />
+                  {uploadingGalleryPhoto && (
+                    <span className="text-xs text-emerald-700 font-medium flex items-center gap-1 shrink-0">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Uploading...
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-gray-400 uppercase font-semibold">OR URL:</span>
+                  <Input
+                    className="text-xs flex-1"
+                    value={galleryForm.image_url}
+                    onChange={(e) => setGalleryForm({ ...galleryForm, image_url: e.target.value })}
+                    placeholder="https://... or /uploads/gallery/..."
+                  />
+                </div>
+
+                {uploadGalleryPhotoError && (
+                  <p className="text-xs text-rose-600">{uploadGalleryPhotoError}</p>
+                )}
+
+                {galleryForm.image_url && (
+                  <div className="mt-2 rounded-lg border border-slate-200 overflow-hidden aspect-[16/9] bg-slate-50 relative">
+                    <img
+                      src={galleryForm.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setGalleryForm((f) => ({ ...f, image_url: '' }))}
+                      className="absolute top-2 right-2 bg-black/70 hover:bg-black text-white text-[10px] font-bold px-2 py-1 rounded"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold">Description / Project Details</Label>
+              <textarea
+                className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
+                value={galleryForm.description}
+                onChange={(e) => setGalleryForm({ ...galleryForm, description: e.target.value })}
+                placeholder="Brief description of the work performed, materials used, or client location..."
+              />
+            </div>
+
+            {galleryError && (
+              <div className="p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-xs">
+                {galleryError}
+              </div>
+            )}
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setGalleryModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={gallerySaving || uploadingGalleryPhoto}
+                className="bg-[#1e5631] hover:bg-[#164a28] text-white"
+              >
+                {gallerySaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                {editingGalleryItem ? 'Update Photo' : 'Save Photo'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Delete Gallery Item ── */}
+      <AlertDialog open={!!galleryToDelete} onOpenChange={() => setGalleryToDelete(null)}>
+        <AlertDialogContent className="max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-slate-900">Delete Photo from Gallery?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong className="text-slate-700">"{galleryToDelete?.title}"</strong>? This photo will be immediately removed from the public website gallery.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={galleryDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteGalleryItem}
+              disabled={galleryDeleting}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {galleryDeleting && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+              Delete Photo
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
