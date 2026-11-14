@@ -596,14 +596,14 @@ export function Admin() {
     const before = termsForm.slice(0, start);
     const selected = termsForm.slice(start, end);
     const after = termsForm.slice(end);
-    const nextValue = `${before}**${selected || 'texto'}**${after}`;
+    const nextValue = `${before}**${selected || 'text'}**${after}`;
     setTermsForm(nextValue);
     requestAnimationFrame(() => {
       textarea.focus();
       if (selected) {
         textarea.setSelectionRange(start + 2, end + 2);
       } else {
-        textarea.setSelectionRange(start + 2, start + 2 + 'texto'.length);
+        textarea.setSelectionRange(start + 2, start + 2 + 'text'.length);
       }
     });
   };
@@ -640,14 +640,14 @@ export function Admin() {
     const before = privacyForm.slice(0, start);
     const selected = privacyForm.slice(start, end);
     const after = privacyForm.slice(end);
-    const nextValue = `${before}**${selected || 'texto'}**${after}`;
+    const nextValue = `${before}**${selected || 'text'}**${after}`;
     setPrivacyForm(nextValue);
     requestAnimationFrame(() => {
       textarea.focus();
       if (selected) {
         textarea.setSelectionRange(start + 2, end + 2);
       } else {
-        textarea.setSelectionRange(start + 2, start + 2 + 'texto'.length);
+        textarea.setSelectionRange(start + 2, start + 2 + 'text'.length);
       }
     });
   };
@@ -1208,10 +1208,10 @@ export function Admin() {
         }
         if (!res.ok) throw new Error('Error updating status');
         await loadOrders();
-        toast.success('Estado actualizado');
+        toast.success('Status updated');
       } catch {
-        toast.error('No se pudo actualizar el estado');
-        // fallback: recargar lista por si el backend sí actualizó
+        toast.error('Could not update status');
+        // fallback: reload list in case the backend updated
         await loadOrders();
       } finally {
         setStatusUpdatingId(null);
@@ -4496,7 +4496,34 @@ export function Admin() {
                   <p className="text-slate-500 text-sm mt-1">General site configuration</p>
                 </div>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+              {/* Quick Jump Navigation */}
+              <div className="flex flex-wrap gap-2 mb-6">
+                {[
+                  { id: 'settings-tab-title', label: 'Tab Title' },
+                  { id: 'settings-logo', label: 'Site Logo' },
+                  { id: 'settings-footer', label: 'Footer' },
+                  { id: 'settings-terms', label: 'Terms & Conditions' },
+                  { id: 'settings-privacy', label: 'Privacy Policy' },
+                  { id: 'settings-texts', label: 'Global Texts' },
+                  { id: 'settings-services', label: 'Services Header' },
+                  { id: 'settings-contact', label: 'Contact Page & Address' },
+                  { id: 'settings-heavy', label: 'Heavy Equipment' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById(item.id);
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 shadow-xs transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              <div id="settings-tab-title" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Browser Tab Title</h3>
                 <div className="flex flex-col gap-4">
                   <div>
@@ -4514,12 +4541,12 @@ export function Admin() {
                     disabled={tabTitleSaving}
                     className="bg-[#1e5631] hover:bg-[#164a28] text-white self-start"
                   >
-                    {tabTitleSaving ? 'Saving...' : 'Save title'}
+                    {tabTitleSaving ? 'Saving...' : 'Save Tab Title'}
                   </Button>
                 </div>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div id="settings-logo" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Site Logo</h3>
                 <div className="flex flex-col sm:flex-row gap-6 items-start">
                   <div className="w-32 h-32 rounded-lg bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center relative overflow-hidden shrink-0">
@@ -4610,21 +4637,29 @@ export function Admin() {
               </div>
 
               {/* ========== FOOTER SETTINGS ========== */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Pie de página (Footer)</h3>
+              <div id="settings-footer" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#333]">Footer Settings</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">Customize company info, phone, email, business hours, and social media links in the website footer</p>
+                  </div>
+                  <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+                    Live on all pages
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
-                    <Label>Descripción corta</Label>
+                    <Label>Company Short Description</Label>
                     <textarea 
-                      className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631]"
+                      className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631]"
                       rows={3}
                       value={footerForm.description}
                       onChange={(e) => setFooterForm({ ...footerForm, description: e.target.value })}
-                      placeholder="Texto descriptivo de la empresa..."
+                      placeholder="Concrete and gardening supplies. Quality equipment and materials for your projects."
                     />
                   </div>
                   <div>
-                    <Label>Teléfono</Label>
+                    <Label>Contact Phone Number</Label>
                     <Input 
                       className="mt-1" 
                       value={footerForm.phone} 
@@ -4633,7 +4668,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Correo electrónico</Label>
+                    <Label>Contact Email Address</Label>
                     <Input 
                       className="mt-1" 
                       type="email" 
@@ -4643,35 +4678,35 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Horario (Lunes a Viernes)</Label>
+                    <Label>Business Hours (Monday – Friday)</Label>
                     <Input 
                       className="mt-1" 
                       value={footerForm.scheduleWeekdays} 
                       onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekdays: e.target.value })} 
-                      placeholder="8:00 - 18:00" 
+                      placeholder="8:00 AM – 5:00 PM" 
                     />
                   </div>
                   <div>
-                    <Label>Horario (Sábados)</Label>
+                    <Label>Weekend Hours (Saturdays – Sundays)</Label>
                     <Input 
                       className="mt-1" 
                       value={footerForm.scheduleWeekends} 
                       onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekends: e.target.value })} 
-                      placeholder="8:00 - 13:00" 
+                      placeholder="By Appointment Only" 
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>URL de Google Maps (Iframe SRC)</Label>
+                    <Label>Google Maps Embed URL (Iframe src)</Label>
                     <Input 
-                      className="mt-1" 
+                      className="mt-1 text-xs" 
                       value={footerForm.mapUrl} 
                       onChange={(e) => setFooterForm({ ...footerForm, mapUrl: e.target.value })} 
-                      placeholder="https://maps.google.com/maps?q=..." 
+                      placeholder="https://maps.google.com/maps?q=...&output=embed" 
                     />
-                    <p className="text-xs text-gray-400 mt-1">Ingresa el enlace que va dentro del atributo src="..." del iframe de Google Maps.</p>
+                    <p className="text-xs text-gray-400 mt-1">Paste the embed URL found in Google Maps &rarr; Share &rarr; Embed a map (src attribute).</p>
                   </div>
                   <div>
-                    <Label>Facebook URL</Label>
+                    <Label>Facebook Page URL</Label>
                     <Input 
                       className="mt-1" 
                       value={footerForm.facebookUrl} 
@@ -4680,7 +4715,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Instagram URL</Label>
+                    <Label>Instagram Profile URL</Label>
                     <Input 
                       className="mt-1" 
                       value={footerForm.instagramUrl} 
@@ -4689,7 +4724,7 @@ export function Admin() {
                     />
                   </div>
                   <div>
-                    <Label>Twitter (X) URL</Label>
+                    <Label>Twitter / X Profile URL</Label>
                     <Input 
                       className="mt-1" 
                       value={footerForm.twitterUrl} 
@@ -4698,12 +4733,12 @@ export function Admin() {
                     />
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Popular Categories (comma separated)</Label>
+                    <Label>Popular Categories (comma-separated)</Label>
                     <textarea 
-                      className="w-full mt-1 p-2 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
+                      className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
                       value={footerForm.popularCategories}
                       onChange={(e) => setFooterForm({ ...footerForm, popularCategories: e.target.value })}
-                      placeholder="Power Tools, Hand Tools, Plumbing, Electricity"
+                      placeholder="Concrete Work, Landscaping & Turf, Hand Tools, Construction Materials"
                     />
                     <p className="text-xs text-gray-400 mt-1">E.g: Concrete Mixers, Hand Saws, Electrical Cables.</p>
                   </div>
@@ -4728,11 +4763,18 @@ export function Admin() {
               </div>
 
               {/* ========== T&C SETTINGS ========== */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Términos y Condiciones</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Edita el texto público que los usuarios ven en la página de Términos y Condiciones. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
-                </p>
+              <div id="settings-terms" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#333]">Terms &amp; Conditions Page</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Edit the public terms of service displayed at /terms-conditions. Line breaks and bold formatting are preserved on the live site.
+                    </p>
+                  </div>
+                  <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+                    Live on /terms-conditions
+                  </span>
+                </div>
                 <div className="flex items-center gap-2 mb-3">
                   <Button
                     type="button"
@@ -4740,9 +4782,9 @@ export function Admin() {
                     className="h-8 px-3 text-xs"
                     onClick={handleTermsBold}
                   >
-                    Negrita
+                    Bold
                   </Button>
-                  <span className="text-xs text-gray-400">Tip: selecciona texto y presiona Negrita, o usa **texto**.</span>
+                  <span className="text-xs text-gray-400">Tip: select text and click Bold, or wrap in **text**.</span>
                 </div>
                 <div className="grid grid-cols-1">
                   <div className="md:col-span-1">
@@ -4751,7 +4793,7 @@ export function Admin() {
                       ref={termsTextareaRef}
                       value={termsForm}
                       onChange={(e) => setTermsForm(e.target.value)}
-                      placeholder="Escribe aquí las políticas, términos de servicio y condiciones..."
+                      placeholder="Enter company terms of service, policies, and conditions..."
                     />
                   </div>
                 </div>
@@ -4775,11 +4817,18 @@ export function Admin() {
               </div>
 
               {/* ========== PRIVACY POLICY SETTINGS ========== */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Política de Privacidad</h3>
-                <p className="text-sm text-gray-500 mb-4">
-                  Edita el texto público que los usuarios ven en la página de Política de Privacidad. Puedes agregar espacios y saltos de línea y se respetarán en el sitio.
-                </p>
+              <div id="settings-privacy" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#333]">Privacy Policy Page</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Edit the public privacy policy displayed at /privacy-policy. Line breaks and bold formatting are preserved on the live site.
+                    </p>
+                  </div>
+                  <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
+                    Live on /privacy-policy
+                  </span>
+                </div>
                 <div className="flex items-center gap-2 mb-3">
                   <Button
                     type="button"
@@ -4787,9 +4836,9 @@ export function Admin() {
                     className="h-8 px-3 text-xs"
                     onClick={handlePrivacyBold}
                   >
-                    Negrita
+                    Bold
                   </Button>
-                  <span className="text-xs text-gray-400">Tip: selecciona texto y presiona Negrita, o usa **texto**.</span>
+                  <span className="text-xs text-gray-400">Tip: select text and click Bold, or wrap in **text**.</span>
                 </div>
                 <div className="grid grid-cols-1">
                   <div className="md:col-span-1">
@@ -4798,7 +4847,7 @@ export function Admin() {
                       ref={privacyTextareaRef}
                       value={privacyForm}
                       onChange={(e) => setPrivacyForm(e.target.value)}
-                      placeholder="Escribe aquí la política de privacidad..."
+                      placeholder="Enter company privacy policy, data practices, and disclosures..."
                     />
                   </div>
                 </div>
@@ -4822,7 +4871,7 @@ export function Admin() {
               </div>
 
               {/* ========== GLOBAL TEXT SETTINGS ========== */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div id="settings-texts" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Global Texts and Navigation</h3>
                 <p className="text-sm text-gray-500 mb-6">
                   Modify the button texts, navigation menus, and small subtitles across the public website.
@@ -4879,7 +4928,7 @@ export function Admin() {
               </div>
 
               {/* header settings*/}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div id="settings-services" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Services Page Header &amp; Modal Brand</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -4990,7 +5039,7 @@ export function Admin() {
               </div>
 
               {/* contact settings*/}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div id="settings-contact" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-[#333]">Contact Page &amp; Address</h3>
@@ -5102,7 +5151,7 @@ export function Admin() {
               </div>
 
               {/* heavy equipment settings */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
+              <div id="settings-heavy" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
                 <h3 className="text-lg font-semibold text-[#333] mb-4">Heavy Equipment Page (Banner)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -6462,10 +6511,10 @@ export function Admin() {
       <Dialog open={sizeDialogOpen} onOpenChange={setSizeDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Tamaño de letra</DialogTitle>
+            <DialogTitle>Font Size</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
-            <Label htmlFor="size-input">Tamaño (10 - 48)</Label>
+            <Label htmlFor="size-input">Size (10 - 48)</Label>
             <Input
               id="size-input"
               type="number"
@@ -6476,8 +6525,8 @@ export function Admin() {
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSizeDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={applyServiceSize} className="bg-[#1e5631] hover:bg-[#164a28]">Aplicar</Button>
+            <Button variant="outline" onClick={() => setSizeDialogOpen(false)}>Cancel</Button>
+            <Button onClick={applyServiceSize} className="bg-[#1e5631] hover:bg-[#164a28]">Apply</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
