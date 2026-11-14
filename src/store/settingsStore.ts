@@ -31,6 +31,7 @@ export interface ContactInfoSettings {
   schedule?: string;
   mapUrl?: string;
   directionsUrl?: string;
+  subjects?: string[];
 }
 
 export interface HeavyEquipmentSettings {

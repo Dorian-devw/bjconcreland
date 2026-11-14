@@ -27,12 +27,22 @@ export function Contact() {
     agreeSms: false,
   });
 
+  const defaultSubjects = [
+    'Free Estimate / Quote',
+    'Concrete Work (Driveway, Patio, Foundation)',
+    'Landscaping & Synthetic Turf',
+    'Commercial Project',
+    'General Inquiry',
+    'Other',
+  ];
+
+  const customSubjects = contactInfo?.subjects && Array.isArray(contactInfo.subjects) && contactInfo.subjects.length > 0
+    ? contactInfo.subjects
+    : defaultSubjects;
+
   const ASUNTO_OPTIONS = [
-    t('contact.select_subject'),
-    t('contact.subject_general'),
-    t('contact.subject_orders'),
-    t('contact.subject_support'),
-    t('contact.subject_other'),
+    t('contact.select_subject') || 'Select a subject',
+    ...customSubjects,
   ];
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(

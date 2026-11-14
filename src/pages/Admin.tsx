@@ -441,6 +441,7 @@ export function Admin() {
     schedule: 'Monday – Friday: 8:00 AM – 5:00 PM',
     mapUrl: '',
     directionsUrl: '',
+    subjects: 'Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther',
   });
   const [contactInfoSaving, setContactInfoSaving] = useState(false);
   const [contactInfoError, setContactInfoError] = useState<string | null>(null);
@@ -456,6 +457,11 @@ export function Admin() {
       schedule: contactInfo.schedule || 'Monday – Friday: 8:00 AM – 5:00 PM',
       mapUrl: contactInfo.mapUrl || '',
       directionsUrl: contactInfo.directionsUrl || '',
+      subjects: contactInfo.subjects && Array.isArray(contactInfo.subjects)
+        ? contactInfo.subjects.join('\n')
+        : (typeof contactInfo.subjects === 'string' && contactInfo.subjects
+            ? contactInfo.subjects
+            : 'Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther'),
     });
   }, [contactInfo, fetchContactInfo]);
 
@@ -668,14 +674,24 @@ export function Admin() {
     setContactInfoSaving(true);
     setContactInfoError(null);
     try {
+      const parsedSubjects = (contactInfoForm.subjects || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+      const payload = {
+        ...contactInfoForm,
+        subjects: parsedSubjects,
+      };
+
       const res = await fetchWithAuth(`${API}/settings/contact_info`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contactInfo: contactInfoForm })
+        body: JSON.stringify({ contactInfo: payload })
       });
       if (res.status === 401) return logoutAndRedirect();
       if (!res.ok) throw new Error('Error saving contact info');
-      setContactInfo(contactInfoForm);
+      setContactInfo(payload);
       toast.success('Contact info updated');
     } catch (e) {
       setContactInfoError(e instanceof Error ? e.message : 'Error saving');
@@ -5042,6 +5058,18 @@ export function Admin() {
                       onChange={(e) => setContactInfoForm({ ...contactInfoForm, directionsUrl: e.target.value })} 
                       placeholder="https://maps.google.com/?q=... (Leave blank to open address automatically)" 
                     />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Form Subjects / Inquiry Topics (One per line)</Label>
+                    <textarea 
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-xs font-mono outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[110px]"
+                      value={contactInfoForm.subjects}
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, subjects: e.target.value })}
+                      placeholder={"Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther"}
+                    />
+                    <span className="text-[11px] text-gray-400 mt-0.5 block">
+                      These are the choices shown to visitors in the "Subject" dropdown on the Contact Us form. Enter each topic on a new line.
+                    </span>
                   </div>
                 </div>
                 {contactInfoError && (
