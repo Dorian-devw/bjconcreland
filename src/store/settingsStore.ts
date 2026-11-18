@@ -2,16 +2,54 @@ import { create } from 'zustand';
 import { API } from '@/lib/api';
 
 export interface FooterSettings {
+  brandName?: string;
   description: string;
+  categoriesTitle?: string;
+  popularCategories?: string;
+  contactTitle?: string;
   phone: string;
   email: string;
+  scheduleWeekdaysLabel?: string;
   scheduleWeekdays: string;
+  scheduleWeekendsLabel?: string;
   scheduleWeekends: string;
   mapUrl: string;
+  socialTitle?: string;
   facebookUrl: string;
   instagramUrl: string;
   twitterUrl: string;
-  popularCategories?: string;
+  youtubeUrl?: string;
+  copyrightText?: string;
+}
+
+export interface GalleryHeaderSettings {
+  badge?: string;
+  title?: string;
+  description?: string;
+  ctaText?: string;
+  ctaLink?: string;
+  categories?: string;
+  bottomBadge?: string;
+  bottomTitle?: string;
+  bottomDescription?: string;
+  bottomPhone?: string;
+  bottomCtaText?: string;
+  bottomCtaLink?: string;
+}
+
+export interface HomeSettings {
+  heroTitle?: string;
+  heroHighlight?: string;
+  heroDescription?: string;
+  heroCtaText?: string;
+  heroCtaLink?: string;
+  categoriesTitle?: string;
+  categoriesSubtitle?: string;
+  featuredBadge?: string;
+  featuredHeadline?: string;
+  featuredCatalogText?: string;
+  featuredCatalogLink?: string;
+  featuredLimit?: number;
 }
 
 export interface ServicesHeaderSettings {
@@ -61,6 +99,12 @@ interface SettingsState {
   servicesHeader: ServicesHeaderSettings | null;
   fetchServicesHeader: () => Promise<void>;
   setServicesHeader: (header: ServicesHeaderSettings) => void;
+  galleryHeader: GalleryHeaderSettings | null;
+  fetchGalleryHeader: () => Promise<void>;
+  setGalleryHeader: (header: GalleryHeaderSettings) => void;
+  homeSettings: HomeSettings | null;
+  fetchHomeSettings: () => Promise<void>;
+  setHomeSettings: (settings: HomeSettings) => void;
   contactInfo: ContactInfoSettings | null;
   fetchContactInfo: () => Promise<void>;
   setContactInfo: (info: ContactInfoSettings) => void;
@@ -83,6 +127,8 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   terms: null,
   privacyPolicy: null,
   servicesHeader: null,
+  galleryHeader: null,
+  homeSettings: null,
   contactInfo: null,
   heavyEquipment: null,
   siteTexts: null,
@@ -175,6 +221,38 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
   setServicesHeader: (servicesHeader) => set({ servicesHeader }),
+
+  fetchGalleryHeader: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/gallery_header`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) set({ galleryHeader: data });
+      }
+    } catch (error) {
+      console.error('Error fetching gallery header:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setGalleryHeader: (galleryHeader) => set({ galleryHeader }),
+
+  fetchHomeSettings: async () => {
+    set({ loading: true });
+    try {
+      const res = await fetch(`${API}/settings/home`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) set({ homeSettings: data });
+      }
+    } catch (error) {
+      console.error('Error fetching home settings:', error);
+    } finally {
+      set({ loading: false });
+    }
+  },
+  setHomeSettings: (homeSettings) => set({ homeSettings }),
 
   fetchContactInfo: async () => {
     set({ loading: true });

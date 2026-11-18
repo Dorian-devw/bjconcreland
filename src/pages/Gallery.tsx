@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { API } from '@/lib/api';
+import { useSettingsStore } from '@/store/settingsStore';
 import { 
   Images, 
   ChevronLeft, 
@@ -23,13 +24,17 @@ export interface GalleryItem {
   created_at?: string;
 }
 
-const CATEGORIES = ['All', 'Concrete', 'Landscaping', 'Artificial Turf', 'Hardscapes'];
-
 export function Gallery() {
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeLightboxIndex, setActiveLightboxIndex] = useState<number | null>(null);
+
+  const { galleryHeader, fetchGalleryHeader } = useSettingsStore();
+
+  useEffect(() => {
+    fetchGalleryHeader();
+  }, [fetchGalleryHeader]);
 
   useEffect(() => {
     let isMounted = true;
@@ -50,6 +55,15 @@ export function Gallery() {
     fetchGallery();
     return () => { isMounted = false; };
   }, []);
+
+  const categoriesList = useMemo(() => {
+    const configured = galleryHeader?.categories
+      ? galleryHeader.categories.split(',').map((c) => c.trim()).filter(Boolean)
+      : ['Concrete', 'Landscaping', 'Artificial Turf', 'Hardscapes'];
+    const itemCats = items.map((i) => i.category?.trim()).filter(Boolean) as string[];
+    const combined = Array.from(new Set([...configured, ...itemCats]));
+    return ['All', ...combined];
+  }, [galleryHeader?.categories, items]);
 
   const filteredItems = useMemo(() => {
     if (selectedCategory === 'All') return items;
@@ -90,23 +104,23 @@ export function Gallery() {
             <div className="flex items-center gap-2 mb-3">
               <span className="inline-block w-6 h-[2px] bg-[#3a2f2a]" />
               <span className="text-xs font-bold uppercase tracking-widest text-[#3a2f2a]/90">
-                OUR WORK &amp; PORTFOLIO
+                {galleryHeader?.badge || 'OUR WORK & PORTFOLIO'}
               </span>
             </div>
             <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl leading-[1.05] max-w-3xl text-[#3a2f2a]">
-              Project Gallery
+              {galleryHeader?.title || 'Project Gallery'}
             </h1>
             <p className="text-sm md:text-base text-[#3a2f2a]/90 mt-5 max-w-2xl font-medium leading-relaxed">
-              Explore our completed residential and commercial projects across Utah. From stamped driveways and durable foundations to modern turf and lush landscaping.
+              {galleryHeader?.description || 'Explore our completed residential and commercial projects across Utah. From stamped driveways and durable foundations to modern turf and lush landscaping.'}
             </p>
           </div>
 
           <div className="flex-shrink-0">
             <Link
-              to="/contact"
+              to={galleryHeader?.ctaLink || '/contact'}
               className="inline-flex items-center gap-2 bg-[#3a2f2a] hover:bg-black text-white font-bold uppercase text-xs tracking-widest px-8 py-4 transition-colors shadow-md"
             >
-              <span>Get Free Estimate</span>
+              <span>{galleryHeader?.ctaText || 'Get Free Estimate'}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -121,7 +135,7 @@ export function Gallery() {
             <span className="text-xs font-bold uppercase tracking-wider text-gray-500 mr-2 flex items-center gap-1">
               <Filter className="w-3.5 h-3.5" /> Filter:
             </span>
-            {CATEGORIES.map((cat) => {
+            {categoriesList.map((cat) => {
               const active = selectedCategory.toLowerCase() === cat.toLowerCase();
               return (
                 <button
@@ -223,28 +237,28 @@ export function Gallery() {
         <div className="mt-16 md:mt-24 bg-gradient-to-r from-[#3a2f2a] to-[#251e1b] rounded-2xl p-8 md:p-12 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 text-center md:text-left">
             <span className="text-[#a8876c] text-xs font-bold uppercase tracking-widest flex items-center justify-center md:justify-start gap-1.5">
-              <Sparkles className="w-4 h-4 text-[#a8876c]" /> Like What You See?
+              <Sparkles className="w-4 h-4 text-[#a8876c]" /> {galleryHeader?.bottomBadge || 'Like What You See?'}
             </span>
             <h3 className="font-serif text-2xl md:text-3xl font-bold">
-              Ready to Upgrade Your Property?
+              {galleryHeader?.bottomTitle || 'Ready to Upgrade Your Property?'}
             </h3>
             <p className="text-white/80 text-xs md:text-sm max-w-xl">
-              Get an accurate, no-obligation estimate from Don José and the BJ Concreland team. Call us or message through our contact page today.
+              {galleryHeader?.bottomDescription || 'Get an accurate, no-obligation estimate from Don José and the BJ Concreland team. Call us or message through our contact page today.'}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
             <a
-              href="tel:+18013472165"
+              href={`tel:${(galleryHeader?.bottomPhone || '+18013472165').replace(/[^0-9+]/g, '')}`}
               className="inline-flex items-center gap-2 bg-transparent hover:bg-white/10 text-white border border-white/30 text-xs font-bold uppercase tracking-widest px-6 py-3.5 rounded transition-colors"
             >
               <PhoneCall className="w-4 h-4" />
-              <span>(801) 347-2165</span>
+              <span>{galleryHeader?.bottomPhone || '(801) 347-2165'}</span>
             </a>
             <Link
-              to="/contact"
+              to={galleryHeader?.bottomCtaLink || '/contact'}
               className="inline-flex items-center gap-2 bg-[#a8876c] hover:bg-[#927359] text-white text-xs font-bold uppercase tracking-widest px-6 py-3.5 rounded transition-colors shadow-md"
             >
-              <span>Contact Us</span>
+              <span>{galleryHeader?.bottomCtaText || 'Contact Us'}</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>

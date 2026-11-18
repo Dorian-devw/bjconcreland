@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, Clock, Facebook, Instagram, Twitter } from 'lucide-react';
+import { Phone, Mail, Clock, Facebook, Instagram, Twitter, Youtube } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -23,14 +23,14 @@ export function Footer() {
               {logo ? (
                 <img 
                   src={logo} 
-                  alt="JJ Construction" 
+                  alt={footer?.brandName || "BJ Concreland"} 
                   loading="lazy"
                   decoding="async"
                   style={logoWidth ? { width: `${logoWidth}px` } : undefined}
                   className={`object-contain ${!logoWidth ? 'h-16 w-auto' : ''}`} 
                 />
               ) : (
-                <span className="text-xl font-bold text-[#1e5631]">JJ Construction</span>
+                <span className="text-xl font-bold text-[#1e5631]">{footer?.brandName || "BJ Concreland"}</span>
               )}
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">
@@ -40,7 +40,9 @@ export function Footer() {
 
           {/* categories*/}
           <div>
-            <h4 className="text-lg font-medium mb-4 text-[#c8a48c]">{t('footer.popular_categories')}</h4>
+            <h4 className="text-lg font-medium mb-4 text-[#c8a48c]">
+              {footer?.categoriesTitle || t('footer.popular_categories')}
+            </h4>
             <ul className="space-y-2">
               {(footer?.popularCategories 
                   ? footer.popularCategories.split(',').map(c => c.trim()).filter(Boolean)
@@ -67,28 +69,34 @@ export function Footer() {
 
           {/* client side */}
           <div>
-            <h4 className="text-lg font-bold mb-4 text-[#2d9d5f]">{t('footer.contact_title')}</h4>
+            <h4 className="text-lg font-bold mb-4 text-[#2d9d5f]">
+              {footer?.contactTitle || t('footer.contact_title')}
+            </h4>
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <Phone className="w-5 h-5 text-[#e85d04]" />
-                <a href={`tel:${footer?.phone || '+18013472165'}`} className="text-gray-400 text-sm hover:text-[#2d9d5f] transition-colors">{footer?.phone || '+1 (801) 347-2165'}</a>
+                <a href={`tel:${footer?.phone ? footer.phone.replace(/[^0-9+]/g, '') : '+18013472165'}`} className="text-gray-400 text-sm hover:text-[#2d9d5f] transition-colors">
+                  {footer?.phone || '+1 (801) 347-2165'}
+                </a>
               </li>
               <li className="flex items-center gap-3">
                 <Mail className="w-5 h-5 text-[#e85d04]" />
-                <a href={`mailto:${footer?.email || 'jose.zevallos@bjconcreland.com'}`} className="text-gray-400 text-sm hover:text-[#2d9d5f] transition-colors">{footer?.email || 'jose.zevallos@bjconcreland.com'}</a>
+                <a href={`mailto:${footer?.email || 'jose.zevallos@bjconcreland.com'}`} className="text-gray-400 text-sm hover:text-[#2d9d5f] transition-colors">
+                  {footer?.email || 'jose.zevallos@bjconcreland.com'}
+                </a>
               </li>
               <li className="flex items-start gap-3">
                 <Clock className="w-5 h-5 text-[#e85d04] mt-0.5" />
                 <div className="text-gray-400 text-sm">
-                  <p>{t('footer.mon_fri')}: {footer?.scheduleWeekdays || '8:00 - 18:00'}</p>
-                  <p>{t('footer.sat')}: {footer?.scheduleWeekends || '8:00 - 13:00'}</p>
+                  <p>{footer?.scheduleWeekdaysLabel || t('footer.mon_fri')}: {footer?.scheduleWeekdays || '8:00 AM – 5:00 PM'}</p>
+                  <p>{footer?.scheduleWeekendsLabel || t('footer.sat')}: {footer?.scheduleWeekends || 'By Appointment Only'}</p>
                 </div>
               </li>
             </ul>
             <div className="mt-4 rounded-lg overflow-hidden h-48 border border-gray-700 bg-gray-800">
               <iframe
                 title="Location Map"
-                src={footer?.mapUrl || "https://maps.google.com/maps?q=6873%20S%20Heather%20way%2C%20West%20Jordan%20UT%2084084&t=&z=15&ie=UTF8&iwloc=&output=embed"}
+                src={footer?.mapUrl || "https://maps.google.com/maps?q=6873%20South%20Heather%20way%2C%20West%20Jordan%2C%20Utah%2084084&t=&z=15&ie=UTF8&iwloc=&output=embed"}
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
@@ -101,8 +109,10 @@ export function Footer() {
 
           {/* social network */}
           <div>
-            <h4 className="text-lg font-bold mb-4 text-[#2d9d5f]">{t('footer.follow_us')}</h4>
-            <div className="flex gap-4">
+            <h4 className="text-lg font-bold mb-4 text-[#2d9d5f]">
+              {footer?.socialTitle || t('footer.follow_us')}
+            </h4>
+            <div className="flex flex-wrap gap-3">
               <a
                 href={footer?.facebookUrl || "https://www.facebook.com/share/14Wq4uekiZY/?mibextid=wwXIfr"}
                 target="_blank"
@@ -136,6 +146,19 @@ export function Footer() {
                 <Twitter className="w-5 h-5" aria-hidden="true" />
                 <span className="sr-only">Twitter</span>
               </a>
+              {footer?.youtubeUrl && (
+                <a
+                  href={footer.youtubeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit BJ Concreland on YouTube"
+                  title="YouTube"
+                  className="w-10 h-10 bg-[#1e5631] rounded-full flex items-center justify-center transition-all hover:bg-[#164a28] hover:scale-110 text-white"
+                >
+                  <Youtube className="w-5 h-5" aria-hidden="true" />
+                  <span className="sr-only">YouTube</span>
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -143,10 +166,17 @@ export function Footer() {
 
       {/* bottom bar */}
       <div className="border-t border-gray-700">
-        <div className="container-custom py-4">
-          <p className="text-center text-gray-500 text-sm">
-            © {currentYear} JJ construccion. {t('footer.rights')}
+        <div className="container-custom py-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-gray-400 text-xs">
+          <p className="text-center sm:text-left">
+            {footer?.copyrightText
+              ? footer.copyrightText.replace('{year}', String(currentYear))
+              : `© ${currentYear} BJ Concreland. ${t('footer.rights')}`}
           </p>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <span className="text-gray-600">•</span>
+            <Link to="/terms-conditions" className="hover:text-white transition-colors">Terms of Service</Link>
+          </div>
         </div>
       </div>
     </footer>

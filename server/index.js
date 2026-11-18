@@ -813,6 +813,54 @@ app.put('/api/settings/services_header', authMiddleware, async (req, res) => {
   }
 });
 
+app.get('/api/settings/home', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'home_settings'");
+    const data = rows[0]?.value ? JSON.parse(rows[0].value) : null;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo settings de home' });
+  }
+});
+
+app.put('/api/settings/home', authMiddleware, async (req, res) => {
+  const { homeSettings } = req.body || {};
+  if (!homeSettings) return res.status(400).json({ error: 'Datos inválidos' });
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('home_settings', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [JSON.stringify(homeSettings)],
+    );
+    res.json({ homeSettings });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando settings de home' });
+  }
+});
+
+app.get('/api/settings/gallery_header', async (req, res) => {
+  try {
+    const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'gallery_header'");
+    const data = rows[0]?.value ? JSON.parse(rows[0].value) : null;
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo settings de galería' });
+  }
+});
+
+app.put('/api/settings/gallery_header', authMiddleware, async (req, res) => {
+  const { galleryHeader } = req.body || {};
+  if (!galleryHeader) return res.status(400).json({ error: 'Datos inválidos' });
+  try {
+    await db.query(
+      "INSERT INTO app_settings (`key`, `value`) VALUES ('gallery_header', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+      [JSON.stringify(galleryHeader)],
+    );
+    res.json({ galleryHeader });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando settings de galería' });
+  }
+});
+
 app.get('/api/settings/contact_info', async (req, res) => {
   try {
     const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'contact_info'");

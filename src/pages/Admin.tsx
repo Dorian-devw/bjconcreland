@@ -43,6 +43,7 @@ import {
   Sliders,
   Images,
   MapPin,
+  PanelBottom,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -76,7 +77,7 @@ import {
 import type { Order, Product, ProductTag } from '@/types';
 import { translations } from '@/context/LanguageContext';
 
-type AdminSection = 'dashboard' | 'orders' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'gallery' | 'settings' | 'chat' | 'messages';
+type AdminSection = 'dashboard' | 'orders' | 'home' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'gallery' | 'footer' | 'settings' | 'chat' | 'messages';
 
 export interface ContactMessage {
   id: number;
@@ -280,6 +281,8 @@ export function Admin() {
   const { 
     logo, logoWidth, setLogo, 
     footer, setFooter, fetchFooter,
+    galleryHeader, setGalleryHeader, fetchGalleryHeader,
+    homeSettings, setHomeSettings, fetchHomeSettings,
     terms, setTerms, fetchTerms,
     privacyPolicy, setPrivacyPolicy, fetchPrivacyPolicy,
     servicesHeader, setServicesHeader, fetchServicesHeader,
@@ -483,16 +486,24 @@ export function Admin() {
   }, [heavyEquipment, fetchHeavyEquipment]);
 
   const [footerForm, setFooterForm] = useState({
+    brandName: '',
     description: '',
+    categoriesTitle: '',
+    popularCategories: '',
+    contactTitle: '',
     phone: '',
     email: '',
+    scheduleWeekdaysLabel: '',
     scheduleWeekdays: '',
+    scheduleWeekendsLabel: '',
     scheduleWeekends: '',
     mapUrl: '',
+    socialTitle: '',
     facebookUrl: '',
     instagramUrl: '',
     twitterUrl: '',
-    popularCategories: ''
+    youtubeUrl: '',
+    copyrightText: '',
   });
   const [footerSaving, setFooterSaving] = useState(false);
   const [footerError, setFooterError] = useState<string | null>(null);
@@ -502,19 +513,154 @@ export function Admin() {
       fetchFooter();
     } else {
       setFooterForm({
+        brandName: footer.brandName || '',
         description: footer.description || '',
+        categoriesTitle: footer.categoriesTitle || '',
+        popularCategories: footer.popularCategories || '',
+        contactTitle: footer.contactTitle || '',
         phone: footer.phone || '',
         email: footer.email || '',
+        scheduleWeekdaysLabel: footer.scheduleWeekdaysLabel || '',
         scheduleWeekdays: footer.scheduleWeekdays || '',
+        scheduleWeekendsLabel: footer.scheduleWeekendsLabel || '',
         scheduleWeekends: footer.scheduleWeekends || '',
         mapUrl: footer.mapUrl || '',
+        socialTitle: footer.socialTitle || '',
         facebookUrl: footer.facebookUrl || '',
         instagramUrl: footer.instagramUrl || '',
         twitterUrl: footer.twitterUrl || '',
-        popularCategories: footer.popularCategories || ''
+        youtubeUrl: footer.youtubeUrl || '',
+        copyrightText: footer.copyrightText || '',
       });
     }
   }, [footer, fetchFooter]);
+
+  // Gallery page header & CTA banners state
+  const [galleryHeaderForm, setGalleryHeaderForm] = useState({
+    badge: '',
+    title: '',
+    description: '',
+    ctaText: '',
+    ctaLink: '',
+    categories: '',
+    bottomBadge: '',
+    bottomTitle: '',
+    bottomDescription: '',
+    bottomPhone: '',
+    bottomCtaText: '',
+    bottomCtaLink: '',
+  });
+  const [galleryHeaderSaving, setGalleryHeaderSaving] = useState(false);
+  const [galleryHeaderError, setGalleryHeaderError] = useState<string | null>(null);
+  const [galleryHeaderOpen, setGalleryHeaderOpen] = useState(false);
+
+  useEffect(() => {
+    if (galleryHeader === null) {
+      fetchGalleryHeader();
+    } else {
+      setGalleryHeaderForm({
+        badge: galleryHeader.badge || '',
+        title: galleryHeader.title || '',
+        description: galleryHeader.description || '',
+        ctaText: galleryHeader.ctaText || '',
+        ctaLink: galleryHeader.ctaLink || '',
+        categories: galleryHeader.categories || '',
+        bottomBadge: galleryHeader.bottomBadge || '',
+        bottomTitle: galleryHeader.bottomTitle || '',
+        bottomDescription: galleryHeader.bottomDescription || '',
+        bottomPhone: galleryHeader.bottomPhone || '',
+        bottomCtaText: galleryHeader.bottomCtaText || '',
+        bottomCtaLink: galleryHeader.bottomCtaLink || '',
+      });
+    }
+  }, [galleryHeader, fetchGalleryHeader]);
+
+  const handleSaveGalleryHeader = async () => {
+    setGalleryHeaderSaving(true);
+    setGalleryHeaderError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/gallery_header`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ galleryHeader: galleryHeaderForm })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error saving gallery settings');
+      setGalleryHeader(galleryHeaderForm);
+      toast.success('Gallery banners and page settings updated');
+    } catch (e) {
+      setGalleryHeaderError(e instanceof Error ? e.message : 'Error saving gallery settings');
+    } finally {
+      setGalleryHeaderSaving(false);
+    }
+  };
+
+  // Home Page customizer state
+  const [homeSettingsForm, setHomeSettingsForm] = useState({
+    heroTitle: '',
+    heroHighlight: '',
+    heroDescription: '',
+    heroCtaText: '',
+    heroCtaLink: '',
+    categoriesTitle: '',
+    categoriesSubtitle: '',
+    featuredBadge: '',
+    featuredHeadline: '',
+    featuredCatalogText: '',
+    featuredCatalogLink: '',
+    featuredLimit: 3,
+  });
+  const [homeSettingsSaving, setHomeSettingsSaving] = useState(false);
+  const [homeSettingsError, setHomeSettingsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (homeSettings === null) {
+      fetchHomeSettings();
+    } else {
+      setHomeSettingsForm({
+        heroTitle: homeSettings.heroTitle || '',
+        heroHighlight: homeSettings.heroHighlight || '',
+        heroDescription: homeSettings.heroDescription || '',
+        heroCtaText: homeSettings.heroCtaText || '',
+        heroCtaLink: homeSettings.heroCtaLink || '',
+        categoriesTitle: homeSettings.categoriesTitle || '',
+        categoriesSubtitle: homeSettings.categoriesSubtitle || '',
+        featuredBadge: homeSettings.featuredBadge || '',
+        featuredHeadline: homeSettings.featuredHeadline || '',
+        featuredCatalogText: homeSettings.featuredCatalogText || '',
+        featuredCatalogLink: homeSettings.featuredCatalogLink || '',
+        featuredLimit: homeSettings.featuredLimit || 3,
+      });
+    }
+  }, [homeSettings, fetchHomeSettings]);
+
+  const handleSaveHomeSettings = async () => {
+    setHomeSettingsSaving(true);
+    setHomeSettingsError(null);
+    try {
+      const res = await fetchWithAuth(`${API}/settings/home`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ homeSettings: homeSettingsForm })
+      });
+      if (res.status === 401) {
+        logout();
+        navigate('/login');
+        return;
+      }
+      if (!res.ok) throw new Error('Error saving home page settings');
+      setHomeSettings(homeSettingsForm);
+      toast.success('Home page settings updated');
+    } catch (e) {
+      setHomeSettingsError(e instanceof Error ? e.message : 'Error saving home page settings');
+    } finally {
+      setHomeSettingsSaving(false);
+    }
+  };
 
   const handleSaveTabTitle = async () => {
     setTabTitleSaving(true);
@@ -1518,8 +1664,8 @@ export function Admin() {
   };
 
   useEffect(() => {
-    if (section === 'carousel') loadCarousel();
-    if (section === 'services') loadServices();
+    if (section === 'carousel' || section === 'home') loadCarousel();
+    if (section === 'services' || section === 'home') loadServices();
     if (section === 'gallery') loadGallery();
   }, [section, loadCarousel, loadServices, loadGallery]);
 
@@ -1538,7 +1684,7 @@ export function Admin() {
   }, []);
 
   useEffect(() => {
-    if (section === 'promoBanners') loadPromoBanners();
+    if (section === 'promoBanners' || section === 'home') loadPromoBanners();
   }, [section, loadPromoBanners]);
 
   const loadCategories = useCallback(async () => {
@@ -1574,7 +1720,7 @@ export function Admin() {
 
 
   useEffect(() => {
-    if (section === 'categories' || section === 'products') loadCategories();
+    if (section === 'categories' || section === 'products' || section === 'home') loadCategories();
   }, [section, loadCategories]);
 
   useEffect(() => {
@@ -2380,10 +2526,11 @@ export function Admin() {
   );
 
   const sectionLabel: Record<AdminSection, string> = {
-    dashboard: 'Dashboard', orders: 'Orders', products: 'Products',
+    dashboard: 'Dashboard', orders: 'Orders', home: 'Home Page', products: 'Products',
     categories: 'Home Categories', filterGroups: 'Store Filters', carousel: 'Carousel',
     promoBanners: 'Promo Banners', offers: 'Offers', services: 'Services / Blog',
     gallery: 'Photo Gallery',
+    footer: 'Footer',
     settings: 'Settings', chat: 'Live Chat', messages: 'Inquiries',
   };
 
@@ -2421,6 +2568,7 @@ export function Admin() {
             chatUnread > 0 ? <span className="ml-auto bg-emerald-400 text-[#0f172a] text-[10px] font-black px-1.5 py-0.5 rounded-md">{chatUnread}</span> : undefined)}
 
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">Content</p>
+          {navItem('home', <HomeIcon className="w-4 h-4" />, 'Home Page')}
           {navItem('products', <Package className="w-4 h-4" />, t('admin.products'))}
           {navItem('services', <BookOpen className="w-4 h-4" />, t('admin.services'))}
           {navItem('gallery', <Images className="w-4 h-4" />, 'Gallery')}
@@ -2433,6 +2581,7 @@ export function Admin() {
           {navItem('offers', <Percent className="w-4 h-4" />, t('admin.offers'))}
 
           <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 mb-2 mt-5">System</p>
+          {navItem('footer', <PanelBottom className="w-4 h-4" />, 'Footer')}
           {navItem('settings', <Settings className="w-4 h-4" />, 'Settings')}
         </nav>
 
@@ -2652,6 +2801,321 @@ export function Admin() {
             </>
           )}
 
+          {/* ========== HOME PAGE CUSTOMIZER ========== */}
+          {section === 'home' && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a] flex items-center gap-2">
+                    <HomeIcon className="w-7 h-7 text-[#1e5631]" />
+                    Home Page Customizer
+                  </h1>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Manage the hero banner, call-to-actions, category showcase, and featured products displayed on the homepage (/)
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/"
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Preview Home
+                  </Link>
+                  <Button
+                    onClick={handleSaveHomeSettings}
+                    disabled={homeSettingsSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs text-xs font-semibold"
+                  >
+                    {homeSettingsSaving && <Loader className="w-4 h-4 mr-1.5 animate-spin" />}
+                    Save Home Settings
+                  </Button>
+                </div>
+              </div>
+
+              {/* Homepage Modules Hub (Quick Sub-section Navigation) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setSection('carousel')}
+                  className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-[#1e5631] hover:shadow-md transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="p-2 rounded-lg bg-emerald-50 text-[#1e5631] group-hover:bg-[#1e5631] group-hover:text-white transition-colors">
+                      <ImageIcon className="w-4 h-4" />
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      {carouselSlides.length} slides
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#1e5631]">Hero Slides</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Manage background photos &amp; slides</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSection('promoBanners')}
+                  className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-[#1e5631] hover:shadow-md transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="p-2 rounded-lg bg-orange-50 text-[#e85d04] group-hover:bg-[#e85d04] group-hover:text-white transition-colors">
+                      <LayoutGrid className="w-4 h-4" />
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      {promoBanners.length} cards
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#e85d04]">3 Promo Banners</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Rotating 3-card promo grid</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSection('categories')}
+                  className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-[#1e5631] hover:shadow-md transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="p-2 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                      <Layers className="w-4 h-4" />
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      {categories.length} categories
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-blue-600">Home Categories</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Icons and shortcuts grid</p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSection('services')}
+                  className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs hover:border-[#1e5631] hover:shadow-md transition-all text-left group"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="p-2 rounded-lg bg-amber-50 text-amber-700 group-hover:bg-amber-700 group-hover:text-white transition-colors">
+                      <BookOpen className="w-4 h-4" />
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                      {services.length} services
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 group-hover:text-amber-700">Services Showcase</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Split banner &amp; service articles</p>
+                </button>
+              </div>
+
+              {/* Live Interactive Hero Banner Preview */}
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white p-8 mb-6 shadow-md border border-slate-800">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live Hero Banner Preview
+                  </span>
+                  <span className="text-[11px] text-slate-400">Updates live as you type</span>
+                </div>
+                <div className="max-w-2xl py-4">
+                  <h3 className="text-3xl sm:text-4xl font-light tracking-tight mb-3">
+                    {homeSettingsForm.heroTitle || 'Bringing Your'}
+                    {homeSettingsForm.heroHighlight ? (
+                      <>
+                        <br />
+                        <span className="font-bold text-white">{homeSettingsForm.heroHighlight}</span>
+                      </>
+                    ) : (
+                      <>
+                        <br />
+                        <span className="font-bold text-white">Concrete Visions to Reality</span>
+                      </>
+                    )}
+                  </h3>
+                  <p className="text-sm text-slate-300 font-light mb-6 leading-relaxed">
+                    {homeSettingsForm.heroDescription || 'Serving the area with premium quality concrete and landscaping for over 40 Years'}
+                  </p>
+                  <div className="inline-flex items-center px-6 py-2.5 rounded-md bg-[#2b5c9c] text-white text-xs font-semibold shadow-sm">
+                    {homeSettingsForm.heroCtaText || 'View Products'} &rarr; {homeSettingsForm.heroCtaLink || '/catalog'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Forms Grid */}
+              <div className="space-y-6 max-w-5xl">
+                {/* 1. Hero Section Settings */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      1. Top Hero Banner Fallback Texts &amp; Call-to-Action
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure the default headline, highlighted keyword, subtitle, and primary button text/link shown on the hero section
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Main Title (First Line)</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.heroTitle}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, heroTitle: e.target.value })}
+                        placeholder="Bringing Your"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Highlighted Keyword (Bold Line)</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.heroHighlight}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, heroHighlight: e.target.value })}
+                        placeholder="Concrete Visions to Reality"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Hero Subtitle / Description</Label>
+                      <textarea
+                        className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[70px]"
+                        value={homeSettingsForm.heroDescription}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, heroDescription: e.target.value })}
+                        placeholder="Serving the area with premium quality concrete and landscaping for over 40 Years"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Hero Primary CTA Button Text</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.heroCtaText}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, heroCtaText: e.target.value })}
+                        placeholder="View Products"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Hero Primary CTA Button Link</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.heroCtaLink}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, heroCtaLink: e.target.value })}
+                        placeholder="/catalog"
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">E.g. /catalog, /contact-us, or /gallery</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Categories Section Header */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      2. Main Categories Section Header
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure the title and optional subtitle displayed above the 6 category icons grid
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Section Title</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.categoriesTitle}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, categoriesTitle: e.target.value })}
+                        placeholder="Main Categories"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Section Subtitle / Brief Note (Optional)</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.categoriesSubtitle}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, categoriesSubtitle: e.target.value })}
+                        placeholder="Discover our top supplies and materials"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Featured Products / Showcase Banner */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      3. Featured Products Showcase Banner
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Configure the colored banner and product cards grid shown above the footer
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Eyebrow Tag / Badge</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.featuredBadge}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, featuredBadge: e.target.value })}
+                        placeholder="Featured Products"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Main Headline</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.featuredHeadline}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, featuredHeadline: e.target.value })}
+                        placeholder="Discover Our Selection"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Catalog Button / Link Text</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.featuredCatalogText}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, featuredCatalogText: e.target.value })}
+                        placeholder="View Catalog"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Catalog Link Target</Label>
+                      <Input
+                        className="mt-1"
+                        value={homeSettingsForm.featuredCatalogLink}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, featuredCatalogLink: e.target.value })}
+                        placeholder="/catalog"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Number of Products to Display</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={12}
+                        className="mt-1"
+                        value={homeSettingsForm.featuredLimit}
+                        onChange={(e) => setHomeSettingsForm({ ...homeSettingsForm, featuredLimit: Number(e.target.value) || 3 })}
+                      />
+                      <p className="text-[11px] text-slate-400 mt-1">Default: 3 items (displayed side-by-side)</p>
+                    </div>
+                  </div>
+                </div>
+
+                {homeSettingsError && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {homeSettingsError}
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleSaveHomeSettings}
+                    disabled={homeSettingsSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white font-semibold shadow-xs"
+                  >
+                    {homeSettingsSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Save All Home Page Settings
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* ========== PEDIDOS / QUIENES COMPRARON ========== */}
           {section === 'orders' && (
@@ -3205,7 +3669,16 @@ export function Admin() {
                     Manage showcase photos, categories, and descriptions displayed on the public Gallery page (/gallery)
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setGalleryHeaderOpen(!galleryHeaderOpen)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-[#1e5631]" />
+                    {galleryHeaderOpen ? 'Hide Page Settings' : 'Edit Page Banners & Content'}
+                  </Button>
                   <Link
                     to="/gallery"
                     target="_blank"
@@ -3216,17 +3689,210 @@ export function Admin() {
                   </Link>
                   <Button
                     onClick={openAddGalleryItem}
-                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs"
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs text-xs font-semibold"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-4 h-4 mr-1.5" />
                     Add Photo
                   </Button>
                 </div>
               </div>
 
+              {/* Collapsible Gallery Header & Bottom Banner Settings */}
+              {galleryHeaderOpen && (
+                <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6 mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-100 pb-4 mb-6">
+                    <div>
+                      <h2 className="text-lg font-bold text-[#0f172a] flex items-center gap-2">
+                        <Sliders className="w-5 h-5 text-[#1e5631]" />
+                        Gallery Page Banners &amp; Content Customizer
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Customize the top hero banner, filter tabs, and the bottom consultation CTA banner on /gallery
+                      </p>
+                    </div>
+                    <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200 self-start sm:self-auto">
+                      Page Content
+                    </span>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Hero Section Card */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80">
+                      <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#1e5631]"></span>
+                        1. Top Hero Banner
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Hero Badge Pill</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.badge}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, badge: e.target.value })}
+                            placeholder="OUR WORK SHOWCASE"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Hero Main Title</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.title}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, title: e.target.value })}
+                            placeholder="Craftsmanship in Concrete & Landscaping"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label className="text-xs font-medium text-slate-700">Hero Subtitle / Description</Label>
+                          <textarea
+                            className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] bg-white min-h-[70px]"
+                            value={galleryHeaderForm.description}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, description: e.target.value })}
+                            placeholder="Explore our completed projects across Utah. From stamped decorative concrete patios to full landscape transformations."
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Hero CTA Button Text</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.ctaText}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, ctaText: e.target.value })}
+                            placeholder="Get a Free Estimate"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Hero CTA Button Link</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.ctaLink}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, ctaLink: e.target.value })}
+                            placeholder="/contact-us"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Category Filter Tabs */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80">
+                      <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#1e5631]"></span>
+                        2. Category Filter Tabs
+                      </h3>
+                      <div>
+                        <Label className="text-xs font-medium text-slate-700">Category Filter List (comma-separated)</Label>
+                        <Input
+                          className="mt-1 text-sm bg-white"
+                          value={galleryHeaderForm.categories}
+                          onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, categories: e.target.value })}
+                          placeholder="Concrete, Landscaping, Artificial Turf, Hardscapes, Heavy Equipment"
+                        />
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          These categories appear as filter pills on top of the gallery grid for visitors to filter photos.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Bottom Estimate Banner */}
+                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200/80">
+                      <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#1e5631]"></span>
+                        3. Bottom Project Estimate Banner
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Banner Badge Pill</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.bottomBadge}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, bottomBadge: e.target.value })}
+                            placeholder="FREE CONSULTATION & ESTIMATES"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Banner Title</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.bottomTitle}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, bottomTitle: e.target.value })}
+                            placeholder="Ready to Start Your Next Project?"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label className="text-xs font-medium text-slate-700">Banner Description</Label>
+                          <textarea
+                            className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] bg-white min-h-[60px]"
+                            value={galleryHeaderForm.bottomDescription}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, bottomDescription: e.target.value })}
+                            placeholder="Contact our team today to discuss your vision, review options, and receive a transparent, no-obligation quote."
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Direct Phone Display</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.bottomPhone}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, bottomPhone: e.target.value })}
+                            placeholder="(801) 347-2165"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs font-medium text-slate-700">Estimate Button Text</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.bottomCtaText}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, bottomCtaText: e.target.value })}
+                            placeholder="Request Free Quote"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label className="text-xs font-medium text-slate-700">Estimate Button Link</Label>
+                          <Input
+                            className="mt-1 text-sm bg-white"
+                            value={galleryHeaderForm.bottomCtaLink}
+                            onChange={(e) => setGalleryHeaderForm({ ...galleryHeaderForm, bottomCtaLink: e.target.value })}
+                            placeholder="/contact-us"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {galleryHeaderError && (
+                    <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                      {galleryHeaderError}
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setGalleryHeaderOpen(false)}
+                      className="text-xs"
+                    >
+                      Close Panel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveGalleryHeader}
+                      disabled={galleryHeaderSaving}
+                      className="bg-[#1e5631] hover:bg-[#164a28] text-white text-xs font-semibold shadow-xs"
+                    >
+                      {galleryHeaderSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                      Save Gallery Settings
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Category Filter Pills */}
               <div className="flex flex-wrap items-center gap-2 mb-6">
-                {['All', 'Concrete', 'Landscaping', 'Artificial Turf', 'Hardscapes'].map((cat) => {
+                {[
+                  'All',
+                  ...Array.from(new Set([
+                    ...(galleryHeaderForm.categories ? galleryHeaderForm.categories.split(',').map((c) => c.trim()).filter(Boolean) : ['Concrete', 'Landscaping', 'Artificial Turf', 'Hardscapes']),
+                    ...galleryItems.map((i) => i.category?.trim()).filter(Boolean)
+                  ]))
+                ].map((cat) => {
                   const count = cat === 'All'
                     ? galleryItems.length
                     : galleryItems.filter((i) => i.category?.toLowerCase() === cat.toLowerCase()).length;
@@ -4487,6 +5153,375 @@ export function Admin() {
             );
           })()}
 
+          {/* ========== FOOTER (Dedicated Section) ========== */}
+          {section === 'footer' && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a] flex items-center gap-2">
+                    <PanelBottom className="w-7 h-7 text-[#1e5631]" />
+                    Footer Settings
+                  </h1>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Manage all columns, company branding, hours of operation, social networks, and copyright displayed at the bottom of every page
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/"
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Preview Website
+                  </Link>
+                  <Button
+                    onClick={handleSaveFooter}
+                    disabled={footerSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs text-xs font-semibold"
+                  >
+                    {footerSaving && <Loader className="w-4 h-4 mr-1.5 animate-spin" />}
+                    Save Footer Changes
+                  </Button>
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="bg-[#0f172a] text-slate-300 rounded-2xl p-6 mb-8 shadow-md border border-slate-800">
+                <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-800">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Live Footer Preview (Dark Theme)
+                  </span>
+                  <span className="text-[11px] text-slate-400">Updates live as you type below</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-xs">
+                  {/* Col 1 */}
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-bold text-white tracking-tight">
+                      {footerForm.brandName || 'BJ Concreland'}
+                    </h4>
+                    <p className="text-slate-400 leading-relaxed text-[11px]">
+                      {footerForm.description || 'Quality concrete, turf, and landscape solutions across Utah.'}
+                    </p>
+                  </div>
+                  {/* Col 2 */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      {footerForm.categoriesTitle || 'Popular Categories'}
+                    </h4>
+                    <div className="flex flex-col gap-1 text-[11px] text-slate-400">
+                      {(footerForm.popularCategories ? footerForm.popularCategories.split(',').map((c) => c.trim()).filter(Boolean) : ['Concrete Work', 'Turf & Landscaping', 'Hand Tools']).slice(0, 4).map((cat, i) => (
+                        <span key={i} className="hover:text-white transition-colors">• {cat}</span>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Col 3 */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      {footerForm.contactTitle || 'Contact Us'}
+                    </h4>
+                    <p className="text-[11px] text-slate-300">📞 {footerForm.phone || '+1 (801) 347-2165'}</p>
+                    <p className="text-[11px] text-slate-300">✉️ {footerForm.email || 'jose.zevallos@bjconcreland.com'}</p>
+                    <p className="text-[10px] text-slate-400 pt-1">
+                      <span className="font-semibold text-slate-300">{footerForm.scheduleWeekdaysLabel || 'Mon-Fri:'}</span> {footerForm.scheduleWeekdays || '8:00 AM - 5:00 PM'}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      <span className="font-semibold text-slate-300">{footerForm.scheduleWeekendsLabel || 'Sat-Sun:'}</span> {footerForm.scheduleWeekends || 'By Appointment'}
+                    </p>
+                  </div>
+                  {/* Col 4 */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                      {footerForm.socialTitle || 'Follow Us'}
+                    </h4>
+                    <div className="flex items-center gap-2 pt-1 text-slate-400 text-xs">
+                      {footerForm.facebookUrl && <span className="bg-slate-800 px-2 py-1 rounded text-white">FB</span>}
+                      {footerForm.instagramUrl && <span className="bg-slate-800 px-2 py-1 rounded text-white">IG</span>}
+                      {footerForm.twitterUrl && <span className="bg-slate-800 px-2 py-1 rounded text-white">X</span>}
+                      {footerForm.youtubeUrl && <span className="bg-slate-800 px-2 py-1 rounded text-white">YT</span>}
+                      {!footerForm.facebookUrl && !footerForm.instagramUrl && !footerForm.twitterUrl && !footerForm.youtubeUrl && (
+                        <span className="text-slate-500 text-[11px]">No social links configured</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-6 pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+                  <p>
+                    {footerForm.copyrightText
+                      ? footerForm.copyrightText.replace('{year}', String(new Date().getFullYear()))
+                      : `© ${new Date().getFullYear()} BJ Concreland. All rights reserved.`}
+                  </p>
+                  <div className="flex gap-4">
+                    <span>Privacy Policy</span>
+                    <span>Terms of Service</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Cards Grid */}
+              <div className="space-y-6 max-w-5xl">
+                {/* 1. Branding & Summary */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      1. Brand Fallback &amp; Company Summary
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Company name displayed in the first column (fallback if no logo) and company overview text
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Brand Name (Fallback)</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.brandName}
+                        onChange={(e) => setFooterForm({ ...footerForm, brandName: e.target.value })}
+                        placeholder="BJ Concreland"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Company Short Description</Label>
+                      <textarea
+                        className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
+                        value={footerForm.description}
+                        onChange={(e) => setFooterForm({ ...footerForm, description: e.target.value })}
+                        placeholder="Concrete and gardening supplies. Quality equipment and materials for your projects."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Popular Categories Column */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      2. Navigation Links &amp; Popular Categories Column
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Second column title and list of quick links shown to visitors
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Column Title</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.categoriesTitle}
+                        onChange={(e) => setFooterForm({ ...footerForm, categoriesTitle: e.target.value })}
+                        placeholder="Popular Categories"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Category Shortcuts (comma-separated)</Label>
+                      <textarea
+                        className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
+                        value={footerForm.popularCategories}
+                        onChange={(e) => setFooterForm({ ...footerForm, popularCategories: e.target.value })}
+                        placeholder="Concrete Work, Landscaping & Turf, Hand Tools, Construction Materials"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Separate each category or link with a comma. They will appear as clickable navigation items.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Direct Contact, Schedule & Map */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      3. Direct Contact Information, Business Hours &amp; Map
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Third column details including direct phone, email, operating schedule, and embedded Google Map
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Column Title</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.contactTitle}
+                        onChange={(e) => setFooterForm({ ...footerForm, contactTitle: e.target.value })}
+                        placeholder="Contact Us"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Contact Phone Number</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.phone}
+                        onChange={(e) => setFooterForm({ ...footerForm, phone: e.target.value })}
+                        placeholder="+1 (801) 347-2165"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Contact Email Address</Label>
+                      <Input
+                        className="mt-1"
+                        type="email"
+                        value={footerForm.email}
+                        onChange={(e) => setFooterForm({ ...footerForm, email: e.target.value })}
+                        placeholder="jose.zevallos@bjconcreland.com"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Weekday Schedule Label</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.scheduleWeekdaysLabel}
+                        onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekdaysLabel: e.target.value })}
+                        placeholder="Monday - Friday:"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Weekday Operating Hours</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.scheduleWeekdays}
+                        onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekdays: e.target.value })}
+                        placeholder="8:00 AM – 5:00 PM"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Weekend Schedule Label</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.scheduleWeekendsLabel}
+                        onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekendsLabel: e.target.value })}
+                        placeholder="Saturday - Sunday:"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Weekend Operating Hours</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.scheduleWeekends}
+                        onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekends: e.target.value })}
+                        placeholder="By Appointment Only"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Google Maps Embed URL (Iframe src)</Label>
+                      <Input
+                        className="mt-1 text-xs"
+                        value={footerForm.mapUrl}
+                        onChange={(e) => setFooterForm({ ...footerForm, mapUrl: e.target.value })}
+                        placeholder="https://maps.google.com/maps?q=...&output=embed"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Paste the embed URL found in Google Maps &rarr; Share &rarr; Embed a map (src attribute).</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Social Media Networks */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      4. Social Media Networks
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Fourth column title and direct profile/channel links (leave blank to hide any icon)
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Social Column Title</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.socialTitle}
+                        onChange={(e) => setFooterForm({ ...footerForm, socialTitle: e.target.value })}
+                        placeholder="Follow Us"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Facebook Page URL</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.facebookUrl}
+                        onChange={(e) => setFooterForm({ ...footerForm, facebookUrl: e.target.value })}
+                        placeholder="https://facebook.com/bjconcreland"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Instagram Profile URL</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.instagramUrl}
+                        onChange={(e) => setFooterForm({ ...footerForm, instagramUrl: e.target.value })}
+                        placeholder="https://instagram.com/bjconcreland"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Twitter / X Profile URL</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.twitterUrl}
+                        onChange={(e) => setFooterForm({ ...footerForm, twitterUrl: e.target.value })}
+                        placeholder="https://twitter.com/bjconcreland"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">YouTube Channel URL</Label>
+                      <Input
+                        className="mt-1"
+                        value={footerForm.youtubeUrl}
+                        onChange={(e) => setFooterForm({ ...footerForm, youtubeUrl: e.target.value })}
+                        placeholder="https://youtube.com/@bjconcreland"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 5. Bottom Copyright Bar */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      5. Bottom Copyright Bar
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Customize the legal copyright line displayed at the very bottom of every page
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Copyright Text Template</Label>
+                    <Input
+                      className="mt-1"
+                      value={footerForm.copyrightText}
+                      onChange={(e) => setFooterForm({ ...footerForm, copyrightText: e.target.value })}
+                      placeholder="© {year} BJ Concreland. All rights reserved."
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Tip: Use <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono text-[11px]">{'{year}'}</code> anywhere in the text to automatically render the current year ({new Date().getFullYear()}).
+                    </p>
+                  </div>
+                </div>
+
+                {footerError && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {footerError}
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleSaveFooter}
+                    disabled={footerSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white font-semibold shadow-xs"
+                  >
+                    {footerSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Save All Footer Changes
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* ========== SETTINGS ========== */}
           {section === 'settings' && (
             <>
@@ -4501,7 +5536,6 @@ export function Admin() {
                 {[
                   { id: 'settings-tab-title', label: 'Tab Title' },
                   { id: 'settings-logo', label: 'Site Logo' },
-                  { id: 'settings-footer', label: 'Footer' },
                   { id: 'settings-terms', label: 'Terms & Conditions' },
                   { id: 'settings-privacy', label: 'Privacy Policy' },
                   { id: 'settings-texts', label: 'Global Texts' },
@@ -4633,132 +5667,6 @@ export function Admin() {
                       </div>
                     )}
                   </div>
-                </div>
-              </div>
-
-              {/* ========== FOOTER SETTINGS ========== */}
-              <div id="settings-footer" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#333]">Footer Settings</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Customize company info, phone, email, business hours, and social media links in the website footer</p>
-                  </div>
-                  <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
-                    Live on all pages
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="md:col-span-2">
-                    <Label>Company Short Description</Label>
-                    <textarea 
-                      className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631]"
-                      rows={3}
-                      value={footerForm.description}
-                      onChange={(e) => setFooterForm({ ...footerForm, description: e.target.value })}
-                      placeholder="Concrete and gardening supplies. Quality equipment and materials for your projects."
-                    />
-                  </div>
-                  <div>
-                    <Label>Contact Phone Number</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={footerForm.phone} 
-                      onChange={(e) => setFooterForm({ ...footerForm, phone: e.target.value })} 
-                      placeholder="+1 (801) 347-2165" 
-                    />
-                  </div>
-                  <div>
-                    <Label>Contact Email Address</Label>
-                    <Input 
-                      className="mt-1" 
-                      type="email" 
-                      value={footerForm.email} 
-                      onChange={(e) => setFooterForm({ ...footerForm, email: e.target.value })} 
-                      placeholder="jose.zevallos@bjconcreland.com" 
-                    />
-                  </div>
-                  <div>
-                    <Label>Business Hours (Monday – Friday)</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={footerForm.scheduleWeekdays} 
-                      onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekdays: e.target.value })} 
-                      placeholder="8:00 AM – 5:00 PM" 
-                    />
-                  </div>
-                  <div>
-                    <Label>Weekend Hours (Saturdays – Sundays)</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={footerForm.scheduleWeekends} 
-                      onChange={(e) => setFooterForm({ ...footerForm, scheduleWeekends: e.target.value })} 
-                      placeholder="By Appointment Only" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Google Maps Embed URL (Iframe src)</Label>
-                    <Input 
-                      className="mt-1 text-xs" 
-                      value={footerForm.mapUrl} 
-                      onChange={(e) => setFooterForm({ ...footerForm, mapUrl: e.target.value })} 
-                      placeholder="https://maps.google.com/maps?q=...&output=embed" 
-                    />
-                    <p className="text-xs text-gray-400 mt-1">Paste the embed URL found in Google Maps &rarr; Share &rarr; Embed a map (src attribute).</p>
-                  </div>
-                  <div>
-                    <Label>Facebook Page URL</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={footerForm.facebookUrl} 
-                      onChange={(e) => setFooterForm({ ...footerForm, facebookUrl: e.target.value })} 
-                      placeholder="https://facebook.com/..." 
-                    />
-                  </div>
-                  <div>
-                    <Label>Instagram Profile URL</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={footerForm.instagramUrl} 
-                      onChange={(e) => setFooterForm({ ...footerForm, instagramUrl: e.target.value })} 
-                      placeholder="https://instagram.com/..." 
-                    />
-                  </div>
-                  <div>
-                    <Label>Twitter / X Profile URL</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={footerForm.twitterUrl} 
-                      onChange={(e) => setFooterForm({ ...footerForm, twitterUrl: e.target.value })} 
-                      placeholder="https://twitter.com/..." 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Popular Categories (comma-separated)</Label>
-                    <textarea 
-                      className="w-full mt-1 p-2.5 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[80px]"
-                      value={footerForm.popularCategories}
-                      onChange={(e) => setFooterForm({ ...footerForm, popularCategories: e.target.value })}
-                      placeholder="Concrete Work, Landscaping & Turf, Hand Tools, Construction Materials"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">E.g: Concrete Mixers, Hand Saws, Electrical Cables.</p>
-                  </div>
-                </div>
-
-                {footerError && (
-                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
-                    {footerError}
-                  </div>
-                )}
-
-                <div className="mt-6 flex justify-end">
-                  <Button 
-                    onClick={handleSaveFooter} 
-                    disabled={footerSaving}
-                    className="bg-[#1e5631] hover:bg-[#164a28]"
-                  >
-                    {footerSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Save Footer
-                  </Button>
                 </div>
               </div>
 

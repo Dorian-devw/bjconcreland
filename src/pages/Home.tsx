@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '@/context/LanguageContext';
 import { Zap, Wrench, Building2, Paintbrush, Droplets, Lightbulb } from 'lucide-react';
 import { useProductsStore } from '@/store/productsStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { Button } from '@/components/ui/button';
 import { ServicesSection } from '@/components/ServicesSection';
 
@@ -34,6 +35,7 @@ interface PromoBannerItem {
 
 export function Home() {
   const { t } = useLanguage();
+  const { homeSettings, fetchHomeSettings } = useSettingsStore();
   const { products, loading, error, fetchProducts } = useProductsStore();
   const featuredProducts = Array.isArray(products) ? products.slice(0, 8) : [];
   const [heroIndex, setHeroIndex] = useState(0);
@@ -52,6 +54,10 @@ export function Home() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    if (!homeSettings) fetchHomeSettings();
+  }, [homeSettings, fetchHomeSettings]);
 
 
   useEffect(() => {
@@ -213,6 +219,16 @@ export function Home() {
                 <br />
                 <span className="font-semibold text-white">{slides[heroIndex].highlight}</span>
               </>
+            ) : homeSettings?.heroTitle ? (
+              <>
+                {homeSettings.heroTitle}
+                {homeSettings.heroHighlight && (
+                  <>
+                    <br />
+                    <span className="font-semibold text-white">{homeSettings.heroHighlight}</span>
+                  </>
+                )}
+              </>
             ) : (
               <>
                 Bringing Your <br />
@@ -222,11 +238,11 @@ export function Home() {
             )}
           </h1>
           <p className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto text-gray-200 font-light">
-            {slides[heroIndex].description || 'Serving the area with premium quality concrete and landscaping for over 40 Years'}
+            {slides[heroIndex].description || homeSettings?.heroDescription || 'Serving the area with premium quality concrete and landscaping for over 40 Years'}
           </p>
-          <Link to="/catalog">
+          <Link to={homeSettings?.heroCtaLink || "/catalog"}>
             <Button className="bg-[#2b5c9c] hover:bg-[#1f4577] text-white text-lg px-10 py-6 rounded-md font-semibold transition-colors">
-              {t('home.view_products')}
+              {homeSettings?.heroCtaText || t('home.view_products')}
             </Button>
           </Link>
         </div>
@@ -292,8 +308,13 @@ export function Home() {
         <div className="max-w-7xl mx-auto px-[5%]">
           <div className="text-center mb-16">
             <h2 className="font-serif text-4xl md:text-5xl text-[#3a2f2a] mb-4">
-              {t('home.main_categories')}
+              {homeSettings?.categoriesTitle || t('home.main_categories')}
             </h2>
+            {homeSettings?.categoriesSubtitle && (
+              <p className="text-gray-600 text-base max-w-2xl mx-auto mb-4 font-light">
+                {homeSettings.categoriesSubtitle}
+              </p>
+            )}
             <div className="w-16 h-[1px] bg-[#a8876c] mx-auto"></div>
           </div>
           {categoriesLoading ? (
@@ -334,14 +355,14 @@ export function Home() {
         <div className="w-full bg-[#a8876c] px-[5%] py-16 md:py-24 flex items-center">
             <div className="max-w-7xl mx-auto w-full">
                 <span className="text-[#3a2f2a] text-xs font-bold uppercase tracking-widest mb-4 block">
-                    {t('home.featured_products')}
+                    {homeSettings?.featuredBadge || t('home.featured_products')}
                 </span>
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
                     <h2 className="font-serif text-4xl md:text-6xl text-[#3a2f2a] leading-[1.1] max-w-2xl">
-                        {t('home.featured_headline')}
+                        {homeSettings?.featuredHeadline || t('home.featured_headline')}
                     </h2>
-                    <Link to="/catalog" className="inline-block border-b border-[#3a2f2a] text-[#3a2f2a] font-bold text-sm uppercase tracking-widest pb-1 hover:opacity-70 transition-opacity mb-2">
-                        {t('home.view_catalog')}
+                    <Link to={homeSettings?.featuredCatalogLink || "/catalog"} className="inline-block border-b border-[#3a2f2a] text-[#3a2f2a] font-bold text-sm uppercase tracking-widest pb-1 hover:opacity-70 transition-opacity mb-2">
+                        {homeSettings?.featuredCatalogText || t('home.view_catalog')}
                     </Link>
                 </div>
             </div>
@@ -366,8 +387,8 @@ export function Home() {
               <p>{t('home.no_featured')}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-0 w-full">
-              {featuredProducts.slice(0, 3).map((product, index) => (
+            <div className={`grid grid-cols-1 ${homeSettings?.featuredLimit && homeSettings.featuredLimit > 3 ? 'md:grid-cols-3 lg:grid-cols-4' : 'md:grid-cols-3'} gap-0 w-full`}>
+              {featuredProducts.slice(0, homeSettings?.featuredLimit && homeSettings.featuredLimit > 0 ? homeSettings.featuredLimit : 3).map((product, index) => (
                 <Link
                   key={product.id}
                   to={`/product/${product.id}`}
