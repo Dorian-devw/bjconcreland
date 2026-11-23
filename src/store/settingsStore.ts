@@ -70,6 +70,7 @@ export interface ContactInfoSettings {
   mapUrl?: string;
   directionsUrl?: string;
   subjects?: string[];
+  smsConsentText?: string;
 }
 
 export interface HeavyEquipmentSettings {

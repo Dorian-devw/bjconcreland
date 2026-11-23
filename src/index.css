@@ -45,11 +45,18 @@
   
   html {
     scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: #1e5631 #f8f8f8;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Montserrat', sans-serif;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {

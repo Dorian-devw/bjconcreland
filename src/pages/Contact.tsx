@@ -374,7 +374,7 @@ export function Contact() {
                     className="mt-1 h-4 w-4 shrink-0 rounded-none border-gray-300 text-[#a8876c] focus:ring-[#a8876c]"
                   />
                   <Label htmlFor="agreeSms" className="text-xs text-gray-500 font-normal leading-relaxed cursor-pointer">
-                    I agree to receive SMS messages from JJ Construction. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance.
+                    {contactInfo?.smsConsentText || "I agree to receive SMS messages from BJ Concreland. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance."}
                   </Label>
                 </div>
 

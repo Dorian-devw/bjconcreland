@@ -1581,7 +1581,7 @@ app.get('/api/services', async (req, res) => {
 app.get('/api/gallery', async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items ORDER BY sort_order ASC, created_at DESC'
+      'SELECT id, title, category, image, image AS image_url, description, sort_order AS sortOrder, sort_order AS sort_order, created_at AS createdAt FROM gallery_items ORDER BY sort_order ASC, created_at DESC'
     );
     res.json(rows);
   } catch (error) {
@@ -1590,16 +1590,18 @@ app.get('/api/gallery', async (req, res) => {
 });
 
 app.post('/api/gallery', authMiddleware, async (req, res) => {
-  const { title, category, image, description } = req.body || {};
-  if (!image) return res.status(400).json({ error: 'URL de imagen requerida' });
+  const { title, category, image, image_url, description, sort_order, sortOrder } = req.body || {};
+  const finalImage = (image || image_url || '').trim();
+  if (!finalImage) return res.status(400).json({ error: 'URL de imagen requerida' });
   try {
     const [countRows] = await db.query('SELECT COUNT(*) as n FROM gallery_items');
+    const order = typeof sort_order === 'number' ? sort_order : typeof sortOrder === 'number' ? sortOrder : countRows[0].n;
     const [result] = await db.query(
       'INSERT INTO gallery_items (title, category, image, description, sort_order) VALUES (?, ?, ?, ?, ?)',
-      [title?.trim() || '', category?.trim() || 'All', image.trim(), description?.trim() || '', countRows[0].n]
+      [title?.trim() || '', category?.trim() || 'All', finalImage, description?.trim() || '', order]
     );
     const [newItem] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items WHERE id = ?',
+      'SELECT id, title, category, image, image AS image_url, description, sort_order AS sortOrder, sort_order AS sort_order, created_at AS createdAt FROM gallery_items WHERE id = ?',
       [result.insertId]
     );
     res.status(201).json(newItem[0]);
@@ -1609,15 +1611,24 @@ app.post('/api/gallery', authMiddleware, async (req, res) => {
 });
 
 app.put('/api/gallery/:id', authMiddleware, async (req, res) => {
-  const { title, category, image, description } = req.body || {};
-  if (!image) return res.status(400).json({ error: 'URL de imagen requerida' });
+  const { title, category, image, image_url, description, sort_order, sortOrder } = req.body || {};
+  const finalImage = (image || image_url || '').trim();
+  if (!finalImage) return res.status(400).json({ error: 'URL de imagen requerida' });
   try {
-    await db.query(
-      'UPDATE gallery_items SET title = ?, category = ?, image = ?, description = ? WHERE id = ?',
-      [title?.trim() || '', category?.trim() || 'All', image.trim(), description?.trim() || '', req.params.id]
-    );
+    const order = typeof sort_order === 'number' ? sort_order : typeof sortOrder === 'number' ? sortOrder : null;
+    if (order !== null) {
+      await db.query(
+        'UPDATE gallery_items SET title = ?, category = ?, image = ?, description = ?, sort_order = ? WHERE id = ?',
+        [title?.trim() || '', category?.trim() || 'All', finalImage, description?.trim() || '', order, req.params.id]
+      );
+    } else {
+      await db.query(
+        'UPDATE gallery_items SET title = ?, category = ?, image = ?, description = ? WHERE id = ?',
+        [title?.trim() || '', category?.trim() || 'All', finalImage, description?.trim() || '', req.params.id]
+      );
+    }
     const [updated] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items WHERE id = ?',
+      'SELECT id, title, category, image, image AS image_url, description, sort_order AS sortOrder, sort_order AS sort_order, created_at AS createdAt FROM gallery_items WHERE id = ?',
       [req.params.id]
     );
     res.json(updated[0]);
@@ -1644,7 +1655,7 @@ app.patch('/api/gallery/reorder', authMiddleware, async (req, res) => {
       await db.query('UPDATE gallery_items SET sort_order = ? WHERE id = ?', [i, order[i]]);
     }
     const [rows] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items ORDER BY sort_order ASC, created_at DESC'
+      'SELECT id, title, category, image, image AS image_url, description, sort_order AS sortOrder, sort_order AS sort_order, created_at AS createdAt FROM gallery_items ORDER BY sort_order ASC, created_at DESC'
     );
     res.json(rows);
   } catch (error) {
@@ -1725,82 +1736,6 @@ app.patch('/api/services/reorder', authMiddleware, async (req, res) => {
   }
   const [rows] = await db.query('SELECT id, title, category, description, image, video, content, brand_name AS brandName, brand_tagline AS brandTagline, brand_logo AS brandLogo, home_slot AS homeSlot, sort_order AS sortOrder, image_before AS imageBefore, image_after AS imageAfter, images, created_at FROM services ORDER BY sort_order ASC, created_at DESC');
   res.json(rows);
-});
-
-// ─────────────── GALLERY ───────────────
-
-app.get('/api/gallery', async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items ORDER BY sort_order ASC, created_at DESC'
-    );
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Error obteniendo items de galería', details: error.message });
-  }
-});
-
-app.post('/api/gallery', authMiddleware, async (req, res) => {
-  const { title, category, image, description } = req.body || {};
-  if (!image) return res.status(400).json({ error: 'URL de imagen requerida' });
-  try {
-    const [countRows] = await db.query('SELECT COUNT(*) as n FROM gallery_items');
-    const [result] = await db.query(
-      'INSERT INTO gallery_items (title, category, image, description, sort_order) VALUES (?, ?, ?, ?, ?)',
-      [title?.trim() || '', category?.trim() || 'All', image.trim(), description?.trim() || '', countRows[0].n]
-    );
-    const [newItem] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items WHERE id = ?',
-      [result.insertId]
-    );
-    res.status(201).json(newItem[0]);
-  } catch (error) {
-    res.status(500).json({ error: 'Error creando item de galería', details: error.message });
-  }
-});
-
-app.put('/api/gallery/:id', authMiddleware, async (req, res) => {
-  const { title, category, image, description } = req.body || {};
-  if (!image) return res.status(400).json({ error: 'URL de imagen requerida' });
-  try {
-    await db.query(
-      'UPDATE gallery_items SET title = ?, category = ?, image = ?, description = ? WHERE id = ?',
-      [title?.trim() || '', category?.trim() || 'All', image.trim(), description?.trim() || '', req.params.id]
-    );
-    const [updated] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items WHERE id = ?',
-      [req.params.id]
-    );
-    res.json(updated[0]);
-  } catch (error) {
-    res.status(500).json({ error: 'Error actualizando item de galería', details: error.message });
-  }
-});
-
-app.delete('/api/gallery/:id', authMiddleware, async (req, res) => {
-  try {
-    const [result] = await db.query('DELETE FROM gallery_items WHERE id = ?', [req.params.id]);
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'No encontrado' });
-    res.status(204).send();
-  } catch (error) {
-    res.status(500).json({ error: 'Error eliminando item de galería', details: error.message });
-  }
-});
-
-app.patch('/api/gallery/reorder', authMiddleware, async (req, res) => {
-  const { order } = req.body || {};
-  if (!Array.isArray(order)) return res.status(400).json({ error: 'order array requerido' });
-  try {
-    for (let i = 0; i < order.length; i++) {
-      await db.query('UPDATE gallery_items SET sort_order = ? WHERE id = ?', [i, order[i]]);
-    }
-    const [rows] = await db.query(
-      'SELECT id, title, category, image, description, sort_order AS sortOrder, created_at AS createdAt FROM gallery_items ORDER BY sort_order ASC, created_at DESC'
-    );
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: 'Error reordenando galería', details: error.message });
-  }
 });
 
 // ─────────────── CHAT ───────────────

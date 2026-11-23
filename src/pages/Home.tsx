@@ -179,7 +179,7 @@ export function Home() {
   return (
     <div className="min-h-screen pt-[6.25rem]">
       {/* Hero Section - Full Screen */}
-      <section className="relative min-h-[calc(100vh-6.25rem)] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[580px] md:min-h-[calc(100vh-6.25rem)] flex items-center justify-center overflow-hidden py-12 md:py-0">
         {/* Carrusel de fondos */}
         {slides.map((slide, i) => (
           <div
@@ -197,7 +197,7 @@ export function Home() {
         <div className="absolute inset-0 bg-black/50 z-[1]" />
 
         {/* Indicadores del carrusel */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-30 flex gap-2 pointer-events-auto">
           {slides.map((_, i) => (
             <button
               key={i}
@@ -211,8 +211,8 @@ export function Home() {
         </div>
 
         {/* Content */}
-        <div className="relative z-10 text-center text-white px-4 animate-fadeIn w-full max-w-7xl mx-auto">
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-light mb-6 leading-[1.1] tracking-tight">
+        <div className="relative z-20 text-center text-white px-4 animate-fadeIn w-full max-w-7xl mx-auto pt-8 md:pt-12 pb-24 sm:pb-28">
+          <h1 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-light mb-6 leading-[1.1] tracking-tight">
             {slides[heroIndex].title || slides[heroIndex].highlight ? (
               <>
                 {slides[heroIndex].title}

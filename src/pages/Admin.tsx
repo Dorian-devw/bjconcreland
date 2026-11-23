@@ -77,7 +77,7 @@ import {
 import type { Order, Product, ProductTag } from '@/types';
 import { translations } from '@/context/LanguageContext';
 
-type AdminSection = 'dashboard' | 'orders' | 'home' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'gallery' | 'footer' | 'settings' | 'chat' | 'messages';
+type AdminSection = 'dashboard' | 'orders' | 'home' | 'products' | 'categories' | 'filterGroups' | 'carousel' | 'promoBanners' | 'offers' | 'services' | 'gallery' | 'contactUs' | 'footer' | 'settings' | 'chat' | 'messages';
 
 export interface ContactMessage {
   id: number;
@@ -447,6 +447,7 @@ export function Admin() {
     mapUrl: '',
     directionsUrl: '',
     subjects: 'Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther',
+    smsConsentText: 'I agree to receive SMS messages from BJ Concreland. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance.',
   });
   const [contactInfoSaving, setContactInfoSaving] = useState(false);
   const [contactInfoError, setContactInfoError] = useState<string | null>(null);
@@ -467,6 +468,7 @@ export function Admin() {
         : (typeof contactInfo.subjects === 'string' && contactInfo.subjects
             ? contactInfo.subjects
             : 'Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther'),
+      smsConsentText: contactInfo.smsConsentText || 'I agree to receive SMS messages from BJ Concreland. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance.',
     });
   }, [contactInfo, fetchContactInfo]);
 
@@ -1089,7 +1091,14 @@ export function Admin() {
       const res = await fetch(`${API}/gallery`);
       if (!res.ok) throw new Error('Error loading gallery');
       const data = await res.json();
-      setGalleryItems(Array.isArray(data) ? data : []);
+      const mapped = Array.isArray(data)
+        ? data.map((item: any) => ({
+            ...item,
+            image_url: item.image_url || item.image || '',
+            sort_order: typeof item.sort_order === 'number' ? item.sort_order : typeof item.sortOrder === 'number' ? item.sortOrder : 0,
+          }))
+        : [];
+      setGalleryItems(mapped);
     } catch {
       setGalleryItems([]);
     } finally {
@@ -1116,9 +1125,9 @@ export function Admin() {
     setGalleryForm({
       title: item.title,
       category: item.category || 'Concrete',
-      image_url: item.image_url,
+      image_url: item.image_url || (item as any).image || '',
       description: item.description || '',
-      sort_order: item.sort_order || 0,
+      sort_order: typeof item.sort_order === 'number' ? item.sort_order : typeof (item as any).sortOrder === 'number' ? (item as any).sortOrder : 0,
     });
     setUploadGalleryPhotoError(null);
     setGalleryError(null);
@@ -1131,8 +1140,9 @@ export function Admin() {
       setGalleryError('Title is required');
       return;
     }
-    if (!galleryForm.image_url.trim()) {
-      setGalleryError('Image URL is required');
+    const finalImageUrl = galleryForm.image_url.trim();
+    if (!finalImageUrl) {
+      setGalleryError('Image URL or uploaded photo is required');
       return;
     }
 
@@ -1144,10 +1154,20 @@ export function Admin() {
         ? `${API}/gallery/${editingGalleryItem.id}`
         : `${API}/gallery`;
 
+      const payload = {
+        title: galleryForm.title.trim(),
+        category: galleryForm.category.trim() || 'Concrete',
+        image: finalImageUrl,
+        image_url: finalImageUrl,
+        description: galleryForm.description.trim(),
+        sort_order: galleryForm.sort_order || 0,
+        sortOrder: galleryForm.sort_order || 0,
+      };
+
       const res = await fetchWithAuth(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(galleryForm),
+        body: JSON.stringify(payload),
       });
 
       if (res.status === 401) return logoutAndRedirect();
@@ -2530,6 +2550,7 @@ export function Admin() {
     categories: 'Home Categories', filterGroups: 'Store Filters', carousel: 'Carousel',
     promoBanners: 'Promo Banners', offers: 'Offers', services: 'Services / Blog',
     gallery: 'Photo Gallery',
+    contactUs: 'Contact Us',
     footer: 'Footer',
     settings: 'Settings', chat: 'Live Chat', messages: 'Inquiries',
   };
@@ -2572,6 +2593,7 @@ export function Admin() {
           {navItem('products', <Package className="w-4 h-4" />, t('admin.products'))}
           {navItem('services', <BookOpen className="w-4 h-4" />, t('admin.services'))}
           {navItem('gallery', <Images className="w-4 h-4" />, 'Gallery')}
+          {navItem('contactUs', <Phone className="w-4 h-4" />, 'Contact Us')}
           {navItem('categories', <Layers className="w-4 h-4" />, t('admin.categories'))}
           {navItem('filterGroups', <Filter className="w-4 h-4" />, t('admin.filterGroups'))}
 
@@ -3997,6 +4019,291 @@ export function Admin() {
                     ))}
                 </div>
               )}
+            </>
+          )}
+
+          {/* ========== CONTACT US (Dedicated Content Section) ========== */}
+          {section === 'contactUs' && (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold text-[#0f172a] flex items-center gap-2">
+                    <Phone className="w-7 h-7 text-[#1e5631]" />
+                    Contact Us Customizer
+                  </h1>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Manage office address, phone, email, business hours, Google Maps, inquiry subjects, and the SMS consent checkbox disclaimer displayed on /contact-us
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/contact-us"
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Preview Contact Us
+                  </Link>
+                  <Button
+                    onClick={handleSaveContactInfo}
+                    disabled={contactInfoSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white shadow-xs text-xs font-semibold"
+                  >
+                    {contactInfoSaving && <Loader className="w-4 h-4 mr-1.5 animate-spin" />}
+                    Save Contact Us Settings
+                  </Button>
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="bg-white rounded-2xl p-6 mb-6 shadow-sm border border-slate-200">
+                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Live Contact Form Preview
+                  </span>
+                  <span className="text-[11px] text-slate-400">Updates live as you type below</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left Column: Info Preview */}
+                  <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200/60 text-xs">
+                    <h3 className="font-bold text-slate-900 text-sm">{contactInfoForm.title || 'Get in Touch with Us'}</h3>
+                    <p className="text-slate-600 leading-relaxed text-[11px]">
+                      {contactInfoForm.description || 'Ready to bring your concrete and landscaping visions to reality? Contact us for a free estimate or any questions.'}
+                    </p>
+                    <div className="pt-2 border-t border-slate-200 space-y-1.5 text-slate-700 text-[11px]">
+                      <p className="flex items-center gap-2 font-medium">
+                        <MapPin className="w-3.5 h-3.5 text-[#1e5631]" />
+                        <span>{contactInfoForm.address || '6873 South Heather way, West Jordan, Utah 84084'}</span>
+                      </p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <Phone className="w-3.5 h-3.5 text-[#1e5631]" />
+                        <span>{contactInfoForm.phone || '+1 (801) 347-2165'}</span>
+                      </p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <Mail className="w-3.5 h-3.5 text-[#1e5631]" />
+                        <span>{contactInfoForm.email || 'jose.zevallos@bjconcreland.com'}</span>
+                      </p>
+                      <p className="flex items-center gap-2 font-medium">
+                        <Clock className="w-3.5 h-3.5 text-[#1e5631]" />
+                        <span>{contactInfoForm.schedule || 'Monday – Friday: 8:00 AM – 5:00 PM'}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Checkbox Preview */}
+                  <div className="bg-white p-4 rounded-xl border border-dashed border-emerald-300 flex flex-col justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                        SMS Consent Checkbox Preview
+                      </span>
+                      <div className="flex items-start gap-2.5 mt-3 p-3 bg-slate-50 rounded-lg border border-slate-200/80">
+                        <input
+                          type="checkbox"
+                          checked
+                          readOnly
+                          className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#a8876c] accent-[#1e5631]"
+                        />
+                        <p className="text-xs text-slate-600 leading-relaxed font-normal">
+                          {contactInfoForm.smsConsentText || 'I agree to receive SMS messages from BJ Concreland. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance.'}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-2 italic">
+                      Required for commercial 10DLC SMS compliance on the public contact form.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Settings Form Cards */}
+              <div className="space-y-6 max-w-5xl">
+                {/* 1. Page Header & Intro */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      1. Page Header &amp; Subtitle
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Main title and introduction text displayed on the top of the Contact Us page
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Page Title</Label>
+                      <Input
+                        className="mt-1"
+                        value={contactInfoForm.title}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, title: e.target.value })}
+                        placeholder="Get in Touch with Us"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Introductory Description</Label>
+                      <textarea
+                        className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[90px]"
+                        value={contactInfoForm.description}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, description: e.target.value })}
+                        placeholder="Ready to bring your concrete and landscaping visions to reality? Contact us for a free estimate or any questions."
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Direct Channels & Address */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      2. Direct Contact Channels, Physical Address &amp; Schedule
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Company office address, direct phone, email, and weekly operating schedule
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Contact Phone Number</Label>
+                      <Input
+                        className="mt-1"
+                        value={contactInfoForm.phone}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, phone: e.target.value })}
+                        placeholder="+1 (801) 347-2165"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-slate-700">Contact Email Address</Label>
+                      <Input
+                        className="mt-1"
+                        type="email"
+                        value={contactInfoForm.email}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, email: e.target.value })}
+                        placeholder="jose.zevallos@bjconcreland.com"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Physical Office Address</Label>
+                      <Input
+                        className="mt-1"
+                        value={contactInfoForm.address}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, address: e.target.value })}
+                        placeholder="6873 South Heather way, West Jordan, Utah 84084"
+                      />
+                      <span className="text-[11px] text-gray-400 mt-0.5 block">Shown prominently on the Contact Us page and used for map routing.</span>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Business Hours / Schedule</Label>
+                      <Input
+                        className="mt-1"
+                        value={contactInfoForm.schedule}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, schedule: e.target.value })}
+                        placeholder="Monday – Friday: 8:00 AM – 5:00 PM"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Google Maps & Directions */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      3. Google Maps &amp; Navigation Links
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Optional iframe embed URL and direct direction link (leave blank to generate automatically from address)
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Google Maps Embed URL (Optional override)</Label>
+                      <Input
+                        className="mt-1 text-xs"
+                        value={contactInfoForm.mapUrl}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, mapUrl: e.target.value })}
+                        placeholder="https://maps.google.com/maps?q=...&output=embed (Leave blank to use address automatically)"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs font-semibold text-slate-700">Get Directions Link (Optional override)</Label>
+                      <Input
+                        className="mt-1 text-xs"
+                        value={contactInfoForm.directionsUrl}
+                        onChange={(e) => setContactInfoForm({ ...contactInfoForm, directionsUrl: e.target.value })}
+                        placeholder="https://maps.google.com/?q=... (Leave blank to open address automatically)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Inquiry Subjects */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      4. Form Subjects / Inquiry Topics Dropdown
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      List of subjects available in the dropdown selector on the estimate &amp; contact form (one topic per line)
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">Inquiry Topics (One per line)</Label>
+                    <textarea
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-xs font-mono outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[110px]"
+                      value={contactInfoForm.subjects}
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, subjects: e.target.value })}
+                      placeholder={"Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther"}
+                    />
+                    <span className="text-[11px] text-gray-400 mt-1 block">
+                      These choices appear in the "Subject" dropdown on the Contact Us form.
+                    </span>
+                  </div>
+                </div>
+
+                {/* 5. SMS Consent Checkbox Text */}
+                <div className="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6">
+                  <div className="border-b border-gray-100 pb-3 mb-4">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1e5631]"></span>
+                      5. SMS Consent Checkbox Disclaimer (Form Legal Text)
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Customize the text displayed directly next to the mandatory SMS consent checkbox on the contact form
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-700">SMS Consent Disclaimer Text</Label>
+                    <textarea
+                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[90px]"
+                      value={contactInfoForm.smsConsentText}
+                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, smsConsentText: e.target.value })}
+                      placeholder="I agree to receive SMS messages from BJ Concreland. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Reply HELP for assistance."
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Tip: Specify your brand name, frequency notice, and opt-out instructions (STOP/HELP) to comply with telecommunication regulations.
+                    </p>
+                  </div>
+                </div>
+
+                {contactInfoError && (
+                  <div className="p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
+                    {contactInfoError}
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleSaveContactInfo}
+                    disabled={contactInfoSaving}
+                    className="bg-[#1e5631] hover:bg-[#164a28] text-white font-semibold shadow-xs"
+                  >
+                    {contactInfoSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
+                    Save All Contact Us Settings
+                  </Button>
+                </div>
+              </div>
             </>
           )}
 
@@ -5540,7 +5847,6 @@ export function Admin() {
                   { id: 'settings-privacy', label: 'Privacy Policy' },
                   { id: 'settings-texts', label: 'Global Texts' },
                   { id: 'settings-services', label: 'Services Header' },
-                  { id: 'settings-contact', label: 'Contact Page & Address' },
                   { id: 'settings-heavy', label: 'Heavy Equipment' },
                 ].map((item) => (
                   <button
@@ -5942,118 +6248,6 @@ export function Admin() {
                   <Button onClick={handleSaveServicesHeader} disabled={servicesHeaderSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
                     {servicesHeaderSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
                     Save Services Header
-                  </Button>
-                </div>
-              </div>
-
-              {/* contact settings*/}
-              <div id="settings-contact" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 max-w-4xl mt-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-[#333]">Contact Page &amp; Address</h3>
-                    <p className="text-xs text-gray-500 mt-0.5">Customize company address, phone, email, business hours, and Google Maps</p>
-                  </div>
-                  <span className="text-xs bg-emerald-50 text-[#1e5631] font-semibold px-2.5 py-1 rounded-full border border-emerald-200">
-                    Live on /contact
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Label>Title</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={contactInfoForm.title} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, title: e.target.value })} 
-                      placeholder="Get in Touch with Us" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Description</Label>
-                    <textarea 
-                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-sm outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[90px]"
-                      value={contactInfoForm.description}
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, description: e.target.value })}
-                      placeholder="Ready to bring your concrete and landscaping visions to reality? Contact us for a free estimate or any questions."
-                    />
-                  </div>
-                  <div>
-                    <Label>Contact Phone</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={contactInfoForm.phone} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, phone: e.target.value })} 
-                      placeholder="+1 (801) 347-2165" 
-                    />
-                  </div>
-                  <div>
-                    <Label>Contact Email</Label>
-                    <Input 
-                      className="mt-1" 
-                      type="email"
-                      value={contactInfoForm.email} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, email: e.target.value })} 
-                      placeholder="jose.zevallos@bjconcreland.com" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Physical Office Address</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={contactInfoForm.address} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, address: e.target.value })} 
-                      placeholder="6873 South Heather way, West Jordan, Utah 84084" 
-                    />
-                    <span className="text-[11px] text-gray-400 mt-0.5 block">Shown prominently on the Contact Us page and used for map routing.</span>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Business Hours / Schedule</Label>
-                    <Input 
-                      className="mt-1" 
-                      value={contactInfoForm.schedule} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, schedule: e.target.value })} 
-                      placeholder="Monday – Friday: 8:00 AM – 5:00 PM" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Google Maps Embed URL (Optional override)</Label>
-                    <Input 
-                      className="mt-1 text-xs" 
-                      value={contactInfoForm.mapUrl} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, mapUrl: e.target.value })} 
-                      placeholder="https://maps.google.com/maps?q=...&output=embed (Leave blank to use address automatically)" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Get Directions Link (Optional override)</Label>
-                    <Input 
-                      className="mt-1 text-xs" 
-                      value={contactInfoForm.directionsUrl} 
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, directionsUrl: e.target.value })} 
-                      placeholder="https://maps.google.com/?q=... (Leave blank to open address automatically)" 
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Form Subjects / Inquiry Topics (One per line)</Label>
-                    <textarea 
-                      className="w-full mt-1 p-3 border border-gray-300 rounded-md text-xs font-mono outline-none focus:border-[#1e5631] focus:ring-1 focus:ring-[#1e5631] min-h-[110px]"
-                      value={contactInfoForm.subjects}
-                      onChange={(e) => setContactInfoForm({ ...contactInfoForm, subjects: e.target.value })}
-                      placeholder={"Free Estimate / Quote\nConcrete Work (Driveway, Patio, Foundation)\nLandscaping & Synthetic Turf\nCommercial Project\nGeneral Inquiry\nOther"}
-                    />
-                    <span className="text-[11px] text-gray-400 mt-0.5 block">
-                      These are the choices shown to visitors in the "Subject" dropdown on the Contact Us form. Enter each topic on a new line.
-                    </span>
-                  </div>
-                </div>
-                {contactInfoError && (
-                  <div className="mt-4 p-3 bg-red-50 text-red-600 rounded-md border border-red-100 text-sm">
-                    {contactInfoError}
-                  </div>
-                )}
-                <div className="mt-6 flex justify-end">
-                  <Button onClick={handleSaveContactInfo} disabled={contactInfoSaving} className="bg-[#1e5631] hover:bg-[#164a28]">
-                    {contactInfoSaving && <Loader className="w-4 h-4 mr-2 animate-spin" />}
-                    Save Contact
                   </Button>
                 </div>
               </div>
@@ -7524,7 +7718,10 @@ export function Admin() {
                         'gallery',
                         setUploadingGalleryPhoto,
                         setUploadGalleryPhotoError,
-                        (url) => setGalleryForm((f) => ({ ...f, image_url: url }))
+                        (url) => {
+                          setGalleryForm((f) => ({ ...f, image_url: url }));
+                          setGalleryError(null);
+                        }
                       );
                     }}
                   />

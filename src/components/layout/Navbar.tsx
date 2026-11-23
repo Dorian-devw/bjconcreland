@@ -123,13 +123,13 @@ export function Navbar() {
           </button>
 
           {/* Desktop Navigation: Centered */}
-          <div className="hidden lg:flex items-center gap-8 font-semibold text-[#4a5568]">
+          <div className="hidden lg:flex items-center gap-4 xl:gap-8 font-semibold text-[#4a5568]">
             {navLinks.map((link) => (
               <button
                 key={link.path}
                 type="button"
                 onClick={() => handleNavigation(link.path)}
-                className={`transition-colors hover:text-[#2b5c9c] text-sm uppercase tracking-wide focus:outline-none flex items-center bg-transparent border-0 cursor-pointer ${
+                className={`transition-colors hover:text-[#2b5c9c] text-xs xl:text-sm uppercase tracking-wide focus:outline-none flex items-center bg-transparent border-0 cursor-pointer ${
                   location.pathname === link.path ? 'text-[#2b5c9c] border-b-2 border-[#2b5c9c] pb-1' : 'pb-1 border-b-2 border-transparent'
                 }`}
               >

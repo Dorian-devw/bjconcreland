@@ -44,7 +44,14 @@ export function Gallery() {
         const res = await fetch(`${API}/gallery`);
         if (res.ok) {
           const data = await res.json();
-          if (isMounted) setItems(data);
+          const mapped = Array.isArray(data)
+            ? data.map((item: any) => ({
+                ...item,
+                image_url: item.image_url || item.image || '',
+                sort_order: typeof item.sort_order === 'number' ? item.sort_order : typeof item.sortOrder === 'number' ? item.sortOrder : 0,
+              }))
+            : [];
+          if (isMounted) setItems(mapped);
         }
       } catch (err) {
         console.error('Failed to load gallery items:', err);
