@@ -44,6 +44,7 @@ import {
   Images,
   MapPin,
   PanelBottom,
+  Globe,
 } from 'lucide-react';
 import { generateReceipt } from '@/lib/generateReceipt';
 import { useLanguage } from '@/context/LanguageContext';
@@ -289,16 +290,19 @@ export function Admin() {
     contactInfo, setContactInfo, fetchContactInfo,
     heavyEquipment, setHeavyEquipment, fetchHeavyEquipment,
     siteTexts, setSiteTexts, fetchSiteTexts,
-    tabTitle, setTabTitle, fetchTabTitle
+    tabTitle, setTabTitle,
+    seoSettings, setSeoSettings, fetchSeoSettings
   } = useSettingsStore();
 
   const [siteTextsForm, setSiteTextsForm] = useState<Record<string, string>>(siteTexts || {});
   const [siteTextsSaving, setSiteTextsSaving] = useState(false);
   const [siteTextsError, setSiteTextsError] = useState<string | null>(null);
 
-  const [tabTitleForm, setTabTitleForm] = useState(tabTitle || '');
-  const [tabTitleSaving, setTabTitleSaving] = useState(false);
-  const [tabTitleError, setTabTitleError] = useState<string | null>(null);
+  const [seoTitleForm, setSeoTitleForm] = useState(seoSettings?.tabTitle || tabTitle || '');
+  const [seoDescForm, setSeoDescForm] = useState(seoSettings?.metaDescription || '');
+  const [seoKeywordsForm, setSeoKeywordsForm] = useState(seoSettings?.metaKeywords || '');
+  const [seoSaving, setSeoSaving] = useState(false);
+  const [seoError, setSeoError] = useState<string | null>(null);
 
   const [termsForm, setTermsForm] = useState(terms || '');
   const [termsSaving, setTermsSaving] = useState(false);
@@ -384,12 +388,14 @@ export function Admin() {
   }, [siteTexts, fetchSiteTexts]);
 
   useEffect(() => {
-    if (tabTitle === null) {
-      fetchTabTitle();
+    if (seoSettings === null) {
+      fetchSeoSettings();
     } else {
-      setTabTitleForm(tabTitle);
+      setSeoTitleForm(seoSettings.tabTitle || '');
+      setSeoDescForm(seoSettings.metaDescription || '');
+      setSeoKeywordsForm(seoSettings.metaKeywords || '');
     }
-  }, [tabTitle, fetchTabTitle]);
+  }, [seoSettings, fetchSeoSettings]);
 
   useEffect(() => {
     if (logoWidth) {
@@ -664,27 +670,36 @@ export function Admin() {
     }
   };
 
-  const handleSaveTabTitle = async () => {
-    setTabTitleSaving(true);
-    setTabTitleError(null);
+  const handleSaveSeo = async () => {
+    setSeoSaving(true);
+    setSeoError(null);
     try {
-      const res = await fetchWithAuth(`${API}/settings/tab_title`, {
+      const res = await fetchWithAuth(`${API}/settings/seo`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tabTitle: tabTitleForm })
+        body: JSON.stringify({
+          tabTitle: seoTitleForm,
+          metaDescription: seoDescForm,
+          metaKeywords: seoKeywordsForm,
+        })
       });
       if (res.status === 401) {
         logout();
         navigate('/login');
         return;
       }
-      if (!res.ok) throw new Error('Error saving tab title');
-      setTabTitle(tabTitleForm);
-      toast.success('Browser tab title updated');
+      if (!res.ok) throw new Error('Error saving SEO settings');
+      setSeoSettings({
+        tabTitle: seoTitleForm,
+        metaDescription: seoDescForm,
+        metaKeywords: seoKeywordsForm,
+      });
+      setTabTitle(seoTitleForm);
+      toast.success('Google SEO & Tab Title updated successfully');
     } catch (e) {
-      setTabTitleError(e instanceof Error ? e.message : 'Error saving tab title');
+      setSeoError(e instanceof Error ? e.message : 'Error saving SEO settings');
     } finally {
-      setTabTitleSaving(false);
+      setSeoSaving(false);
     }
   };
 
@@ -5841,7 +5856,7 @@ export function Admin() {
               {/* Quick Jump Navigation */}
               <div className="flex flex-wrap gap-2 mb-6">
                 {[
-                  { id: 'settings-tab-title', label: 'Tab Title' },
+                  { id: 'settings-tab-title', label: 'Google SEO & Tab Title' },
                   { id: 'settings-logo', label: 'Site Logo' },
                   { id: 'settings-terms', label: 'Terms & Conditions' },
                   { id: 'settings-privacy', label: 'Privacy Policy' },
@@ -5864,25 +5879,110 @@ export function Admin() {
               </div>
 
               <div id="settings-tab-title" className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-                <h3 className="text-lg font-semibold text-[#333] mb-4">Browser Tab Title</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-[#333] flex items-center gap-2">
+                      <Globe className="w-5 h-5 text-[#1e5631]" />
+                      Google Search & SEO Settings
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Customize how your website appears on Google, Bing, social shares, and browser tabs. Replaces old titles like "JJ construccion".
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 self-start sm:self-auto">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" /> SEO Active
+                  </span>
+                </div>
+
+                {/* Live Google Search Result Preview */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 font-sans">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-blue-600" /> Live Google Search Result Preview
+                  </p>
+                  <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-xs max-w-2xl">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-700 border border-slate-200 overflow-hidden shrink-0">
+                        {logo ? <img src={logo} alt="" className="w-4 h-4 object-contain" /> : 'BJ'}
+                      </div>
+                      <div className="text-xs leading-tight min-w-0">
+                        <div className="font-medium text-slate-900 truncate">bjconcreland.com</div>
+                        <div className="text-slate-500 text-[11px] truncate">https://bjconcreland.com</div>
+                      </div>
+                    </div>
+                    <h4 className="text-[19px] text-[#1a0dab] hover:underline cursor-pointer font-normal leading-snug line-clamp-1">
+                      {seoTitleForm || 'B&J Concrete LLC | BJ Concreland - Utah'}
+                    </h4>
+                    <p className="text-[13px] text-[#4d5156] mt-1 line-clamp-2 leading-relaxed">
+                      {seoDescForm || 'B&J Concrete LLC (BJ Concreland) - Premier concrete contractor, artificial turf, stamped concrete, retaining walls, and landscaping in Utah. Call +1 (801) 347-2165 for a free estimate.'}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2 italic">
+                    * This preview illustrates how your site appears to potential clients searching for "bj concrete", "bj concreland", or "concreland" on Google.
+                  </p>
+                </div>
+
                 <div className="flex flex-col gap-4">
                   <div>
-                    <Label>Text shown in the browser tab</Label>
+                    <Label className="text-sm font-medium text-slate-700">
+                      Website & Google Title <span className="text-xs text-slate-400 font-normal">(Replaces "JJ construccion")</span>
+                    </Label>
                     <Input 
                       className="mt-1" 
-                      value={tabTitleForm} 
-                      onChange={(e) => setTabTitleForm(e.target.value)} 
-                      placeholder="e.g. BJ Concreland | Concrete, Turf &amp; Landscaping" 
+                      value={seoTitleForm} 
+                      onChange={(e) => {
+                        setSeoTitleForm(e.target.value);
+                      }} 
+                      placeholder="e.g. B&J Concrete LLC | BJ Concreland - Utah" 
                     />
-                    {tabTitleError && <p className="text-sm text-red-500 mt-2">{tabTitleError}</p>}
+                    <p className="text-xs text-slate-500 mt-1">Recommended format: Business Name | Core Services & Location (under 60 characters for best display).</p>
                   </div>
-                  <Button
-                    onClick={handleSaveTabTitle}
-                    disabled={tabTitleSaving}
-                    className="bg-[#1e5631] hover:bg-[#164a28] text-white self-start"
-                  >
-                    {tabTitleSaving ? 'Saving...' : 'Save Tab Title'}
-                  </Button>
+
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">
+                      Google Search Description (Meta Snippet)
+                    </Label>
+                    <textarea
+                      rows={3}
+                      className="mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1e5631]/20 focus:border-[#1e5631]"
+                      value={seoDescForm}
+                      onChange={(e) => setSeoDescForm(e.target.value)}
+                      placeholder="e.g. B&J Concrete LLC (BJ Concreland) - Premier concrete contractor, artificial turf, stamped concrete, retaining walls, and landscaping in Utah. Call +1 (801) 347-2165 for a free estimate."
+                    />
+                    <div className="flex justify-between items-center text-xs text-slate-500 mt-1">
+                      <span>Summary displayed directly under the title in search engines.</span>
+                      <span className={seoDescForm.length > 165 ? 'text-amber-600 font-medium' : ''}>{seoDescForm.length} / 160 characters</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">
+                      Search Keywords (SEO Keywords)
+                    </Label>
+                    <Input 
+                      className="mt-1" 
+                      value={seoKeywordsForm} 
+                      onChange={(e) => setSeoKeywordsForm(e.target.value)} 
+                      placeholder="bj concreland, bj concrete, b&j concrete llc, concreland, concrete contractor west jordan, artificial turf, landscaping" 
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Comma-separated terms matching what customers search on Google and Bing.</p>
+                  </div>
+
+                  {/* Informative Note for Don Jose */}
+                  <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 leading-relaxed">
+                    <strong>Important note about Google updates:</strong> Saving these settings updates your website metadata instantly. Google Search caches old page titles (like the previous "JJ construccion") and re-crawls websites periodically. To speed up Google's update, you or your webmaster can submit a <em>"Request Indexing"</em> via <strong>Google Search Console</strong>.
+                  </div>
+
+                  {seoError && <p className="text-sm text-red-500">{seoError}</p>}
+
+                  <div className="flex items-center gap-3 pt-1">
+                    <Button
+                      onClick={handleSaveSeo}
+                      disabled={seoSaving}
+                      className="bg-[#1e5631] hover:bg-[#164a28] text-white"
+                    >
+                      {seoSaving ? 'Saving SEO Settings...' : 'Save Google SEO Settings'}
+                    </Button>
+                  </div>
                 </div>
               </div>
 

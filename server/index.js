@@ -912,7 +912,7 @@ app.put('/api/settings/heavy_equipment', authMiddleware, async (req, res) => {
 app.get('/api/settings/tab_title', async (req, res) => {
   try {
     const [rows] = await db.query("SELECT `value` FROM app_settings WHERE `key` = 'tab_title'");
-    const tabTitle = rows[0]?.value || 'BJ Concreland | Concrete, Artificial Turf & Landscaping';
+    const tabTitle = rows[0]?.value || 'B&J Concrete LLC | BJ Concreland - Utah';
     res.json({ tabTitle });
   } catch (error) {
     res.status(500).json({ error: 'Error obteniendo título de pestaña' });
@@ -927,11 +927,60 @@ app.put('/api/settings/tab_title', authMiddleware, async (req, res) => {
   try {
     await db.query(
       "INSERT INTO app_settings (`key`, `value`) VALUES ('tab_title', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
-      [tabTitle],
+      [tabTitle.trim()],
     );
     res.json({ tabTitle });
   } catch (error) {
     res.status(500).json({ error: 'Error guardando título de pestaña' });
+  }
+});
+
+app.get('/api/settings/seo', async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      "SELECT `key`, `value` FROM app_settings WHERE `key` IN ('tab_title', 'meta_description', 'meta_keywords')"
+    );
+    const map = {};
+    for (const r of rows) map[r.key] = r.value;
+    res.json({
+      tabTitle: map.tab_title || 'B&J Concrete LLC | BJ Concreland - Utah',
+      metaDescription: map.meta_description || 'B&J Concrete LLC (BJ Concreland) - Premier concrete contractor, artificial turf, stamped concrete, retaining walls, and landscaping in Utah. Call +1 (801) 347-2165 for a free estimate.',
+      metaKeywords: map.meta_keywords || 'bj concreland, bj concrete, b&j concrete, b&j concrete llc, concreland, concrete contractor west jordan, artificial turf, landscaping utah',
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error obteniendo SEO settings' });
+  }
+});
+
+app.put('/api/settings/seo', authMiddleware, async (req, res) => {
+  const { tabTitle, metaDescription, metaKeywords } = req.body || {};
+  try {
+    if (typeof tabTitle === 'string') {
+      await db.query(
+        "INSERT INTO app_settings (`key`, `value`) VALUES ('tab_title', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+        [tabTitle.trim()]
+      );
+    }
+    if (typeof metaDescription === 'string') {
+      await db.query(
+        "INSERT INTO app_settings (`key`, `value`) VALUES ('meta_description', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+        [metaDescription.trim()]
+      );
+    }
+    if (typeof metaKeywords === 'string') {
+      await db.query(
+        "INSERT INTO app_settings (`key`, `value`) VALUES ('meta_keywords', ?) ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+        [metaKeywords.trim()]
+      );
+    }
+    res.json({
+      success: true,
+      tabTitle: tabTitle || '',
+      metaDescription: metaDescription || '',
+      metaKeywords: metaKeywords || '',
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Error guardando SEO settings' });
   }
 });
 

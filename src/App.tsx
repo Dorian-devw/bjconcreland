@@ -33,23 +33,36 @@ function AppContent() {
   const isAdmin = location.pathname === '/jozarzc';
   const hideFooter = isAdmin;
 
-  const { logo, tabTitle, fetchTabTitle } = useSettingsStore();
+  const { logo, tabTitle, seoSettings, fetchSeoSettings } = useSettingsStore();
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
   useEffect(() => {
-    if (tabTitle === null) {
-      fetchTabTitle();
+    if (seoSettings === null) {
+      fetchSeoSettings();
     }
-  }, [tabTitle, fetchTabTitle]);
+  }, [seoSettings, fetchSeoSettings]);
 
   useEffect(() => {
-    if (tabTitle) {
-      document.title = tabTitle;
+    const title = seoSettings?.tabTitle || tabTitle;
+    if (title) {
+      document.title = title;
+      const ogTitle = document.querySelector('meta[property="og:title"]');
+      if (ogTitle) ogTitle.setAttribute('content', title);
     }
-  }, [tabTitle, location.pathname]);
+    if (seoSettings?.metaDescription) {
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute('content', seoSettings.metaDescription);
+      const ogDesc = document.querySelector('meta[property="og:description"]');
+      if (ogDesc) ogDesc.setAttribute('content', seoSettings.metaDescription);
+    }
+    if (seoSettings?.metaKeywords) {
+      const metaKeys = document.querySelector('meta[name="keywords"]');
+      if (metaKeys) metaKeys.setAttribute('content', seoSettings.metaKeywords);
+    }
+  }, [tabTitle, seoSettings, location.pathname]);
 
   useEffect(() => {
     if (logo) {

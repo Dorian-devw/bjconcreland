@@ -81,6 +81,12 @@ export interface HeavyEquipmentSettings {
   bottomText: string;
 }
 
+export interface SeoSettings {
+  tabTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
+}
+
 interface SettingsState {
   logo: string | null;
   logoWidth: number | null;
@@ -118,6 +124,9 @@ interface SettingsState {
   tabTitle: string | null;
   fetchTabTitle: () => Promise<void>;
   setTabTitle: (title: string) => void;
+  seoSettings: SeoSettings | null;
+  fetchSeoSettings: () => Promise<void>;
+  setSeoSettings: (seo: SeoSettings) => void;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
@@ -134,6 +143,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   heavyEquipment: null,
   siteTexts: null,
   tabTitle: null,
+  seoSettings: null,
   loading: false,
   fetchLogo: async () => {
     set({ loading: true });
@@ -322,4 +332,25 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     }
   },
   setTabTitle: (tabTitle) => set({ tabTitle }),
+
+  fetchSeoSettings: async () => {
+    try {
+      const res = await fetch(`${API}/settings/seo`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          set({
+            seoSettings: data,
+            tabTitle: data.tabTitle || null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching SEO settings:', error);
+    }
+  },
+  setSeoSettings: (seoSettings) => set({
+    seoSettings,
+    tabTitle: seoSettings.tabTitle || null,
+  }),
 }));
