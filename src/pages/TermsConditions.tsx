@@ -15,7 +15,7 @@ export function TermsConditions() {
         <div className="min-h-screen bg-gray-50 pt-[8.75rem] pb-24">
             <div className="max-w-3xl mx-auto px-[5%]">
                 <div className="bg-white rounded-2xl shadow-sm p-8 md:p-12">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms &amp; Conditions &ndash; JJ construcci&oacute;n</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Terms &amp; Conditions &ndash; B&amp;J Concrete LLC (BJ Concreland)</h1>
                     {/* If we have dynamic terms, render them */}
                     {terms ? (
                        <div
@@ -34,7 +34,7 @@ export function TermsConditions() {
                         <section>
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Program Description</h2>
                             <p>
-                                JJ contrucci&oacute;n provides SMS notifications related to inquiries submitted through our website.
+                                B&amp;J Concrete LLC (BJ Concreland) provides SMS notifications related to inquiries submitted through our website.
                             </p>
                         </section>
 

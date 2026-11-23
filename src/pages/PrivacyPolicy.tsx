@@ -16,7 +16,7 @@ export function PrivacyPolicy() {
         <div className="min-h-screen bg-gray-50 pt-[8.75rem] pb-24">
             <div className="max-w-3xl mx-auto px-[5%]">
                 <div className="bg-white rounded-2xl shadow-sm p-8 md:p-12">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy &ndash; JJ construcci&oacute;n</h1>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">Privacy Policy &ndash; B&amp;J Concrete LLC (BJ Concreland)</h1>
                     <p className="text-gray-500 mb-8">Effective Date: 04/03/2026</p>
 
                     <div className="space-y-4 text-gray-700">
